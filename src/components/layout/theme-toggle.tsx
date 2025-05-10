@@ -7,7 +7,7 @@ import { useTheme } from "@/components/providers/theme-provider"
 import { Button } from "@/components/ui/button"
 
 export function ThemeToggle() {
-  const { theme, setTheme, toggleTheme } = useTheme()
+  const { resolvedTheme, toggleTheme } = useTheme() // Use resolvedTheme for UI
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -24,10 +24,10 @@ export function ThemeToggle() {
       variant="outline"
       size="icon"
       onClick={toggleTheme}
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
       className="h-9 w-9"
     >
-      {theme === "dark" ? (
+      {resolvedTheme === "dark" ? (
         <Sun className="h-[1.2rem] w-[1.2rem]" />
       ) : (
         <Moon className="h-[1.2rem] w-[1.2rem]" />
@@ -35,3 +35,4 @@ export function ThemeToggle() {
     </Button>
   )
 }
+

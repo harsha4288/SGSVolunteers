@@ -38,10 +38,8 @@ export default function RootLayout({
         )}
       >
         <ThemeProvider
-          attribute="class"
+          storageKey="volunteerverse-theme"
           defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
         >
           {children}
           <Toaster />
@@ -62,3 +60,4 @@ export default function RootLayout({
 // <ThemeProvider defaultTheme="system" storageKey="volunteerverse-theme">
 // The custom provider handles 'attribute' by directly manipulating document.documentElement.classList
 // and 'enableSystem' / 'disableTransitionOnChange' are not direct props but concepts handled within its logic.
+

@@ -1,6 +1,6 @@
 
 import type { NavItem } from "@/lib/types";
-import { LayoutDashboard, Users, Sparkles, Handshake } from "lucide-react";
+import { LayoutDashboard, Users, Sparkles, Handshake, Shirt, ClipboardCheck } from "lucide-react";
 
 export const SITE_CONFIG = {
   name: "VolunteerVerse",
@@ -29,4 +29,15 @@ export const APP_NAV_ITEMS: NavItem[] = [
     href: "/app/ai-tagging",
     icon: Sparkles,
   },
+  {
+    title: "T-shirt Inventory",
+    href: "/app/inventory",
+    icon: Shirt,
+  },
+  {
+    title: "Check-in System",
+    href: "/app/check-in",
+    icon: ClipboardCheck,
+  },
 ];
+
