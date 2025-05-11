@@ -7,13 +7,11 @@ import { SITE_CONFIG } from '@/lib/constants';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { UserCheck, AlertCircle, List, Mail } from 'lucide-react';
+import { UserCheck, AlertCircle, List } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Profile } from '@/lib/types/supabase';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -24,7 +22,6 @@ export default function LoginPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const LogoIcon = SITE_CONFIG.logo;
   const { toast } = useToast();
-
 
   useEffect(() => {
     try {
@@ -38,75 +35,76 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      // If supabase client isn't initialized yet, and we are not already in a loading state for profiles,
+      // set loading profiles to true to prevent premature "No Profiles Found" message.
+      if (!loadingProfiles && !error) { // only set if not already loading or errored from client init
+        setLoadingProfiles(true);
+      }
+      return;
+    }
 
     const fetchProfiles = async () => {
       setLoadingProfiles(true);
-      setError(null);
-      const consoleLogParts: any[] = ["Error fetching profiles:"];
-      let uiDetailMessage = "An unknown error occurred.";
+      setError(null); // Clear previous errors
 
       try {
-        if (!supabase) {
-          uiDetailMessage = "Supabase client not available for fetching profiles.";
-          consoleLogParts.push(uiDetailMessage);
-          throw new Error(uiDetailMessage);
-        }
-
         const { data, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, email, display_name, user_id') // Ensure user_id is selected if needed for impersonation logic
+          .select('id, email, display_name, user_id')
           .order('email', { ascending: true });
 
         if (profilesError) {
-          consoleLogParts.push("Supabase error object:", profilesError);
-          throw profilesError;
+          // This block handles errors returned by Supabase API (e.g., RLS, table not found)
+          const logItems: any[] = ["Error fetching profiles from Supabase API:"];
+          let uiMsg = `Error from database: ${profilesError.message}.`;
+
+          if (profilesError.message.toLowerCase().includes("rls") || profilesError.message.toLowerCase().includes("permission denied")) {
+            uiMsg += " This often indicates a Row Level Security (RLS) issue or missing table grants. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role (for unauthenticated listing) or the relevant authenticated role has SELECT access.";
+          }
+          
+          logItems.push("Supabase error object:", profilesError);
+          console.error(...logItems);
+          setError(uiMsg);
+          setProfiles([]);
+          return;
         }
+        
         const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
         setProfiles(validProfiles);
-      } catch (err: any) { 
-        
-        if (err && typeof err === 'object' && Object.keys(err).length === 0 && err.constructor === Object) {
-          const rlsHint = "This often indicates a permissions issue (Row Level Security or table grants in Supabase) or a network problem preventing a full error response. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role has SELECT access if unauthenticated users need to list profiles for impersonation.";
-          uiDetailMessage = `The operation failed, and the error object received from the server was empty. ${rlsHint}`;
-          consoleLogParts.push(`Received empty error object. ${rlsHint}`, err);
-        } else if (err) {
-          if (typeof err.message === 'string' && err.message.trim() !== "") {
-            uiDetailMessage = err.message;
-            if (uiDetailMessage.toLowerCase().includes("failed to fetch")) {
-              uiDetailMessage += " This could be due to network connectivity issues or, more commonly, Row Level Security (RLS) policies on the 'profiles' table in Supabase preventing access. Please ensure the 'anon' role has SELECT permission for listing profiles. Also verify your Supabase URL and Anon Key are correct.";
-            }
-            consoleLogParts.push(err.message, err);
-          } else if (typeof err.details === 'string' && err.details.trim() !== "") {
-            uiDetailMessage = err.details;
-            consoleLogParts.push(err.details, err);
-          } else if (typeof err === 'string' && err.trim() !== "") {
-            uiDetailMessage = err;
-            consoleLogParts.push(err);
-          } else {
-            try {
-              const errString = JSON.stringify(err);
-              uiDetailMessage = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration. Check RLS policies.`;
-              consoleLogParts.push(`Non-standard error: ${errString}`, err);
-            } catch {
-              uiDetailMessage = "The operation failed, and the error object was unreadable. Check network, Supabase status, and ensure RLS policies grant necessary access to the 'profiles' table for the 'anon' role.";
-              consoleLogParts.push("Unreadable error object.", err);
-            }
-          }
+
+      } catch (fetchOperationError: any) { // This block catches general errors like "Failed to fetch"
+        let detailedMessage = "Failed to fetch profiles. ";
+        const logItems: any[] = ["Error during fetchProfiles operation:"];
+
+        if (fetchOperationError?.message?.toLowerCase().includes("failed to fetch")) {
+            detailedMessage += `This commonly indicates a network connectivity problem, a CORS issue, or an incorrect Supabase URL/Anon Key.
+            Please verify:
+            1. Your internet connection, VPN, and any firewalls/proxies.
+            2. Supabase URL (NEXT_PUBLIC_SUPABASE_URL in your .env.local file): It should be your project's API URL (e.g., https://yourprojectid.supabase.co), NOT the database host (e.g., db.yourprojectid.supabase.co).
+            3. Supabase Anon Key (NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file) is correct.
+            4. CORS settings in your Supabase project dashboard (Authentication > URL Configuration, and API > CORS Configuration) allow requests from origin: ${typeof window !== "undefined" ? window.location.origin : "your app origin"}.
+            5. Supabase service status (check status.supabase.com).`;
+            logItems.push("Network/CORS or Supabase URL/Key issue suspected due to 'Failed to fetch'. Ensure NEXT_PUBLIC_SUPABASE_URL is the API URL, not the DB host.");
+        } else if (fetchOperationError?.message) {
+            detailedMessage += `Details: ${fetchOperationError.message}. If this is not a network issue, it could be related to Row Level Security (RLS) policies or table permissions in Supabase. Ensure the 'anon' role (or authenticated role) has SELECT permission on the 'profiles' table.`;
+            logItems.push("Potentially a database-level error or RLS/permissions issue suspected.");
         } else {
-           uiDetailMessage = "An unknown error occurred (error object was null or undefined). Check RLS policies on 'profiles' table.";
-           consoleLogParts.push("Unknown error (err object is null or undefined).");
+            detailedMessage += "An unexpected error occurred. The error object was not informative. Check browser console and Supabase logs for more details.";
+            logItems.push("Unexpected error with uninformative error object.");
         }
         
-        console.error(...consoleLogParts);
-        setError(`Failed to fetch profiles: ${uiDetailMessage}`);
+        logItems.push("Full error caught:", fetchOperationError);
+        console.error(...logItems);
+        setError(detailedMessage);
+        setProfiles([]);
       } finally {
         setLoadingProfiles(false);
       }
     };
 
     fetchProfiles();
-  }, [supabase]);
+  }, [supabase]); // Rerun when supabase client is initialized
 
   const handleImpersonate = (profile: Profile) => {
     if (!profile.id || !profile.email) {
@@ -116,7 +114,7 @@ export default function LoginPage() {
     localStorage.setItem('impersonatedProfileId', profile.id);
     localStorage.setItem('impersonatedEmail', profile.email);
     localStorage.setItem('impersonatedDisplayName', profile.display_name || profile.email.split('@')[0]);
-    if (profile.user_id) { // user_id can be null if profile was imported and not linked to auth user yet
+    if (profile.user_id) {
       localStorage.setItem('impersonatedAuthUserId', profile.user_id);
     } else {
       localStorage.removeItem('impersonatedAuthUserId');
@@ -127,7 +125,6 @@ export default function LoginPage() {
     });
     router.push('/app/dashboard');
   };
-
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
@@ -143,8 +140,8 @@ export default function LoginPage() {
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertTitle>Error Loading Profiles</AlertTitle>
+              <AlertDescription className="whitespace-pre-wrap">{error}</AlertDescription>
             </Alert>
           )}
           
@@ -154,7 +151,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Impersonate User (Dev Only)
+                Impersonate User (Dev Mode)
               </span>
             </div>
           </div>
@@ -172,9 +169,8 @@ export default function LoginPage() {
               <List className="h-4 w-4" />
               <AlertTitle>No Profiles Found for Impersonation</AlertTitle>
               <AlertDescription>
-                No suitable profiles were found in the database. 
-                Please check if the 'profiles' table has data.
-                Also, ensure Row Level Security (RLS) policies allow the 'anon' role to read from the 'profiles' table.
+                No suitable profiles were found in the database, or access was denied. 
+                Please check if the 'profiles' table has data and that Row Level Security (RLS) policies allow the 'anon' role to read from it.
               </AlertDescription>
             </Alert>
           )}
@@ -208,4 +204,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
