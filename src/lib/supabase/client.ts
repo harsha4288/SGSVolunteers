@@ -1,5 +1,5 @@
 
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from '@/lib/types/supabase';
 
 // Function to create a Supabase client for client-side operations
@@ -27,6 +27,7 @@ export const createClient = () => {
     throw new Error(`Supabase client creation failed: Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". It must be a valid URL string, including the protocol (e.g., https://).`);
   }
 
-  // Use the imported createBrowserClient directly
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  // Use createClientComponentClient, which relies on process.env for URL and Key
+  return createClientComponentClient<Database>();
 };
+
