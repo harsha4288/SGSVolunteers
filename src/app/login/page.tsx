@@ -23,8 +23,6 @@ export default function LoginPage() {
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const LogoIcon = SITE_CONFIG.logo;
-  const [emailForMagicLink, setEmailForMagicLink] = useState('');
-  const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
   const { toast } = useToast();
 
 
@@ -66,7 +64,7 @@ export default function LoginPage() {
         const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
         setProfiles(validProfiles);
       } catch (err: any) { 
-        console.error("Error fetching profiles:", err); 
+        console.error("Error fetching profiles:", err); // This is line 69 from the error log
         
         let detail = "An unexpected error occurred. The error object was not informative.";
         if (err) {
@@ -81,9 +79,13 @@ export default function LoginPage() {
               const errString = JSON.stringify(err);
               if (errString !== '{}') { 
                  detail = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration.`;
+              } else {
+                // Explicitly handle the case where err is an empty object
+                detail = "The operation failed, and the error object received from the server was empty. This often indicates a permissions issue (Row Level Security or table grants in Supabase) or a network problem preventing a full error response. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role has SELECT access if unauthenticated users need to list profiles for impersonation.";
               }
             } catch {
-              // Stringification failed, stick to the generic message
+              // Stringification failed
+              detail = "The operation failed, and the error object was unreadable. Check network and Supabase status, and ensure RLS policies grant necessary access.";
             }
           }
         }
@@ -116,57 +118,6 @@ export default function LoginPage() {
     router.push('/app/dashboard');
   };
 
-  const handleMagicLinkSignIn = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!supabase || !emailForMagicLink) return;
-
-    setIsSendingMagicLink(true);
-    setError(null);
-
-    try {
-      const { data, error: otpError } = await supabase.auth.signInWithOtp({
-        email: emailForMagicLink,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          // shouldCreateUser: true, // Allow Supabase to create the user if they don't exist in auth.users
-        },
-      });
-
-      if (otpError) {
-        throw otpError;
-      }
-      
-      // Check if a new user was created or if it's an existing user
-      // The 'data' object from signInWithOtp might contain user information or session details
-      // For magic link, usually `data.user` will be null until the link is clicked.
-      // `data.session` will also be null.
-      // The important part is that the email is sent.
-
-      toast({
-        title: "Magic Link Sent!",
-        description: `Please check your email at ${emailForMagicLink} for a login link.`,
-      });
-      setEmailForMagicLink(''); // Clear input after sending
-
-    } catch (e: any) {
-      console.error("Magic link sign-in error:", e);
-      let errorMessage = "An unknown error occurred.";
-      if (e && typeof e.message === 'string' && e.message) {
-        errorMessage = e.message;
-      } else if (typeof e === 'string') {
-        errorMessage = e;
-      }
-      setError(`Failed to send magic link: ${errorMessage}. This could be due to an invalid email or network issues.`);
-      toast({
-        title: "Magic Link Error",
-        description: `Failed to send magic link: ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingMagicLink(false);
-    }
-  };
-
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
@@ -176,7 +127,7 @@ export default function LoginPage() {
             <LogoIcon className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold">{SITE_CONFIG.name}</CardTitle>
-          <CardDescription>Sign in or select a profile to impersonate for development.</CardDescription>
+          <CardDescription>Select a profile to impersonate for development.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -186,28 +137,6 @@ export default function LoginPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          <form onSubmit={handleMagicLinkSignIn} className="space-y-4">
-            <div>
-              <Label htmlFor="email-magic-link" className="mb-1 block text-sm font-medium">Sign in with Email Magic Link</Label>
-              <div className="flex gap-2">
-              <Input
-                id="email-magic-link"
-                type="email"
-                value={emailForMagicLink}
-                onChange={(e) => setEmailForMagicLink(e.target.value)}
-                placeholder="Enter your email address"
-                required
-                className="flex-grow"
-                disabled={isSendingMagicLink}
-              />
-              <Button type="submit" disabled={isSendingMagicLink || !emailForMagicLink} className="shrink-0">
-                {isSendingMagicLink ? 'Sending...' : 'Send Link'}
-                {!isSendingMagicLink && <Mail className="ml-2 h-4 w-4" />}
-              </Button>
-              </div>
-            </div>
-          </form>
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -215,7 +144,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Or impersonate (Dev Only)
+                Impersonate User (Dev Only)
               </span>
             </div>
           </div>
@@ -232,7 +161,7 @@ export default function LoginPage() {
             <Alert>
               <List className="h-4 w-4" />
               <AlertTitle>No Profiles Found for Impersonation</AlertTitle>
-              <AlertDescription>No suitable profiles were found. You can sign in using the magic link above.</AlertDescription>
+              <AlertDescription>No suitable profiles were found in the database. Please check if the 'profiles' table has data and if RLS policies allow access.</AlertDescription>
             </Alert>
           )}
 
@@ -259,7 +188,7 @@ export default function LoginPage() {
           )}
         </CardContent>
          <CardFooter className="text-center text-xs text-muted-foreground pt-4 border-t">
-          <p>Impersonation is for development purposes only. For regular access, please use the magic link sign-in.</p>
+          <p>Impersonation is for development purposes. Select a user to simulate their experience.</p>
         </CardFooter>
       </Card>
     </div>
