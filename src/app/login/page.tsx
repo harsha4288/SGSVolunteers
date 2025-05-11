@@ -2,89 +2,91 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { SITE_CONFIG } from '@/lib/constants';
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, AlertCircle, LogIn } from 'lucide-react';
+import { UserCheck, AlertCircle, List } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/supabase';
+import type { Database, Profile } from '@/lib/types/supabase';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function LoginPage() {
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const router = useRouter();
-  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const LogoIcon = SITE_CONFIG.logo;
 
   useEffect(() => {
     try {
-      setSupabase(createClient());
+      const client = createClient();
+      setSupabase(client);
     } catch (e: any) {
       setError(`Failed to initialize Supabase client: ${e.message}`);
       console.error("Supabase client initialization error:", e);
+      setLoadingProfiles(false);
     }
   }, []);
 
-  const handleMagicLinkSignIn = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setInfoMessage(null);
-    setLoading(true);
+  useEffect(() => {
+    if (!supabase) return;
 
-    if (!supabase) {
-      setError("Supabase client not initialized. Please try again or refresh the page.");
-      setLoading(false);
-      return;
-    }
+    const fetchProfiles = async () => {
+      setLoadingProfiles(true);
+      setError(null);
+      try {
+        const { data, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, email, display_name, user_id') // Fetch user_id as well
+          .order('email', { ascending: true });
 
-    if (!email.trim()) {
-      setError("Email address cannot be empty.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (otpError) {
-        console.error("Supabase signInWithOtp Error:", otpError); // Log the full error object
-        setError(`OTP Sign-in failed: ${otpError.message}`);
-      } else {
-        console.log("OTP Sign In Initiated. Response data:", data); // Log data for debugging
-        setInfoMessage("Check your email for a magic link to sign in!");
-        setEmail(''); 
+        if (profilesError) {
+          throw profilesError;
+        }
+        // Filter out Supabase's placeholder/masked emails
+        const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
+        setProfiles(validProfiles);
+      } catch (e: any) {
+        console.error("Error fetching profiles:", e);
+        setError(`Failed to fetch profiles: ${e.message}`);
+      } finally {
+        setLoadingProfiles(false);
       }
-    } catch (e: any) {
-      // This catch block handles errors not specific to the Supabase `otpError` object,
-      // such as network failures before Supabase even processes the request.
-      console.error("Exception during signInWithOtp call:", e); 
-      setError(e.message || 'An unexpected error occurred during the sign-in attempt.');
-    } finally {
-      setLoading(false);
+    };
+
+    fetchProfiles();
+  }, [supabase]);
+
+  const handleImpersonate = (profile: Profile) => {
+    if (!profile.id || !profile.email) {
+        setError("Selected profile is missing ID or email for impersonation.");
+        return;
     }
+    localStorage.setItem('impersonatedProfileId', profile.id);
+    localStorage.setItem('impersonatedEmail', profile.email);
+    localStorage.setItem('impersonatedDisplayName', profile.display_name || profile.email.split('@')[0]);
+    // Store user_id if available, might be useful for more advanced impersonation later
+    if (profile.user_id) {
+      localStorage.setItem('impersonatedAuthUserId', profile.user_id);
+    } else {
+      localStorage.removeItem('impersonatedAuthUserId');
+    }
+    router.push('/app/dashboard');
   };
-  
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+      <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center justify-center">
             <LogoIcon className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold">{SITE_CONFIG.name}</CardTitle>
-          <CardDescription>Welcome! Please sign in with your email to continue.</CardDescription>
+          <CardDescription>Select a user profile to impersonate for development purposes.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -94,37 +96,47 @@ export default function LoginPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {infoMessage && (
-            <Alert variant="default">
-              <LogIn className="h-4 w-4" />
-              <AlertTitle>Information</AlertTitle>
-              <AlertDescription>{infoMessage}</AlertDescription>
+
+          {loadingProfiles && (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-md" />
+              ))}
+            </div>
+          )}
+
+          {!loadingProfiles && profiles.length === 0 && !error && (
+            <Alert>
+              <List className="h-4 w-4" />
+              <AlertTitle>No Profiles Found</AlertTitle>
+              <AlertDescription>No suitable profiles were found to display for impersonation.</AlertDescription>
             </Alert>
           )}
-          <form onSubmit={handleMagicLinkSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10"
-                  disabled={!supabase || loading}
-                />
+
+          {!loadingProfiles && profiles.length > 0 && (
+            <ScrollArea className="h-[300px] w-full rounded-md border p-2">
+              <div className="space-y-2">
+                {profiles.map((profile) => (
+                  <Button
+                    key={profile.id}
+                    variant="outline"
+                    className="w-full justify-start text-left h-auto py-2"
+                    onClick={() => handleImpersonate(profile)}
+                    title={`Impersonate ${profile.display_name || profile.email}`}
+                  >
+                    <UserCheck className="mr-3 h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{profile.display_name || 'N/A'}</span>
+                      <span className="text-xs text-muted-foreground">{profile.email}</span>
+                    </div>
+                  </Button>
+                ))}
               </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={!supabase || loading}>
-              {loading ? 'Sending Link...' : 'Sign In with Email Link'}
-            </Button>
-          </form>
+            </ScrollArea>
+          )}
         </CardContent>
-        <CardFooter className="text-center text-sm text-muted-foreground">
-          <p>Enter your email address above and we'll send you a magic link to sign in. No password required.</p>
+         <CardFooter className="text-center text-sm text-muted-foreground">
+          <p>This feature is for development only. Clicking a profile will simulate being logged in as that user.</p>
         </CardFooter>
       </Card>
     </div>

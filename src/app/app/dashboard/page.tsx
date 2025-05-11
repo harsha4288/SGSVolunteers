@@ -1,83 +1,157 @@
+"use client"; // Make it a client component to access localStorage
 
+import * as React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Users, BarChart3, Sparkles, CalendarDays, UserCheck } from "lucide-react";
+import { Activity, Users, Sparkles, CalendarDays, UserCheck } from "lucide-react";
 import Image from "next/image";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { SupabaseEvent, Volunteer, Profile } from "@/lib/types/supabase";
+import { createClient } from "@/lib/supabase/client"; // Use client-side Supabase
+import type { SupabaseEvent, Volunteer, Profile, Database } from "@/lib/types/supabase";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import type { SupabaseClient, User as AuthUser } from "@supabase/supabase-js";
 
-async function getDashboardData() {
-  const supabase = createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let currentEvent: SupabaseEvent | null = null;
-  let userProfile: Profile | null = null;
-  let userVolunteers: Volunteer[] = [];
-
-  // Fetch the most recent event (or a specific active event)
-  // For simplicity, fetching the first event found, ordered by creation or start date
-  const { data: eventData, error: eventError } = await supabase
-    .from('events')
-    .select('*')
-    .order('start_date', { ascending: false }) // Or some other logic for "current"
-    .limit(1)
-    .single();
-  
-  if (eventError) console.error("Error fetching event:", eventError.message);
-  currentEvent = eventData;
-
-  if (user) {
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    
-    if (profileError) console.error("Error fetching profile:", profileError.message);
-    userProfile = profileData;
-
-    if (userProfile && currentEvent) {
-      const { data: volunteersData, error: volunteersError } = await supabase
-        .from('volunteers')
-        .select('*')
-        .eq('profile_id', userProfile.id)
-        .eq('event_id', currentEvent.id); // Filter volunteers for the current event
-      
-      if (volunteersError) console.error("Error fetching volunteers:", volunteersError.message);
-      userVolunteers = volunteersData || [];
-    }
-  }
-
-  return { currentEvent, userProfile, userVolunteers, authUser: user };
+// This type now represents the data structure we expect for the dashboard
+interface DashboardData {
+  currentEvent: SupabaseEvent | null;
+  userProfile: Profile | null; // This can be the impersonated profile or the actual logged-in user's profile
+  userVolunteers: Volunteer[];
+  authUser: AuthUser | null; // Actual Supabase authenticated user
+  isImpersonating: boolean;
 }
 
+export default function DashboardPage() {
+  const [supabase, setSupabase] = React.useState<SupabaseClient<Database> | null>(null);
+  const [dashboardData, setDashboardData] = React.useState<DashboardData | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-export default async function DashboardPage() {
-  const { currentEvent, userProfile, userVolunteers, authUser } = await getDashboardData();
+  React.useEffect(() => {
+    const supabaseInstance = createClient();
+    setSupabase(supabaseInstance);
+  }, []);
 
+  React.useEffect(() => {
+    if (!supabase) return;
+
+    async function fetchDashboardData() {
+      setLoading(true);
+      setError(null);
+      try {
+        let impersonatedProfileId: string | null = null;
+        let impersonatedEmail: string | null = null;
+        let isImpersonating = false;
+
+        if (typeof window !== "undefined") {
+            impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
+            impersonatedEmail = localStorage.getItem('impersonatedEmail');
+            isImpersonating = !!(impersonatedProfileId && impersonatedEmail);
+        }
+
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+
+        let profileToUse: Profile | null = null;
+        
+        if (isImpersonating && impersonatedProfileId) {
+          // Fetch the impersonated profile
+          const { data: impProfileData, error: impProfileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', impersonatedProfileId)
+            .single();
+          if (impProfileError) console.error("Error fetching impersonated profile:", impProfileError.message);
+          profileToUse = impProfileData;
+        } else if (authUser) {
+          // Fetch profile for the actual logged-in user
+          const { data: actualProfileData, error: actualProfileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .single();
+          if (actualProfileError) console.error("Error fetching actual user profile:", actualProfileError.message);
+          profileToUse = actualProfileData;
+        }
+
+        // Fetch the most recent event
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .select('*')
+          .order('start_date', { ascending: false })
+          .limit(1)
+          .single();
+        if (eventError) console.error("Error fetching event:", eventError.message);
+        const currentEvent = eventData;
+
+        let userVolunteers: Volunteer[] = [];
+        if (profileToUse && currentEvent) {
+          const { data: volunteersData, error: volunteersError } = await supabase
+            .from('volunteers')
+            .select('*')
+            .eq('profile_id', profileToUse.id) // Use the determined profile_id
+            .eq('event_id', currentEvent.id);
+          if (volunteersError) console.error("Error fetching volunteers:", volunteersError.message);
+          userVolunteers = volunteersData || [];
+        }
+        
+        setDashboardData({
+          currentEvent,
+          userProfile: profileToUse,
+          userVolunteers,
+          authUser,
+          isImpersonating,
+        });
+
+      } catch (e: any) {
+        console.error("Dashboard data fetching error:", e);
+        setError(e.message || "Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+     // Listen to storage changes to re-fetch data if impersonation status changes
+    const handleStorageChange = () => {
+        fetchDashboardData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [supabase]);
+
+  if (loading || !supabase) {
+    return <div className="container mx-auto py-10 px-4 text-center">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="container mx-auto py-10 px-4 text-center text-destructive">Error: {error}</div>;
+  }
+
+  if (!dashboardData) {
+     return <div className="container mx-auto py-10 px-4 text-center">No data available.</div>;
+  }
+
+  const { currentEvent, userProfile, userVolunteers, authUser, isImpersonating } = dashboardData;
   const eventName = currentEvent?.event_name || "Volunteer Event";
+  const welcomeName = userProfile?.display_name || userProfile?.email || authUser?.email || "Guest";
 
   return (
     <div className="flex flex-col space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight">Welcome to VolunteerVerse!</CardTitle>
+          <CardTitle className="text-3xl font-bold tracking-tight">
+            Welcome to VolunteerVerse {isImpersonating && <span className="text-sm text-accent">(Impersonating)</span>}!
+          </CardTitle>
           <CardDescription className="text-lg">
             {`Managing volunteers for ${eventName}.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1 space-y-4">
-            {authUser ? (
-              <p>
-                Hello, {userProfile?.display_name || authUser.email}! Navigate through the sections using the sidebar.
-              </p>
-            ) : (
-               <p>
-                Please log in to manage your volunteer activities.
-              </p>
-            )}
+            <p>
+              Hello, {welcomeName}! Navigate through the sections using the sidebar.
+            </p>
             <p>
               This platform helps organize volunteer efforts, track participation, and manage resources efficiently.
             </p>
@@ -103,7 +177,7 @@ export default async function DashboardPage() {
               Your Volunteer Registrations for {currentEvent.event_name}
             </CardTitle>
             <CardDescription>
-              Volunteers registered under your profile ({userProfile.email}).
+              Volunteers registered under {userProfile.email}.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -115,19 +189,24 @@ export default async function DashboardPage() {
                       <p className="font-medium">{v.first_name} {v.last_name}</p>
                       <p className="text-sm text-muted-foreground">{v.email}</p>
                     </div>
-                    <Link href={`/app/volunteers/${v.id}/schedule`}> {/* Placeholder link */}
+                    {/* TODO: This link structure might need adjustment if impersonating for a volunteer not tied to current auth user */}
+                    <Link href={`/app/volunteers/${v.id}/schedule`}> 
                        <Button variant="outline" size="sm">View Schedule</Button>
                     </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">You have not registered any volunteers for this event yet under this profile, or there was an issue fetching them.</p>
+              <p className="text-muted-foreground">No volunteers registered under this profile for this event, or there was an issue fetching them.</p>
+            )}
+             {isImpersonating && (
+                <p className="mt-4 text-xs text-accent">
+                    Displaying data for impersonated user: {userProfile.email}.
+                </p>
             )}
           </CardContent>
         </Card>
       )}
-
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-md hover:shadow-xl transition-shadow">
@@ -190,4 +269,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-
