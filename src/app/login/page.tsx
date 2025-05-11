@@ -36,9 +36,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!supabase) {
-      // If supabase client isn't initialized yet, and we are not already in a loading state for profiles,
-      // set loading profiles to true to prevent premature "No Profiles Found" message.
-      if (!loadingProfiles && !error) { // only set if not already loading or errored from client init
+      if (!loadingProfiles && !error) {
         setLoadingProfiles(true);
       }
       return;
@@ -46,7 +44,7 @@ export default function LoginPage() {
 
     const fetchProfiles = async () => {
       setLoadingProfiles(true);
-      setError(null); // Clear previous errors
+      setError(null); 
 
       try {
         const { data, error: profilesError } = await supabase
@@ -55,17 +53,29 @@ export default function LoginPage() {
           .order('email', { ascending: true });
 
         if (profilesError) {
-          // This block handles errors returned by Supabase API (e.g., RLS, table not found)
-          const logItems: any[] = ["Error fetching profiles from Supabase API:"];
-          let uiMsg = `Error from database: ${profilesError.message}.`;
+          const consoleLogParts: any[] = ["Error fetching profiles from Supabase API:"];
+          let uiDetailMessage = `Error from database (Supabase API).`;
 
-          if (profilesError.message.toLowerCase().includes("rls") || profilesError.message.toLowerCase().includes("permission denied")) {
-            uiMsg += " This often indicates a Row Level Security (RLS) issue or missing table grants. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role (for unauthenticated listing) or the relevant authenticated role has SELECT access.";
+          consoleLogParts.push("Supabase error object (raw):", profilesError);
+          try {
+            consoleLogParts.push("Supabase error object (JSON):", JSON.stringify(profilesError, null, 2));
+          } catch (stringifyError) {
+            consoleLogParts.push("Supabase error object (could not stringify):", stringifyError);
           }
           
-          logItems.push("Supabase error object:", profilesError);
-          console.error(...logItems);
-          setError(uiMsg);
+          if (profilesError.message) {
+            uiDetailMessage = `Error from database: ${profilesError.message}.`;
+            if (profilesError.message.toLowerCase().includes("rls") || profilesError.message.toLowerCase().includes("permission denied")) {
+              uiDetailMessage += " This often indicates a Row Level Security (RLS) issue or missing table grants. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role (for unauthenticated listing) has SELECT access.";
+            } else if (profilesError.message.toLowerCase().includes("fetch")) {
+                 uiDetailMessage += " This could be a network issue, incorrect Supabase URL/Key, or CORS problem. Check console for details and verify Supabase settings.";
+            }
+          } else {
+            uiDetailMessage += " The error object from Supabase was not very informative. Please check your Supabase project logs (e.g., Database > Logs or API > Logs in the Supabase dashboard) and ensure your Supabase URL/Anon Key are correct, network is stable, and CORS is configured for your app's origin in the Supabase dashboard (Authentication > URL Configuration and API > API Settings > CORS Configuration). Also verify RLS policies for the 'profiles' table allow 'anon' read access.";
+          }
+          
+          console.error(...consoleLogParts); // This is line 67 from the error log
+          setError(uiDetailMessage);
           setProfiles([]);
           return;
         }
@@ -73,38 +83,43 @@ export default function LoginPage() {
         const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
         setProfiles(validProfiles);
 
-      } catch (fetchOperationError: any) { // This block catches general errors like "Failed to fetch"
-        let detailedMessage = "Failed to fetch profiles. ";
-        const logItems: any[] = ["Error during fetchProfiles operation:"];
+      } catch (fetchOperationError: any) { 
+        const consoleLogParts: any[] = ["Critical error during fetchProfiles operation (e.g., network, CORS):"];
+        let uiDetailMessage = "Failed to fetch profiles. ";
 
         if (fetchOperationError?.message?.toLowerCase().includes("failed to fetch")) {
-            detailedMessage += `This commonly indicates a network connectivity problem, a CORS issue, or an incorrect Supabase URL/Anon Key.
+            uiDetailMessage += `This commonly indicates a network connectivity problem, a CORS issue, or an incorrect Supabase URL/Anon Key.
             Please verify:
             1. Your internet connection, VPN, and any firewalls/proxies.
             2. Supabase URL (NEXT_PUBLIC_SUPABASE_URL in your .env.local file): It should be your project's API URL (e.g., https://yourprojectid.supabase.co), NOT the database host (e.g., db.yourprojectid.supabase.co).
             3. Supabase Anon Key (NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file) is correct.
-            4. CORS settings in your Supabase project dashboard (Authentication > URL Configuration, and API > CORS Configuration) allow requests from origin: ${typeof window !== "undefined" ? window.location.origin : "your app origin"}.
+            4. CORS settings in your Supabase project dashboard (Project Settings > API > CORS Configuration, and Authentication > URL Configuration) allow requests from origin: ${typeof window !== "undefined" ? window.location.origin : "your app origin"}.
             5. Supabase service status (check status.supabase.com).`;
-            logItems.push("Network/CORS or Supabase URL/Key issue suspected due to 'Failed to fetch'. Ensure NEXT_PUBLIC_SUPABASE_URL is the API URL, not the DB host.");
+            consoleLogParts.push("Network/CORS or Supabase URL/Key issue suspected due to 'Failed to fetch'. Ensure NEXT_PUBLIC_SUPABASE_URL is the API URL, not the DB host. Check CORS settings in Supabase Dashboard.");
         } else if (fetchOperationError?.message) {
-            detailedMessage += `Details: ${fetchOperationError.message}. If this is not a network issue, it could be related to Row Level Security (RLS) policies or table permissions in Supabase. Ensure the 'anon' role (or authenticated role) has SELECT permission on the 'profiles' table.`;
-            logItems.push("Potentially a database-level error or RLS/permissions issue suspected.");
+            uiDetailMessage += `Details: ${fetchOperationError.message}. If this is not a network issue, it could be related to Row Level Security (RLS) policies or table permissions in Supabase. Ensure the 'anon' role (or authenticated role) has SELECT permission on the 'profiles' table.`;
+            consoleLogParts.push("Potentially a database-level error or RLS/permissions issue suspected.");
         } else {
-            detailedMessage += "An unexpected error occurred. The error object was not informative. Check browser console and Supabase logs for more details.";
-            logItems.push("Unexpected error with uninformative error object.");
+            uiDetailMessage += "An unexpected error occurred. The error object was not informative. Check browser console and Supabase logs for more details.";
+            consoleLogParts.push("Unexpected error with uninformative error object.");
         }
         
-        logItems.push("Full error caught:", fetchOperationError);
-        console.error(...logItems);
-        setError(detailedMessage);
-        setProfiles([]);
+        consoleLogParts.push("Full error caught:", fetchOperationError);
+        try {
+          consoleLogParts.push("Error object (JSON):", JSON.stringify(fetchOperationError, Object.getOwnPropertyNames(fetchOperationError), 2));
+        } catch (stringifyError) {
+            consoleLogParts.push("Caught error object (could not stringify):", stringifyError);
+        }
+        
+        console.error(...consoleLogParts);
+        setError(`Failed to fetch profiles: ${uiDetailMessage}`);
       } finally {
         setLoadingProfiles(false);
       }
     };
 
     fetchProfiles();
-  }, [supabase]); // Rerun when supabase client is initialized
+  }, [supabase]); 
 
   const handleImpersonate = (profile: Profile) => {
     if (!profile.id || !profile.email) {
@@ -141,7 +156,7 @@ export default function LoginPage() {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error Loading Profiles</AlertTitle>
-              <AlertDescription className="whitespace-pre-wrap">{error}</AlertDescription>
+              <AlertDescription className="whitespace-pre-wrap text-xs">{error}</AlertDescription>
             </Alert>
           )}
           
@@ -171,6 +186,7 @@ export default function LoginPage() {
               <AlertDescription>
                 No suitable profiles were found in the database, or access was denied. 
                 Please check if the 'profiles' table has data and that Row Level Security (RLS) policies allow the 'anon' role to read from it.
+                Also, ensure your Supabase URL, Anon Key, and CORS settings are correctly configured.
               </AlertDescription>
             </Alert>
           )}
