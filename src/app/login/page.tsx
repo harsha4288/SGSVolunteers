@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -15,11 +14,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Handshake, LogIn, Users, AlertCircle, Mail } from "lucide-react";
+import { Handshake, LogIn, Users, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { SupabaseClient, User as AuthUser } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,16 +35,14 @@ export default function LoginPage() {
       setSupabase(supabaseInstance);
     } catch (e: any) {
       console.error("Error initializing Supabase client in LoginPage:", e.message);
-      setError(`Failed to initialize Supabase: ${e.message}`);
+      setError(`Failed to initialize Supabase: ${e.message}. Please check your NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.`);
       setLoadingProfiles(false);
     }
   }, []);
 
   React.useEffect(() => {
     if (!supabase) {
-      // If supabase is null and not loading, it means initialization failed.
-      // Error should already be set by the first useEffect.
-      if (!loadingProfiles && !error) { // Prevent setting error if init error already shown
+      if (!loadingProfiles && !error) {
          setError("Supabase client not available. Cannot fetch profiles.");
       }
       setLoadingProfiles(false);
@@ -61,23 +58,18 @@ export default function LoginPage() {
       try {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
-          .select("id, email, display_name, user_id") // Fetch user_id as well
+          .select("id, email, display_name, user_id")
           .order("email", { ascending: true });
 
         if (profilesError) {
-          if (profilesError.message) {
-            consoleLogParts.push(`Message: ${profilesError.message}`);
-            uiDetailMessage += ` Server said: ${profilesError.message}`;
+          uiDetailMessage = `Server said: ${profilesError.message}.`;
+          if (profilesError.message.toLowerCase().includes('failed to fetch')) {
+            uiDetailMessage += " This often indicates a network issue or CORS problem. Ensure your NEXT_PUBLIC_SUPABASE_URL is correct (e.g., https://<project-ref>.supabase.co), your NEXT_PUBLIC_SUPABASE_ANON_KEY is valid, and your Supabase project's CORS settings allow requests from this application's domain. Remember to restart your Next.js server after changing .env.local files.";
           }
-          if (profilesError.details) {
-            consoleLogParts.push(`Details: ${profilesError.details}`);
-          }
-          if (profilesError.hint) {
-            consoleLogParts.push(`Hint: ${profilesError.hint}`);
-          }
-          if (profilesError.code) {
-            consoleLogParts.push(`Code: ${profilesError.code}`);
-          }
+          consoleLogParts.push(`Message: ${profilesError.message}`);
+          if (profilesError.details) consoleLogParts.push(`Details: ${profilesError.details}`);
+          if (profilesError.hint) consoleLogParts.push(`Hint: ${profilesError.hint}`);
+          if (profilesError.code) consoleLogParts.push(`Code: ${profilesError.code}`);
           
           consoleLogParts.push("Supabase error object (raw):", profilesError);
           try {
@@ -95,6 +87,7 @@ export default function LoginPage() {
 
         const validProfiles = (profilesData || []).filter(p => p.email && !p.email.includes('***'));
         setProfiles(validProfiles);
+
       } catch (err: any) { 
         consoleLogParts.push("Generic error during fetchProfiles execution:");
         let detail = "An unexpected error occurred. The error object was not informative.";
@@ -102,6 +95,9 @@ export default function LoginPage() {
         if (err && err.message) {
           consoleLogParts.push(err.message);
           detail = err.message; 
+          if (err.message.toLowerCase().includes('failed to fetch')) {
+            detail += " This network error often points to issues with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, or Supabase CORS configuration. Please verify these and restart your development server.";
+          }
         }
         if (err && typeof err === 'object') {
              consoleLogParts.push("Error object:", err);
@@ -116,7 +112,7 @@ export default function LoginPage() {
     }
 
     fetchProfiles();
-  }, [supabase]); // Depend on supabase client instance
+  }, [supabase]);
 
   const handleImpersonate = async (profile: Profile) => {
     if (!supabase) {
@@ -139,7 +135,6 @@ export default function LoginPage() {
       description: `Now viewing as ${profile.display_name || profile.email}.`,
     });
     router.push("/app/dashboard"); 
-    // window.location.href = "/app/dashboard"; // Consider if a full reload is better
   };
 
   const filteredProfiles = profiles.filter(profile =>
@@ -165,7 +160,7 @@ export default function LoginPage() {
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>Error Loading Profiles</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
