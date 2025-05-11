@@ -31,23 +31,40 @@ export default function LoginPage() {
   const [filterText, setFilterText] = React.useState("");
 
   React.useEffect(() => {
-    const supabaseInstance = createClient();
-    setSupabase(supabaseInstance);
+    try {
+      const supabaseInstance = createClient();
+      setSupabase(supabaseInstance);
+    } catch (e: any) {
+      console.error("Error initializing Supabase client in LoginPage:", e.message);
+      setError(`Failed to initialize Supabase: ${e.message}`);
+      setLoadingProfiles(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!supabase) {
+      // If supabase is null and not loading, it means initialization failed.
+      // Error should already be set by the first useEffect.
+      if (!loadingProfiles && !error) { // Prevent setting error if init error already shown
+         setError("Supabase client not available. Cannot fetch profiles.");
+      }
+      setLoadingProfiles(false);
+      return;
+    }
 
     async function fetchProfiles() {
-      if (!supabaseInstance) return;
       setLoadingProfiles(true);
       setError(null);
+      const consoleLogParts: any[] = ["Error fetching profiles from Supabase API:"];
+      let uiDetailMessage = "Could not fetch profiles from the database.";
+
       try {
-        const { data: profilesData, error: profilesError } = await supabaseInstance
+        const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select("id, email, display_name, user_id") // Fetch user_id as well
           .order("email", { ascending: true });
 
         if (profilesError) {
-          let uiDetailMessage = "Could not fetch profiles from the database.";
-          const consoleLogParts: any[] = ["Error fetching profiles from Supabase API:"];
-
           if (profilesError.message) {
             consoleLogParts.push(`Message: ${profilesError.message}`);
             uiDetailMessage += ` Server said: ${profilesError.message}`;
@@ -62,7 +79,6 @@ export default function LoginPage() {
             consoleLogParts.push(`Code: ${profilesError.code}`);
           }
           
-          // Add raw and JSON stringified error for more detailed logging if needed
           consoleLogParts.push("Supabase error object (raw):", profilesError);
           try {
             consoleLogParts.push("Supabase error object (JSON):", JSON.stringify(profilesError, null, 2));
@@ -80,63 +96,50 @@ export default function LoginPage() {
         const validProfiles = (profilesData || []).filter(p => p.email && !p.email.includes('***'));
         setProfiles(validProfiles);
       } catch (err: any) { 
-        const consoleLogParts: any[] = ["Generic error fetching profiles:"];
-        let uiDetailMessage = "An unexpected error occurred while trying to fetch profiles.";
+        consoleLogParts.push("Generic error during fetchProfiles execution:");
+        let detail = "An unexpected error occurred. The error object was not informative.";
 
         if (err && err.message) {
           consoleLogParts.push(err.message);
-          uiDetailMessage = err.message; // Overwrite with the specific error message
+          detail = err.message; 
         }
         if (err && typeof err === 'object') {
              consoleLogParts.push("Error object:", err);
         }
         
+        uiDetailMessage = `Failed to fetch profiles: ${detail}`;
         console.error(...consoleLogParts);
-        setError(`Failed to fetch profiles: ${uiDetailMessage}`);
+        setError(uiDetailMessage);
       } finally {
         setLoadingProfiles(false);
       }
     }
 
     fetchProfiles();
-  }, [supabase]);
+  }, [supabase]); // Depend on supabase client instance
 
   const handleImpersonate = async (profile: Profile) => {
     if (!supabase) {
         toast({ title: "Error", description: "Supabase client not available.", variant: "destructive" });
         return;
     }
-    // Store impersonation details in localStorage
+    
     localStorage.setItem("impersonatedProfileId", profile.id);
     localStorage.setItem("impersonatedEmail", profile.email);
     localStorage.setItem("impersonatedDisplayName", profile.display_name || profile.email.split('@')[0]);
     
-    // Fetch the actual auth user_id associated with this profile, if it exists
-    // This is important if your RLS policies depend on the *actual* auth.uid()
-    // For a pure "view as this profile" where RLS might use profile_id from localStorage, this might not be strictly needed.
-    // However, for robustness, let's assume we might need the original auth user if this profile IS linked.
-    // If profile.user_id is null, it means this profile was imported and not yet linked to an auth user.
-    // In this case, there's no "original" auth user to store.
-
     if (profile.user_id) {
-        localStorage.setItem("impersonatedAuthUserId", profile.user_id); // Store the actual user_id of the impersonated profile
+        localStorage.setItem("impersonatedAuthUserId", profile.user_id); 
     } else {
-        // If the profile is not linked to an auth.users record, we can't store an original auth user_id.
-        // Depending on app logic, this might mean the impersonation uses a generic admin role or specific RLS bypass.
-        // For now, we'll clear any existing impersonatedAuthUserId to be safe.
         localStorage.removeItem("impersonatedAuthUserId");
     }
-
 
     toast({
       title: "Impersonating User",
       description: `Now viewing as ${profile.display_name || profile.email}.`,
     });
-    router.push("/app/dashboard"); // Redirect to dashboard
-    // A page reload might be necessary if components don't react to localStorage changes for auth state.
-    // Consider using a global state or custom hook that listens to localStorage for 'impersonatedProfileId'.
-    // For simplicity, a reload can work:
-    // window.location.href = "/app/dashboard";
+    router.push("/app/dashboard"); 
+    // window.location.href = "/app/dashboard"; // Consider if a full reload is better
   };
 
   const filteredProfiles = profiles.filter(profile =>
@@ -203,10 +206,9 @@ export default function LoginPage() {
               </div>
             </ScrollArea>
           ) : (
-            <p className="text-center text-muted-foreground">No profiles found or matching your filter.</p>
+             !error && <p className="text-center text-muted-foreground">No profiles found or matching your filter.</p>
           )}
         </CardContent>
-        {/* CardFooter can be added here if needed */}
       </Card>
     </div>
   );
