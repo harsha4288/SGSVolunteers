@@ -16,7 +16,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command"
+} from "@/components/ui/command" // Corrected path, assuming components.json maps "ui" to "@/components/ui"
 import {
   Popover,
   PopoverContent,
@@ -30,6 +30,7 @@ export interface FacetedFilterOption {
   icon?: React.ComponentType<{ className?: string }>
 }
 
+// TData added to FacetedFilterColumn definition
 export interface FacetedFilterColumn<TData> {
   id: string; // accessorKey for the column
   title: string;
@@ -157,3 +158,4 @@ export function DataTableFacetedFilter<TData, TValue>({
     </Popover>
   )
 }
+

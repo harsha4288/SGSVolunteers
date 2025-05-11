@@ -7,17 +7,18 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
-import { DataTableFacetedFilter, FacetedFilterColumn } from "./data-table-faceted-filter";
+import { DataTableFacetedFilter, type FacetedFilterColumn } from "./data-table-faceted-filter";
 
 
 export interface SearchableColumn {
-  id: string;
+  id: string; // This should be a keyof TData
   title: string;
 }
 export interface DataTableToolbarProps<TData> {
   table: Table<TData>;
-  filterColumnAccessorKey?: string; // e.g., 'email'
-  filterColumnName?: string; // e.g., 'Email'
+  // filterColumnAccessorKey?: keyof TData extends string ? keyof TData : never ; // e.g., 'email' - This was too restrictive
+  filterColumnAccessorKey?: string; // More flexible, e.g. 'first_name'
+  filterColumnName?: string; // e.g., 'Name'
   searchableColumns?: SearchableColumn[]; // For global search placeholder
   facetedFilterColumns?: FacetedFilterColumn<TData>[];
 }
@@ -25,35 +26,35 @@ export interface DataTableToolbarProps<TData> {
 
 export function DataTableToolbar<TData>({
   table,
-  filterColumnAccessorKey = "email", // Default filter target
-  filterColumnName = "Email", // Default placeholder name
+  filterColumnAccessorKey = "first_name", // Default to first_name for volunteers
+  filterColumnName = "Name", // Default placeholder name
   searchableColumns = [],
   facetedFilterColumns = []
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
-  const globalFilter = table.getState().globalFilter;
-  const onGlobalFilterChange = table.setGlobalFilter;
+  // Using the first searchable column for the input field, if available.
+  // This setup is for a single text input that filters one specific column.
+  // For a true global filter across multiple columns, you'd use table.setGlobalFilter
+  // and define a globalFilterFn in useReactTable.
+  const primarySearchColumnId = searchableColumns.length > 0 ? searchableColumns[0].id : filterColumnAccessorKey;
+  const primarySearchColumnPlaceholder = searchableColumns.length > 0 
+    ? `Filter by ${searchableColumns.map(c => c.title.toLowerCase()).join(', ')}...`
+    : `Filter by ${filterColumnName.toLowerCase()}...`;
 
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
-        {searchableColumns.length > 0 && (
-           <Input
-            placeholder={`Filter by ${searchableColumns.map(c => c.title.toLowerCase()).join(', ')}...`}
-            value={(table.getColumn(searchableColumns[0].id)?.getFilterValue() as string) ?? ""}
-            onChange={(event) => {
-                // Apply filter to all searchable columns or a specific global filter
-                // For simplicity, this example filters the first searchable column.
-                // For global filter: table.setGlobalFilter(event.target.value)
-                // You'd need to set up globalFilterFn on the table instance.
-                // Here, we filter by the first searchable column for simplicity.
-                table.getColumn(searchableColumns[0].id)?.setFilterValue(event.target.value)
-            }}
-            className="h-9 w-[150px] lg:w-[250px]"
-          />
-        )}
+        {/* This input filters a specific column, not globally across all. */}
+        <Input
+          placeholder={primarySearchColumnPlaceholder}
+          value={(table.getColumn(primarySearchColumnId)?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn(primarySearchColumnId)?.setFilterValue(event.target.value)
+          }
+          className="h-9 w-[150px] lg:w-[250px]"
+        />
         
         {facetedFilterColumns.map(col => (
           table.getColumn(col.id) && (

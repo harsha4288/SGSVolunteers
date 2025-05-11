@@ -1,38 +1,168 @@
 
-import type { Metadata } from "next";
+'use client'; // Needs to be client component for state and interactions
+
+import type { Metadata } from "next"; // Metadata can be defined in a parent layout or here if static
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck, Users } from "lucide-react";
+import { ClipboardCheck, Users, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import React, { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { VolunteerCommitment, Volunteer, TimeSlot, SevaCategory, SupabaseEvent } from "@/lib/types/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { format } from 'date-fns';
 
-export const metadata: Metadata = {
-  title: "Volunteer Check-in System",
-  description: "Team leader portal to mark volunteer attendance.",
+// This would typically be dynamic or passed as a prop
+const CURRENT_EVENT_ID = 1; // Placeholder: This should be determined dynamically
+
+type CommitmentWithDetails = VolunteerCommitment & {
+  volunteers: Pick<Volunteer, 'id' | 'first_name' | 'last_name'> | null;
+  time_slots: Pick<TimeSlot, 'id' | 'slot_name' | 'start_time' | 'end_time'> | null;
+  seva_categories: Pick<SevaCategory, 'id' | 'category_name'> | null;
 };
 
-// Mock data for demonstration
-const mockVolunteersForCheckin = [
-  { id: "vol1", name: "John Doe", scheduledShift: "Morning Shift (9 AM - 1 PM)", task: "Registration" },
-  { id: "vol2", name: "Jane Smith", scheduledShift: "Afternoon Shift (1 PM - 5 PM)", task: "Ushering" },
-  { id: "vol3", name: "Alice Brown", scheduledShift: "Morning Shift (9 AM - 1 PM)", task: "Info Desk" },
-  { id: "vol4", name: "Bob Green", scheduledShift: "Full Day (9 AM - 5 PM)", task: "Logistics" },
-  { id: "vol5", name: "Charlie White", scheduledShift: "Evening Prep (5 PM - 7 PM)", task: "Setup Crew" },
-];
+// export const metadata: Metadata = { // Cannot use metadata in 'use client' component directly
+//   title: "Volunteer Check-in System",
+//   description: "Team leader portal to mark volunteer attendance.",
+// };
 
 export default function CheckInPage() {
-  // In a real app, this state would be managed with API calls to Supabase
-  const [checkedInVolunteers, setCheckedInVolunteers] = React.useState<Record<string, boolean>>({});
+  const supabase = createClient();
+  const { toast } = useToast();
+  const [commitments, setCommitments] = useState<CommitmentWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentEvent, setCurrentEvent] = useState<SupabaseEvent | null>(null);
+  
+  // This state tracks client-side toggles before they are persisted.
+  // The source of truth is `commitments[i].checked_in_at`.
+  const [localCheckInStatus, setLocalCheckInStatus] = useState<Record<number, boolean>>({});
 
-  const handleCheckInToggle = (volunteerId: string) => {
-    setCheckedInVolunteers(prev => ({
-      ...prev,
-      [volunteerId]: !prev[volunteerId],
-    }));
-    // Here, you would make an API call to update the check-in status in Supabase
-    console.log(`Volunteer ${volunteerId} check-in status toggled to: ${!checkedInVolunteers[volunteerId]}`);
+
+  useEffect(() => {
+    async function fetchEventDetails() {
+        const { data, error } = await supabase
+            .from('events')
+            .select('event_name')
+            .eq('id', CURRENT_EVENT_ID)
+            .single();
+        if (error) console.error('Error fetching event details for check-in:', error.message);
+        else setCurrentEvent(data as SupabaseEvent); // Cast as SupabaseEvent
+    }
+    fetchEventDetails();
+  }, [supabase]);
+
+
+  useEffect(() => {
+    async function fetchAssignedVolunteers() {
+      setLoading(true);
+      setError(null);
+      // Fetch commitments for 'ASSIGNED_TASK' for the current event
+      // and for time slots that are relevant (e.g., today or upcoming)
+      // For simplicity, fetching all assigned tasks for the CURRENT_EVENT_ID
+      const { data, error: fetchError } = await supabase
+        .from('volunteer_commitments')
+        .select(`
+          *,
+          volunteers (id, first_name, last_name),
+          time_slots (id, slot_name, start_time, end_time),
+          seva_categories (id, category_name)
+        `)
+        .eq('event_id', CURRENT_EVENT_ID)
+        .eq('commitment_type', 'ASSIGNED_TASK')
+        // .gte('time_slots.start_time', new Date().toISOString()) // Example: only future/current slots
+        .order('time_slots(start_time)', { ascending: true })
+        .order('volunteers(last_name)', { ascending: true });
+
+      if (fetchError) {
+        console.error("Error fetching commitments:", fetchError);
+        setError(fetchError.message);
+        setCommitments([]);
+      } else {
+        setCommitments(data as CommitmentWithDetails[] || []);
+        // Initialize localCheckInStatus based on fetched data
+        const initialStatus: Record<number, boolean> = {};
+        (data as CommitmentWithDetails[] || []).forEach(c => {
+          initialStatus[c.id] = !!c.checked_in_at;
+        });
+        setLocalCheckInStatus(initialStatus);
+      }
+      setLoading(false);
+    }
+
+    fetchAssignedVolunteers();
+  }, [supabase]);
+
+  const handleCheckInToggle = async (commitmentId: number) => {
+    const commitment = commitments.find(c => c.id === commitmentId);
+    if (!commitment) return;
+
+    const currentlyCheckedIn = !!localCheckInStatus[commitmentId];
+    const newCheckedInState = !currentlyCheckedIn;
+    
+    // Optimistically update UI
+    setLocalCheckInStatus(prev => ({ ...prev, [commitmentId]: newCheckedInState }));
+
+    const updatePayload: Partial<UpdateVolunteerCommitment> = {
+      checked_in_at: newCheckedInState ? new Date().toISOString() : null,
+    };
+
+    const { error: updateError } = await supabase
+      .from('volunteer_commitments')
+      .update(updatePayload)
+      .eq('id', commitmentId);
+
+    if (updateError) {
+      console.error(`Error updating check-in status for commitment ${commitmentId}:`, updateError);
+      toast({
+        title: "Update Failed",
+        description: `Could not update check-in for ${commitment.volunteers?.first_name}. Reverting.`,
+        variant: "destructive",
+      });
+      // Revert optimistic update
+      setLocalCheckInStatus(prev => ({ ...prev, [commitmentId]: currentlyCheckedIn }));
+    } else {
+      toast({
+        title: "Check-in Updated",
+        description: `${commitment.volunteers?.first_name} ${commitment.volunteers?.last_name} marked as ${newCheckedInState ? 'Checked In' : 'Not Checked In'}.`,
+      });
+       // Update the main commitments state to reflect the change from DB
+      setCommitments(prevCommitments => 
+        prevCommitments.map(c => 
+          c.id === commitmentId ? { ...c, checked_in_at: updatePayload.checked_in_at } : c
+        )
+      );
+    }
   };
+  
+  const formatTime = (dateTimeString: string | null | undefined) => {
+    if (!dateTimeString) return 'N/A';
+    try {
+      return format(new Date(dateTimeString), "MMM d, h:mm a");
+    } catch (e) {
+      return dateTimeString; // fallback if date is invalid
+    }
+  };
+
+
+  if (loading) {
+    return <div className="container mx-auto py-8 px-4 text-center">Loading check-in data...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
@@ -40,58 +170,57 @@ export default function CheckInPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-semibold flex items-center">
             <ClipboardCheck className="mr-2 h-6 w-6 text-accent" />
-            Volunteer Check-in
+            Volunteer Check-in {currentEvent ? `for ${currentEvent.event_name}` : ''}
           </CardTitle>
           <CardDescription>
-            Team leaders: Please mark attendance for volunteers in your team. This system assumes Wi-Fi connectivity.
+            Team leaders: Mark attendance for assigned volunteers. This system assumes Wi-Fi connectivity.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-6 p-4 border rounded-md bg-muted/30">
-            <h3 className="text-lg font-medium mb-2 flex items-center"><Users className="mr-2 h-5 w-5"/>Your Team Members</h3>
+            <h3 className="text-lg font-medium mb-2 flex items-center"><Users className="mr-2 h-5 w-5"/>Assigned Volunteers</h3>
             <p className="text-sm text-muted-foreground mb-1">
-              This list shows volunteers scheduled for today under your supervision.
+              This list shows volunteers with assigned tasks for the current event.
             </p>
             <p className="text-sm text-muted-foreground">
-              Select the checkbox next to a volunteer's name to mark them as checked-in.
+              Select the checkbox to mark a volunteer as checked-in for their specific task and time slot.
             </p>
           </div>
           
-          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+          <ScrollArea className="h-[500px] w-full rounded-md border p-4">
             <div className="space-y-4">
-              {mockVolunteersForCheckin.length > 0 ? (
-                mockVolunteersForCheckin.map(volunteer => (
-                  <div key={volunteer.id} className="flex items-center justify-between p-3 rounded-md border bg-card hover:bg-muted/50 transition-colors">
+              {commitments.length > 0 ? (
+                commitments.map(commitment => (
+                  <div key={commitment.id} className="flex items-center justify-between p-3 rounded-md border bg-card hover:bg-muted/50 transition-colors">
                     <div>
-                      <p className="font-medium">{volunteer.name}</p>
-                      <p className="text-sm text-muted-foreground">Task: {volunteer.task}</p>
-                      <p className="text-xs text-muted-foreground">Scheduled: {volunteer.scheduledShift}</p>
+                      <p className="font-medium">{commitment.volunteers?.first_name} {commitment.volunteers?.last_name}</p>
+                      <p className="text-sm text-muted-foreground">Task: {commitment.seva_categories?.category_name || "N/A"}</p>
+                      <p className="text-xs text-muted-foreground">Slot: {commitment.time_slots?.slot_name}</p>
+                       <p className="text-xs text-muted-foreground">
+                        Time: {formatTime(commitment.time_slots?.start_time)} - {formatTime(commitment.time_slots?.end_time)}
+                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox
-                        id={`checkin-${volunteer.id}`}
-                        checked={!!checkedInVolunteers[volunteer.id]}
-                        onCheckedChange={() => handleCheckInToggle(volunteer.id)}
-                        aria-label={`Mark ${volunteer.name} as checked in`}
+                        id={`checkin-${commitment.id}`}
+                        checked={!!localCheckInStatus[commitment.id]}
+                        onCheckedChange={() => handleCheckInToggle(commitment.id)}
+                        aria-label={`Mark ${commitment.volunteers?.first_name} for task ${commitment.seva_categories?.category_name} as checked in`}
                       />
-                      <Label htmlFor={`checkin-${volunteer.id}`} className="cursor-pointer">
-                        {checkedInVolunteers[volunteer.id] ? "Checked In" : "Check In"}
+                      <Label htmlFor={`checkin-${commitment.id}`} className="cursor-pointer">
+                        {localCheckInStatus[commitment.id] ? "Checked In" : "Check In"}
                       </Label>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center">No volunteers scheduled for your team at this time, or data is loading.</p>
+                <p className="text-muted-foreground text-center py-10">No assigned volunteers found for this event, or data is loading.</p>
               )}
             </div>
           </ScrollArea>
-          <div className="mt-6 flex justify-end">
-            <Button onClick={() => alert("Submitting all check-ins... (Simulated)")}>
-              Submit All Check-ins
-            </Button>
-          </div>
+          {/* Removed "Submit All Check-ins" button as individual toggles now persist data */}
            <p className="text-xs text-muted-foreground mt-4">
-              Note: Actual check-ins will be tracked against submitted availability.
+              Note: Check-in status is saved automatically when toggled.
               This data will be crucial for post-event analysis and future planning.
             </p>
         </CardContent>
@@ -99,3 +228,4 @@ export default function CheckInPage() {
     </div>
   );
 }
+

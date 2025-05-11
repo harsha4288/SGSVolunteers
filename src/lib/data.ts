@@ -1,126 +1,32 @@
+// Mock data has been removed.
+// All data fetching will now be done via Supabase client.
+// See src/lib/supabase/client.ts and src/lib/supabase/server.ts
 
-import type { Volunteer } from "@/lib/types";
+// Example placeholder for a function that would fetch volunteers from Supabase:
+/*
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { Volunteer } from '@/lib/types/supabase';
 
-export const mockVolunteers: Volunteer[] = [
-  {
-    id: "1",
-    timestamp: "2023-10-26 10:00:00",
-    emailAddress: "john.doe@example.com",
-    firstName: "John",
-    lastName: "Doe",
-    phone: "123-456-7890",
-    sevaDates: "July 8th, July 9th",
-    location: "Main Hall",
-    isGitaMahayajnaFamily: "Yes",
-    associationWithMahayajna: "Student's Parent",
-    mahayajnaStudentName: "Jane Doe",
-    batch: "Batch A",
-    hospitality: "No",
-    additionalInfo: "Experienced in event management.",
-    gender: "Male",
-    allEventDaysFullTime: "No",
-    volCategory: "Event Support",
-    availability: {
-      "8thJulyEvening": true, "9thJulyMorning": true, "9thJulyEvening": false, "9thJulyAllDay": false,
-      "10thJulyMorning": false, "10thJulyEvening": false, "10thJulyAllDay": false,
-      "11thJulyMorning": false, "11thJulyEvening": false, "11thJulyAllDay": false,
-      "12thJulyMorning": false, "12thJulyEvening": false, "12thJulyAllDay": false,
-    },
-    totalVolunteering: "2 sessions",
-    seva: "Registration Desk",
-    allDays: "No",
-    tags: ["registration", "front-desk"],
-  },
-  {
-    id: "2",
-    timestamp: "2023-10-27 11:30:00",
-    emailAddress: "jane.smith@example.com",
-    firstName: "Jane",
-    lastName: "Smith",
-    phone: "987-654-3210",
-    sevaDates: "July 10th - July 12th",
-    location: "Kitchen Area",
-    otherLocation: "Dining Hall",
-    isGitaMahayajnaFamily: "No",
-    associationWithMahayajna: "General Volunteer",
-    hospitality: "Yes",
-    additionalInfo: "Allergic to peanuts.",
-    gender: "Female",
-    allEventDaysFullTime: "Yes",
-    volCategory: "Food Service",
-    availability: {
-      "8thJulyEvening": false, "9thJulyMorning": false, "9thJulyEvening": false, "9thJulyAllDay": false,
-      "10thJulyMorning": true, "10thJulyEvening": true, "10thJulyAllDay": true,
-      "11thJulyMorning": true, "11thJulyEvening": true, "11thJulyAllDay": true,
-      "12thJulyMorning": true, "12thJulyEvening": true, "12thJulyAllDay": true,
-    },
-    totalVolunteering: "3 Full Days",
-    seva: "Food Preparation and Serving",
-    allDays: "Yes",
-    tags: ["food", "kitchen", "hospitality", "catering"],
-  },
-  {
-    id: "3",
-    timestamp: "2023-10-28 14:15:00",
-    emailAddress: "alice.brown@example.com",
-    firstName: "Alice",
-    lastName: "Brown",
-    phone: "555-123-4567",
-    sevaDates: "July 9th",
-    location: "Technical Booth",
-    isGitaMahayajnaFamily: "Yes",
-    associationWithMahayajna: "Alumni",
-    batch: "Batch C",
-    hospitality: "No",
-    gender: "Female",
-    allEventDaysFullTime: "No",
-    volCategory: "AV & Technical",
-    availability: {
-      "8thJulyEvening": false, "9thJulyMorning": false, "9thJulyEvening": false, "9thJulyAllDay": true,
-      "10thJulyMorning": false, "10thJulyEvening": false, "10thJulyAllDay": false,
-      "11thJulyMorning": false, "11thJulyEvening": false, "11thJulyAllDay": false,
-      "12thJulyMorning": false, "12thJulyEvening": false, "12thJulyAllDay": false,
-    },
-    totalVolunteering: "1 Full Day",
-    seva: "Audio/Visual Support",
-    allDays: "No",
-    tags: ["technical", "av", "sound", "presentation"],
-  },
-  {
-    id: "4",
-    timestamp: "2023-10-29 09:00:00",
-    emailAddress: "bob.green@example.com",
-    firstName: "Bob",
-    lastName: "Green",
-    phone: "555-987-6543",
-    sevaDates: "All event days",
-    location: "Security Checkpoint",
-    isGitaMahayajnaFamily: "No",
-    associationWithMahayajna: "Community Member",
-    hospitality: "No",
-    additionalInfo: "First aid certified.",
-    gender: "Male",
-    allEventDaysFullTime: "Yes",
-    volCategory: "Security & Safety",
-    availability: {
-      "8thJulyEvening": true, "9thJulyMorning": true, "9thJulyEvening": true, "9thJulyAllDay": true,
-      "10thJulyMorning": true, "10thJulyEvening": true, "10thJulyAllDay": true,
-      "11thJulyMorning": true, "11thJulyEvening": true, "11thJulyAllDay": true,
-      "12thJulyMorning": true, "12thJulyEvening": true, "12thJulyAllDay": true,
-    },
-    totalVolunteering: "All Days Full Time",
-    seva: "Crowd Control and Security",
-    allDays: "Yes",
-    tags: ["security", "safety", "crowd-management", "first-aid"],
-  }
-];
-
-// Helper function to simulate fetching data
 export async function getVolunteers(): Promise<Volunteer[]> {
-  // In a real app, this would fetch from an API or database
-  return new Promise(resolve => setTimeout(() => resolve(mockVolunteers), 500));
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase.from('volunteers').select('*');
+  if (error) {
+    console.error('Error fetching volunteers:', error);
+    return [];
+  }
+  return data || [];
 }
 
 export async function getVolunteerById(id: string): Promise<Volunteer | undefined> {
-  return new Promise(resolve => setTimeout(() => resolve(mockVolunteers.find(v => v.id === id)), 200));
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase.from('volunteers').select('*').eq('id', id).single();
+  if (error) {
+    console.error('Error fetching volunteer by id:', error);
+    return undefined;
+  }
+  return data || undefined;
 }
+*/
+
+// This file can be removed or repurposed for Supabase-specific data fetching helper functions if needed.
+// For now, data fetching logic will reside closer to where it's used (e.g., in page components or server actions).

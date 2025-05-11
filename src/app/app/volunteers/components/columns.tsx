@@ -2,10 +2,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Volunteer } from "@/lib/types";
+import type { Volunteer } from "@/lib/types/supabase"; // Updated import
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Link from "next/link";
+
+// Helper to format names, etc. if needed - though direct access is fine for simple fields
+// const formatName = (row: any) => `${row.getValue("first_name")} ${row.getValue("last_name")}`;
 
 export const columns: ColumnDef<Volunteer>[] = [
   {
@@ -42,7 +46,7 @@ export const columns: ColumnDef<Volunteer>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "firstName",
+    accessorKey: "first_name",
     header: ({ column }) => {
       return (
         <Button
@@ -54,10 +58,10 @@ export const columns: ColumnDef<Volunteer>[] = [
         </Button>
       );
     },
-    cell: ({ row }) => <div className="font-medium">{row.getValue("firstName")}</div>,
+    cell: ({ row }) => <div className="font-medium">{row.getValue("first_name")}</div>,
   },
   {
-    accessorKey: "lastName",
+    accessorKey: "last_name",
     header: ({ column }) => {
       return (
         <Button
@@ -69,49 +73,52 @@ export const columns: ColumnDef<Volunteer>[] = [
         </Button>
       );
     },
+    cell: ({ row }) => <div>{row.getValue("last_name")}</div>,
   },
   {
-    accessorKey: "emailAddress",
+    accessorKey: "email",
     header: "Email",
+    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
   },
   {
     accessorKey: "phone",
     header: "Phone",
+    cell: ({ row }) => <div>{row.getValue("phone") || "-"}</div>,
   },
   {
-    accessorKey: "volCategory",
-    header: "Category",
-    cell: ({ row }) => {
-      const category = row.getValue("volCategory") as string;
-      // Basic color mapping for categories, can be expanded
-      let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-      if (category.toLowerCase().includes("food")) variant = "default";
-      if (category.toLowerCase().includes("security")) variant = "destructive";
-      if (category.toLowerCase().includes("technical")) variant = "outline";
-      
-      return <Badge variant={variant} className="capitalize">{category}</Badge>;
-    },
+    accessorKey: "gender",
+    header: "Gender",
+    cell: ({ row }) => <div className="capitalize">{row.getValue("gender") || "-"}</div>,
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
     },
   },
   {
-    accessorKey: "seva",
-    header: "Seva",
-    cell: ({row}) => <div className="truncate max-w-xs">{row.getValue("seva")}</div>
-  },
-  {
-    accessorKey: "location",
-    header: "Location",
+    accessorKey: "location", // General location if available on volunteer record
+    header: "Primary Location",
+     cell: ({ row }) => <div>{row.getValue("location") || "-"}</div>,
      filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
+    },
+  },
+  {
+    accessorKey: "gm_family",
+    header: "GM Family",
+    cell: ({ row }) => {
+      const isGMFamily = row.getValue("gm_family");
+      return isGMFamily ? <Badge variant="default">Yes</Badge> : <Badge variant="secondary">No</Badge>;
+    },
+     filterFn: (row, id, value) => {
+      // value will be array of selected string options e.g. ["true", "false"]
+      const rowValue = String(row.getValue(id));
+      return value.includes(rowValue);
     },
   },
   {
     accessorKey: "tags",
     header: "AI Tags",
     cell: ({ row }) => {
-      const tags = row.getValue("tags") as string[] | undefined;
+      const tags = row.getValue("tags") as string[] | undefined | null;
       if (!tags || tags.length === 0) return <span className="text-muted-foreground">N/A</span>;
       return (
         <div className="flex flex-wrap gap-1 max-w-xs">
@@ -140,16 +147,23 @@ export const columns: ColumnDef<Volunteer>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(volunteer.emailAddress)}
+              onClick={() => navigator.clipboard.writeText(volunteer.email)}
             >
               Copy Email
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View details</DropdownMenuItem>
-            <DropdownMenuItem>Edit volunteer</DropdownMenuItem>
+            {/* This link needs to be defined, e.g. /app/volunteers/[volunteer_id]/schedule or /app/volunteers/[volunteer_id]/details */}
+            <Link href={`/app/volunteers/${volunteer.id}/schedule`} passHref>
+              <DropdownMenuItem>
+                <Eye className="mr-2 h-4 w-4" />
+                View Schedule
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuItem disabled>Edit volunteer (TBD)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
     },
   },
 ];
+
