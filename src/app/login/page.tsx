@@ -44,7 +44,6 @@ export default function LoginPage() {
       setLoadingProfiles(true);
       setError(null);
       try {
-        // Ensure supabase client is initialized
         if (!supabase) {
           setError("Supabase client not available for fetching profiles.");
           setLoadingProfiles(false);
@@ -53,43 +52,49 @@ export default function LoginPage() {
 
         const { data, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, email, display_name, user_id') // Fetch user_id as well
+          .select('id, email, display_name, user_id')
           .order('email', { ascending: true });
 
         if (profilesError) {
-          // Throw the actual Supabase error to be caught by the catch block
           throw profilesError; 
         }
-        // Filter out Supabase's placeholder/masked emails
         const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
         setProfiles(validProfiles);
-      } catch (err: any) { 
-        console.error("Error fetching profiles:", err); // This is line 69 from the error log
-        
-        let detail = "An unexpected error occurred. The error object was not informative.";
-        if (err) {
+      } catch (err: any) {
+        let uiDetailMessage: string;
+        const consoleLogParts: any[] = ["Error fetching profiles:"];
+
+        if (err && typeof err === 'object' && Object.keys(err).length === 0 && err.constructor === Object) {
+          const rlsHint = "This often indicates a permissions issue (Row Level Security or table grants in Supabase) or a network problem preventing a full error response. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role has SELECT access if unauthenticated users need to list profiles for impersonation.";
+          uiDetailMessage = `The operation failed, and the error object received from the server was empty. ${rlsHint}`;
+          consoleLogParts.push(`Received empty error object. ${rlsHint}`, err);
+        } else if (err) {
           if (typeof err.message === 'string' && err.message.trim() !== "") {
-            detail = err.message;
+            uiDetailMessage = err.message;
+            consoleLogParts.push(err.message, err);
           } else if (typeof err.details === 'string' && err.details.trim() !== "") {
-            detail = err.details;
+            uiDetailMessage = err.details;
+            consoleLogParts.push(err.details, err);
           } else if (typeof err === 'string' && err.trim() !== "") {
-            detail = err;
+            uiDetailMessage = err;
+            consoleLogParts.push(err);
           } else {
             try {
               const errString = JSON.stringify(err);
-              if (errString !== '{}') { 
-                 detail = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration.`;
-              } else {
-                // Explicitly handle the case where err is an empty object
-                detail = "The operation failed, and the error object received from the server was empty. This often indicates a permissions issue (Row Level Security or table grants in Supabase) or a network problem preventing a full error response. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role has SELECT access if unauthenticated users need to list profiles for impersonation.";
-              }
+              uiDetailMessage = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration.`;
+              consoleLogParts.push(`Non-standard error: ${errString}`, err);
             } catch {
-              // Stringification failed
-              detail = "The operation failed, and the error object was unreadable. Check network and Supabase status, and ensure RLS policies grant necessary access.";
+              uiDetailMessage = "The operation failed, and the error object was unreadable. Check network and Supabase status, and ensure RLS policies grant necessary access.";
+              consoleLogParts.push("Unreadable error object.", err);
             }
           }
+        } else {
+           uiDetailMessage = "An unknown error occurred (error object was null or undefined).";
+           consoleLogParts.push("Unknown error (err object is null or undefined).");
         }
-        setError(`Failed to fetch profiles: ${detail}`);
+        
+        console.error(...consoleLogParts);
+        setError(`Failed to fetch profiles: ${uiDetailMessage}`);
       } finally {
         setLoadingProfiles(false);
       }
