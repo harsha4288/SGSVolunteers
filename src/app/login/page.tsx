@@ -23,10 +23,12 @@ export default function LoginPage() {
   const LogoIcon = SITE_CONFIG.logo;
 
   useEffect(() => {
-    // Initialize Supabase client
-    // console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-    // console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    setSupabase(createClient());
+    try {
+      setSupabase(createClient());
+    } catch (e: any) {
+      setError(`Failed to initialize Supabase client: ${e.message}`);
+      console.error("Supabase client initialization error:", e);
+    }
   }, []);
 
   const handleMagicLinkSignIn = async (event: FormEvent<HTMLFormElement>) => {
@@ -36,13 +38,19 @@ export default function LoginPage() {
     setLoading(true);
 
     if (!supabase) {
-      setError("Supabase client not initialized. Please try again.");
+      setError("Supabase client not initialized. Please try again or refresh the page.");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Email address cannot be empty.");
       setLoading(false);
       return;
     }
 
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
+      const { data, error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -50,13 +58,18 @@ export default function LoginPage() {
       });
 
       if (otpError) {
-        setError(otpError.message);
+        console.error("Supabase signInWithOtp Error:", otpError); // Log the full error object
+        setError(`OTP Sign-in failed: ${otpError.message}`);
       } else {
+        console.log("OTP Sign In Initiated. Response data:", data); // Log data for debugging
         setInfoMessage("Check your email for a magic link to sign in!");
         setEmail(''); 
       }
     } catch (e: any) {
-      setError(e.message || 'An unexpected error occurred.');
+      // This catch block handles errors not specific to the Supabase `otpError` object,
+      // such as network failures before Supabase even processes the request.
+      console.error("Exception during signInWithOtp call:", e); 
+      setError(e.message || 'An unexpected error occurred during the sign-in attempt.');
     } finally {
       setLoading(false);
     }
@@ -117,4 +130,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
