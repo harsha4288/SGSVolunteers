@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { QrCode, CameraOff, Shirt } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { InsertTShirtIssuance, TShirtInventory, TShirtSize, Volunteer } from "@/lib/types/supabase";
+import type { InsertTShirtIssuance, TShirtInventory, TShirtSize, Volunteer, Database } from "@/lib/types/supabase";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 // Assume a default event ID for now
@@ -29,13 +30,21 @@ export function QrScannerSection() {
   const [scannedVolunteerInfo, setScannedVolunteerInfo] = React.useState<Volunteer | null>(null);
   const [isScanning, setIsScanning] = React.useState(false);
   const { toast } = useToast();
-  const supabase = createClient();
+  const [supabase, setSupabase] = React.useState<SupabaseClient<Database> | null>(null);
   const [availableTShirts, setAvailableTShirts] = React.useState<(TShirtInventory & { tshirt_sizes: Pick<TShirtSize, 'size_name'> | null })[]>([]);
   const [selectedTShirtInventoryId, setSelectedTShirtInventoryId] = React.useState<string>("");
   const [issuing, setIssuing] = React.useState(false);
 
+  React.useEffect(() => {
+    const supabaseInstance = createClient();
+    setSupabase(supabaseInstance);
+  }, []);
+
+
   // Fetch T-Shirt inventory
   React.useEffect(() => {
+    if (!supabase) return;
+
     const fetchTShirtInventory = async () => {
       const { data, error } = await supabase
         .from('tshirt_inventory')
@@ -70,6 +79,10 @@ export function QrScannerSection() {
   }, []);
 
   const startScan = async () => {
+    if (!supabase) {
+      toast({ variant: "destructive", title: "Error", description: "Supabase client not initialized." });
+      return;
+    }
     setScannedVolunteerId(null);
     setScannedVolunteerInfo(null);
     setSelectedTShirtInventoryId("");
@@ -114,6 +127,7 @@ export function QrScannerSection() {
   };
 
   const handleDetected = async (data: string) => {
+    if (!supabase) return;
     // Assuming QR code contains the volunteer's UUID
     setScannedVolunteerId(data); 
     stopScan();
@@ -137,6 +151,10 @@ export function QrScannerSection() {
 
 
   const handleIssueTShirt = async () => {
+    if (!supabase) {
+      toast({ title: "Error", description: "Supabase client not initialized.", variant: "destructive" });
+      return;
+    }
     if (!scannedVolunteerId || !selectedTShirtInventoryId) {
       toast({ title: "Missing Information", description: "Volunteer ID or T-shirt size not selected.", variant: "destructive" });
       return;
@@ -223,11 +241,11 @@ export function QrScannerSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         {!isScanning ? (
-          <Button onClick={startScan} className="w-full sm:w-auto">
+          <Button onClick={startScan} className="w-full sm:w-auto" disabled={!supabase}>
             <QrCode className="mr-2 h-4 w-4" /> Start Scanning
           </Button>
         ) : (
-          <Button onClick={stopScan} variant="outline" className="w-full sm:w-auto">
+          <Button onClick={stopScan} variant="outline" className="w-full sm:w-auto" disabled={!supabase}>
             <CameraOff className="mr-2 h-4 w-4" /> Stop Scanning
           </Button>
         )}
@@ -254,7 +272,7 @@ export function QrScannerSection() {
               <Select
                 value={selectedTShirtInventoryId}
                 onValueChange={setSelectedTShirtInventoryId}
-                disabled={issuing}
+                disabled={issuing || !supabase}
               >
                 <SelectTrigger id="tshirt-size-select">
                   <SelectValue placeholder="Select T-Shirt Size" />
@@ -268,7 +286,7 @@ export function QrScannerSection() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleIssueTShirt} disabled={!selectedTShirtInventoryId || issuing} className="w-full">
+            <Button onClick={handleIssueTShirt} disabled={!selectedTShirtInventoryId || issuing || !supabase} className="w-full">
               {issuing ? "Issuing..." : "Confirm & Issue T-Shirt"} <Shirt className="ml-2 h-4 w-4" />
             </Button>
           </Card>

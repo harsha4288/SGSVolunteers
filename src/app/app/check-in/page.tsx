@@ -1,7 +1,6 @@
 
 'use client'; // Needs to be client component for state and interactions
 
-import type { Metadata } from "next"; // Metadata can be defined in a parent layout or here if static
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClipboardCheck, Users, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { VolunteerCommitment, Volunteer, TimeSlot, SevaCategory, SupabaseEvent } from "@/lib/types/supabase";
+import type { VolunteerCommitment, Volunteer, TimeSlot, SevaCategory, SupabaseEvent, Database, UpdateVolunteerCommitment } from "@/lib/types/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from 'date-fns';
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // This would typically be dynamic or passed as a prop
 const CURRENT_EVENT_ID = 1; // Placeholder: This should be determined dynamically
@@ -24,45 +24,43 @@ type CommitmentWithDetails = VolunteerCommitment & {
   seva_categories: Pick<SevaCategory, 'id' | 'category_name'> | null;
 };
 
-// export const metadata: Metadata = { // Cannot use metadata in 'use client' component directly
-//   title: "Volunteer Check-in System",
-//   description: "Team leader portal to mark volunteer attendance.",
-// };
-
 export default function CheckInPage() {
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const { toast } = useToast();
   const [commitments, setCommitments] = useState<CommitmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentEvent, setCurrentEvent] = useState<SupabaseEvent | null>(null);
   
-  // This state tracks client-side toggles before they are persisted.
-  // The source of truth is `commitments[i].checked_in_at`.
   const [localCheckInStatus, setLocalCheckInStatus] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    const supabaseInstance = createClient();
+    setSupabase(supabaseInstance);
+  }, []);
 
 
   useEffect(() => {
+    if (!supabase) return;
     async function fetchEventDetails() {
-        const { data, error } = await supabase
+        const { data, error: eventError } = await supabase
             .from('events')
             .select('event_name')
             .eq('id', CURRENT_EVENT_ID)
             .single();
-        if (error) console.error('Error fetching event details for check-in:', error.message);
-        else setCurrentEvent(data as SupabaseEvent); // Cast as SupabaseEvent
+        if (eventError) console.error('Error fetching event details for check-in:', eventError.message);
+        else setCurrentEvent(data as SupabaseEvent); 
     }
     fetchEventDetails();
   }, [supabase]);
 
 
   useEffect(() => {
+    if (!supabase) return;
+
     async function fetchAssignedVolunteers() {
       setLoading(true);
       setError(null);
-      // Fetch commitments for 'ASSIGNED_TASK' for the current event
-      // and for time slots that are relevant (e.g., today or upcoming)
-      // For simplicity, fetching all assigned tasks for the CURRENT_EVENT_ID
       const { data, error: fetchError } = await supabase
         .from('volunteer_commitments')
         .select(`
@@ -73,7 +71,6 @@ export default function CheckInPage() {
         `)
         .eq('event_id', CURRENT_EVENT_ID)
         .eq('commitment_type', 'ASSIGNED_TASK')
-        // .gte('time_slots.start_time', new Date().toISOString()) // Example: only future/current slots
         .order('time_slots(start_time)', { ascending: true })
         .order('volunteers(last_name)', { ascending: true });
 
@@ -83,7 +80,6 @@ export default function CheckInPage() {
         setCommitments([]);
       } else {
         setCommitments(data as CommitmentWithDetails[] || []);
-        // Initialize localCheckInStatus based on fetched data
         const initialStatus: Record<number, boolean> = {};
         (data as CommitmentWithDetails[] || []).forEach(c => {
           initialStatus[c.id] = !!c.checked_in_at;
@@ -97,13 +93,16 @@ export default function CheckInPage() {
   }, [supabase]);
 
   const handleCheckInToggle = async (commitmentId: number) => {
+    if (!supabase) {
+      toast({ title: "Error", description: "Supabase client not initialized.", variant: "destructive" });
+      return;
+    }
     const commitment = commitments.find(c => c.id === commitmentId);
     if (!commitment) return;
 
     const currentlyCheckedIn = !!localCheckInStatus[commitmentId];
     const newCheckedInState = !currentlyCheckedIn;
     
-    // Optimistically update UI
     setLocalCheckInStatus(prev => ({ ...prev, [commitmentId]: newCheckedInState }));
 
     const updatePayload: Partial<UpdateVolunteerCommitment> = {
@@ -122,14 +121,12 @@ export default function CheckInPage() {
         description: `Could not update check-in for ${commitment.volunteers?.first_name}. Reverting.`,
         variant: "destructive",
       });
-      // Revert optimistic update
       setLocalCheckInStatus(prev => ({ ...prev, [commitmentId]: currentlyCheckedIn }));
     } else {
       toast({
         title: "Check-in Updated",
         description: `${commitment.volunteers?.first_name} ${commitment.volunteers?.last_name} marked as ${newCheckedInState ? 'Checked In' : 'Not Checked In'}.`,
       });
-       // Update the main commitments state to reflect the change from DB
       setCommitments(prevCommitments => 
         prevCommitments.map(c => 
           c.id === commitmentId ? { ...c, checked_in_at: updatePayload.checked_in_at } : c
@@ -143,12 +140,12 @@ export default function CheckInPage() {
     try {
       return format(new Date(dateTimeString), "MMM d, h:mm a");
     } catch (e) {
-      return dateTimeString; // fallback if date is invalid
+      return dateTimeString; 
     }
   };
 
 
-  if (loading) {
+  if (loading || !supabase) {
     return <div className="container mx-auto py-8 px-4 text-center">Loading check-in data...</div>;
   }
 
@@ -206,6 +203,7 @@ export default function CheckInPage() {
                         checked={!!localCheckInStatus[commitment.id]}
                         onCheckedChange={() => handleCheckInToggle(commitment.id)}
                         aria-label={`Mark ${commitment.volunteers?.first_name} for task ${commitment.seva_categories?.category_name} as checked in`}
+                        disabled={!supabase}
                       />
                       <Label htmlFor={`checkin-${commitment.id}`} className="cursor-pointer">
                         {localCheckInStatus[commitment.id] ? "Checked In" : "Check In"}
@@ -218,7 +216,6 @@ export default function CheckInPage() {
               )}
             </div>
           </ScrollArea>
-          {/* Removed "Submit All Check-ins" button as individual toggles now persist data */}
            <p className="text-xs text-muted-foreground mt-4">
               Note: Check-in status is saved automatically when toggled.
               This data will be crucial for post-event analysis and future planning.

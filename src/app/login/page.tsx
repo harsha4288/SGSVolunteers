@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
@@ -6,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { SITE_CONFIG } from '@/lib/constants';
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, KeyRound, AlertCircle } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/types/supabase';
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,10 +23,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const LogoIcon = SITE_CONFIG.logo;
 
+  useEffect(() => {
+    setSupabase(createClient());
+  }, []);
+
   const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setLoading(true);
+
+    if (!supabase) {
+      setError("Supabase client not initialized. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -46,6 +60,13 @@ export default function LoginPage() {
   const handleSignUp = async () => {
     setError(null);
     setLoading(true);
+
+    if (!supabase) {
+      setError("Supabase client not initialized. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -72,6 +93,13 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
+
+    if (!supabase) {
+      setError("Supabase client not initialized. Please try again.");
+      setLoading(false);
+      return;
+    }
+    
     try {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -118,6 +146,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="pl-10"
+                  disabled={!supabase || loading}
                 />
               </div>
             </div>
@@ -133,14 +162,15 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="pl-10"
+                  disabled={!supabase || loading}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={!supabase || loading}>
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
-           <Button variant="outline" onClick={handleSignUp} className="w-full mt-2" disabled={loading}>
+           <Button variant="outline" onClick={handleSignUp} className="w-full mt-2" disabled={!supabase || loading}>
             {loading ? 'Signing Up...' : 'Sign Up with Email'}
           </Button>
           <div className="relative my-4">
@@ -153,7 +183,7 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-          <Button variant="outline" onClick={handleGoogleSignIn} className="w-full" disabled={loading}>
+          <Button variant="outline" onClick={handleGoogleSignIn} className="w-full" disabled={!supabase || loading}>
             {/* Simple SVG for Google Icon */}
             <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
             Sign In with Google

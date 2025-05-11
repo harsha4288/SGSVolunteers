@@ -15,26 +15,31 @@ import {
 import { User as UserIcon, LogOut, Settings, LogIn } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { User, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
+import type { Database } from '@/lib/types/supabase';
+
 
 export function UserNav() {
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabaseInstance = createClient();
+    setSupabase(supabaseInstance);
+
     const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseInstance.auth.getSession();
       setUser(session?.user ?? null);
       setLoading(false);
     };
 
     fetchUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const { data: authListener } = supabaseInstance.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
         if (_event === 'SIGNED_OUT') {
@@ -46,15 +51,16 @@ export function UserNav() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase, router]);
+  }, [router]);
 
   const handleLogout = async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh(); 
   };
 
-  if (loading) {
+  if (loading || !supabase) {
     return (
       <Button variant="ghost" className="relative h-9 w-9 rounded-full">
         <Avatar className="h-9 w-9">
