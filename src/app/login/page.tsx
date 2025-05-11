@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { SITE_CONFIG } from '@/lib/constants';
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserCheck, AlertCircle, List, Mail } from 'lucide-react';
@@ -43,27 +43,29 @@ export default function LoginPage() {
     const fetchProfiles = async () => {
       setLoadingProfiles(true);
       setError(null);
+      const consoleLogParts: any[] = ["Error fetching profiles:"];
+      let uiDetailMessage = "An unknown error occurred.";
+
       try {
         if (!supabase) {
-          setError("Supabase client not available for fetching profiles.");
-          setLoadingProfiles(false);
-          return;
+          uiDetailMessage = "Supabase client not available for fetching profiles.";
+          consoleLogParts.push(uiDetailMessage);
+          throw new Error(uiDetailMessage);
         }
 
         const { data, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, email, display_name, user_id')
+          .select('id, email, display_name, user_id') // Ensure user_id is selected if needed for impersonation logic
           .order('email', { ascending: true });
 
         if (profilesError) {
-          throw profilesError; 
+          consoleLogParts.push("Supabase error object:", profilesError);
+          throw profilesError;
         }
         const validProfiles = data?.filter(p => p.email && !p.email.includes('****')) || [];
         setProfiles(validProfiles);
-      } catch (err: any) {
-        let uiDetailMessage: string;
-        const consoleLogParts: any[] = ["Error fetching profiles:"];
-
+      } catch (err: any) { 
+        
         if (err && typeof err === 'object' && Object.keys(err).length === 0 && err.constructor === Object) {
           const rlsHint = "This often indicates a permissions issue (Row Level Security or table grants in Supabase) or a network problem preventing a full error response. Please check your Supabase 'profiles' table permissions and RLS policies, ensuring the 'anon' role has SELECT access if unauthenticated users need to list profiles for impersonation.";
           uiDetailMessage = `The operation failed, and the error object received from the server was empty. ${rlsHint}`;
@@ -71,6 +73,9 @@ export default function LoginPage() {
         } else if (err) {
           if (typeof err.message === 'string' && err.message.trim() !== "") {
             uiDetailMessage = err.message;
+            if (uiDetailMessage.toLowerCase().includes("failed to fetch")) {
+              uiDetailMessage += " This could be due to network connectivity issues or, more commonly, Row Level Security (RLS) policies on the 'profiles' table in Supabase preventing access. Please ensure the 'anon' role has SELECT permission for listing profiles. Also verify your Supabase URL and Anon Key are correct.";
+            }
             consoleLogParts.push(err.message, err);
           } else if (typeof err.details === 'string' && err.details.trim() !== "") {
             uiDetailMessage = err.details;
@@ -81,15 +86,15 @@ export default function LoginPage() {
           } else {
             try {
               const errString = JSON.stringify(err);
-              uiDetailMessage = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration.`;
+              uiDetailMessage = `Non-standard error object: ${errString}. This could indicate a network issue or misconfiguration. Check RLS policies.`;
               consoleLogParts.push(`Non-standard error: ${errString}`, err);
             } catch {
-              uiDetailMessage = "The operation failed, and the error object was unreadable. Check network and Supabase status, and ensure RLS policies grant necessary access.";
+              uiDetailMessage = "The operation failed, and the error object was unreadable. Check network, Supabase status, and ensure RLS policies grant necessary access to the 'profiles' table for the 'anon' role.";
               consoleLogParts.push("Unreadable error object.", err);
             }
           }
         } else {
-           uiDetailMessage = "An unknown error occurred (error object was null or undefined).";
+           uiDetailMessage = "An unknown error occurred (error object was null or undefined). Check RLS policies on 'profiles' table.";
            consoleLogParts.push("Unknown error (err object is null or undefined).");
         }
         
@@ -111,7 +116,7 @@ export default function LoginPage() {
     localStorage.setItem('impersonatedProfileId', profile.id);
     localStorage.setItem('impersonatedEmail', profile.email);
     localStorage.setItem('impersonatedDisplayName', profile.display_name || profile.email.split('@')[0]);
-    if (profile.user_id) {
+    if (profile.user_id) { // user_id can be null if profile was imported and not linked to auth user yet
       localStorage.setItem('impersonatedAuthUserId', profile.user_id);
     } else {
       localStorage.removeItem('impersonatedAuthUserId');
@@ -166,7 +171,11 @@ export default function LoginPage() {
             <Alert>
               <List className="h-4 w-4" />
               <AlertTitle>No Profiles Found for Impersonation</AlertTitle>
-              <AlertDescription>No suitable profiles were found in the database. Please check if the 'profiles' table has data and if RLS policies allow access.</AlertDescription>
+              <AlertDescription>
+                No suitable profiles were found in the database. 
+                Please check if the 'profiles' table has data.
+                Also, ensure Row Level Security (RLS) policies allow the 'anon' role to read from the 'profiles' table.
+              </AlertDescription>
             </Alert>
           )}
 
@@ -199,3 +208,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
