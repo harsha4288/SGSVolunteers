@@ -1,7 +1,7 @@
 # Volunteer Management Application: Database Design & Authentication Plan
 
-**Date:** May 11, 2025
-**Version:** 1.1 (Includes Roles & Auditing)
+**Date:** May 11, 2025 (Updated: May 15, 2025)
+**Version:** 1.2 (Includes Roles & Auditing, Default Role Assignment)
 
 ## 1. Introduction
 
@@ -59,6 +59,11 @@ Defines user roles within the application.
 
 *Comment: Defines user roles within the application. Seeded with 'Admin', 'Team Lead', 'Volunteer'.*
 
+**Default Role Assignments:**
+- User datta.rajesh@gmail.com is assigned the Admin role
+- User harshayarlagadda2@gmail.com is assigned the Team Lead role
+- All users are automatically assigned the Volunteer role by default (via database trigger)
+
 ### 3.3. `public.profiles`
 Represents app user accounts, linked to Supabase authentication.
 
@@ -87,6 +92,9 @@ Assigns roles to user profiles (junction table).
 
 *Comment: Assigns roles to user profiles.*
 *Indexes: `idx_profile_roles_profile_id(profile_id)`, `idx_profile_roles_role_id(role_id)`.*
+
+**Automatic Role Assignment:**
+A database trigger (`trg_assign_default_volunteer_role`) automatically assigns the Volunteer role (ID: 3) to every new profile created in the system. This ensures that all users have at least the basic Volunteer role by default.
 
 ### 3.5. `public.volunteers`
 Stores details of individual volunteers, typically from Google Form registrations.
@@ -246,5 +254,21 @@ All custom tables have RLS enabled. Policies must be implemented to ensure:
 *   Users can only see/manage commitments, check-ins, T-shirt issuances related to their managed volunteers.
 *   'Team Lead' role might have broader access to volunteers/commitments within their assigned seva categories (requires additional linking table like `team_lead_seva_assignments (profile_id, seva_category_id)` if this granularity is needed).
 *   'Admin' role has broader access as required.
+
+## 6. Role Management
+
+### 6.1. Default Role Assignment
+All users are automatically assigned the Volunteer role (ID: 3) when their profile is created. This is implemented through a database trigger (`trg_assign_default_volunteer_role`) that executes after a new profile is inserted.
+
+### 6.2. Specific Role Assignments
+The following specific role assignments are made in the database:
+* User with email `datta.rajesh@gmail.com` is assigned the Admin role (ID: 1)
+* User with email `harshayarlagadda2@gmail.com` is assigned the Team Lead role (ID: 2)
+
+### 6.3. Role Hierarchy
+The roles follow this general hierarchy of permissions:
+1. **Admin** - Full system access
+2. **Team Lead** - Can manage volunteers, check-ins, and T-shirt issuances for their assigned areas
+3. **Volunteer** - Basic access to view their own schedule and information
 
 This documentation should provide a solid foundation for UI development. Please refer to the Supabase documentation for details on querying, RLS policy creation, and using the Supabase client libraries.

@@ -18,10 +18,12 @@ import type { User, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import type { Database } from '@/lib/types/supabase';
+import { useToast } from "@/hooks/use-toast";
 
 export function UserNav() {
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,18 +34,33 @@ export function UserNav() {
 
 
   useEffect(() => {
-    const impersonatedId = localStorage.getItem('impersonatedProfileId');
-    const impEmail = localStorage.getItem('impersonatedEmail');
-    const impDisplayName = localStorage.getItem('impersonatedDisplayName');
+    // Function to load impersonation data from localStorage
+    const loadImpersonationData = () => {
+      try {
+        const impersonatedId = localStorage.getItem('impersonatedProfileId');
+        const impEmail = localStorage.getItem('impersonatedEmail');
+        const impDisplayName = localStorage.getItem('impersonatedDisplayName');
 
-    if (impersonatedId && impEmail) {
-      setIsImpersonating(true);
-      setImpersonatedProfileId(impersonatedId);
-      setImpersonatedEmail(impEmail);
-      setImpersonatedDisplayName(impDisplayName || impEmail.split('@')[0]);
-    } else {
-      setIsImpersonating(false);
-    }
+        console.log("Checking impersonation data:", { impersonatedId, impEmail, impDisplayName });
+
+        if (impersonatedId && impEmail) {
+          setIsImpersonating(true);
+          setImpersonatedProfileId(impersonatedId);
+          setImpersonatedEmail(impEmail);
+          setImpersonatedDisplayName(impDisplayName || impEmail.split('@')[0]);
+          console.log("Impersonation active:", { impersonatedId, impEmail });
+        } else {
+          setIsImpersonating(false);
+          console.log("No impersonation data found");
+        }
+      } catch (error) {
+        console.error("Error loading impersonation data:", error);
+        setIsImpersonating(false);
+      }
+    };
+
+    // Load impersonation data on initial mount
+    loadImpersonationData();
 
     const supabaseInstance = createClient();
     setSupabase(supabaseInstance);
@@ -72,27 +89,43 @@ export function UserNav() {
         }
       }
     );
-    
-    // Listen to storage changes to reflect impersonation status dynamically
+
+    // Function to handle storage changes (both from other tabs and from our custom event)
     const handleStorageChange = () => {
+      try {
+        console.log("Storage change detected");
         const impId = localStorage.getItem('impersonatedProfileId');
         const impEmail = localStorage.getItem('impersonatedEmail');
         const impDisplayName = localStorage.getItem('impersonatedDisplayName');
+
+        console.log("Updated impersonation data:", { impId, impEmail });
+
         if (impId && impEmail) {
             setIsImpersonating(true);
             setImpersonatedProfileId(impId);
             setImpersonatedEmail(impEmail);
             setImpersonatedDisplayName(impDisplayName || impEmail.split('@')[0]);
+            console.log("Impersonation updated:", { impId, impEmail });
         } else {
             setIsImpersonating(false);
+            console.log("Impersonation cleared");
         }
+      } catch (error) {
+        console.error("Error handling storage change:", error);
+      }
     };
+
+    // Listen to storage changes from other tabs
     window.addEventListener('storage', handleStorageChange);
+
+    // Also listen to our custom storage event (for same-tab updates)
+    window.addEventListener('storage-update', handleStorageChange);
 
 
     return () => {
       authListener?.subscription.unsubscribe();
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage-update', handleStorageChange);
     };
   }, [router]);
 
@@ -107,16 +140,42 @@ export function UserNav() {
   };
 
   const stopImpersonation = () => {
-    localStorage.removeItem('impersonatedProfileId');
-    localStorage.removeItem('impersonatedEmail');
-    localStorage.removeItem('impersonatedDisplayName');
-    localStorage.removeItem('impersonatedAuthUserId');
-    setIsImpersonating(false);
-    setImpersonatedEmail(null);
-    setImpersonatedDisplayName(null);
-    setImpersonatedProfileId(null);
-    // router.push('/login'); // Or refresh current page to reflect actual auth state
-    window.location.reload(); // Force reload to re-evaluate auth state cleanly
+    try {
+      console.log("Stopping impersonation");
+
+      // Clear localStorage
+      localStorage.removeItem('impersonatedProfileId');
+      localStorage.removeItem('impersonatedEmail');
+      localStorage.removeItem('impersonatedDisplayName');
+      localStorage.removeItem('impersonatedAuthUserId');
+
+      // Clear cookies
+      document.cookie = 'impersonatedProfileId=; path=/; max-age=0';
+      document.cookie = 'impersonatedEmail=; path=/; max-age=0';
+      document.cookie = 'impersonatedDisplayName=; path=/; max-age=0';
+
+      // Update component state
+      setIsImpersonating(false);
+      setImpersonatedEmail(null);
+      setImpersonatedDisplayName(null);
+      setImpersonatedProfileId(null);
+
+      // Trigger custom event to notify other components
+      window.dispatchEvent(new Event('storage-update'));
+
+      // Show toast notification
+      toast({
+        title: "Impersonation Ended",
+        description: "You are no longer impersonating a user.",
+      });
+
+      // Force reload to re-evaluate auth state cleanly
+      window.location.href = '/login';
+    } catch (error) {
+      console.error("Error stopping impersonation:", error);
+      // Force reload as fallback
+      window.location.reload();
+    }
   };
 
   if (loading && !isImpersonating) { // Only show loading if not immediately showing impersonated user

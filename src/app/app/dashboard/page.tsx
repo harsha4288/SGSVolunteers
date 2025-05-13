@@ -42,15 +42,44 @@ export default function DashboardPage() {
         let isImpersonating = false;
 
         if (typeof window !== "undefined") {
+            // Try to get impersonation data from localStorage
             impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
             impersonatedEmail = localStorage.getItem('impersonatedEmail');
+
+            // If not found in localStorage, try to get from cookies as fallback
+            if (!impersonatedProfileId || !impersonatedEmail) {
+                const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+                const profileIdCookie = cookies.find(cookie => cookie.startsWith('impersonatedProfileId='));
+                const emailCookie = cookies.find(cookie => cookie.startsWith('impersonatedEmail='));
+
+                if (profileIdCookie && emailCookie) {
+                    impersonatedProfileId = profileIdCookie.split('=')[1];
+                    impersonatedEmail = decodeURIComponent(emailCookie.split('=')[1]);
+
+                    // If found in cookies but not in localStorage, restore to localStorage
+                    if (impersonatedProfileId && impersonatedEmail) {
+                        console.log("Dashboard: Restoring impersonation data from cookies to localStorage");
+                        localStorage.setItem('impersonatedProfileId', impersonatedProfileId);
+                        localStorage.setItem('impersonatedEmail', impersonatedEmail);
+
+                        // Also try to restore display name
+                        const displayNameCookie = cookies.find(cookie => cookie.startsWith('impersonatedDisplayName='));
+                        if (displayNameCookie) {
+                            const displayName = decodeURIComponent(displayNameCookie.split('=')[1]);
+                            localStorage.setItem('impersonatedDisplayName', displayName);
+                        }
+                    }
+                }
+            }
+
             isImpersonating = !!(impersonatedProfileId && impersonatedEmail);
+            console.log("Dashboard: Impersonation status determined", { impersonatedProfileId, impersonatedEmail, isImpersonating });
         }
 
         const { data: { user: authUser } } = await supabase.auth.getUser();
 
         let profileToUse: Profile | null = null;
-        
+
         if (isImpersonating && impersonatedProfileId) {
           // Fetch the impersonated profile
           const { data: impProfileData, error: impProfileError } = await supabase
@@ -91,7 +120,7 @@ export default function DashboardPage() {
           if (volunteersError) console.error("Error fetching volunteers:", volunteersError.message);
           userVolunteers = volunteersData || [];
         }
-        
+
         setDashboardData({
           currentEvent,
           userProfile: profileToUse,
@@ -108,15 +137,29 @@ export default function DashboardPage() {
       }
     }
 
+    // Initial data fetch
     fetchDashboardData();
-     // Listen to storage changes to re-fetch data if impersonation status changes
+
+    // Log impersonation status for debugging
+    console.log("Dashboard: Checking impersonation status", {
+      impersonatedProfileId: localStorage.getItem('impersonatedProfileId'),
+      impersonatedEmail: localStorage.getItem('impersonatedEmail'),
+      cookies: document.cookie
+    });
+
+    // Listen to storage changes to re-fetch data if impersonation status changes
     const handleStorageChange = () => {
-        fetchDashboardData();
+      console.log("Dashboard: Storage change detected");
+      fetchDashboardData();
     };
+
+    // Listen to both standard storage event (other tabs) and our custom event (same tab)
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage-update', handleStorageChange);
 
     return () => {
-        window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage-update', handleStorageChange);
     };
   }, [supabase]);
 
@@ -190,7 +233,7 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground">{v.email}</p>
                     </div>
                     {/* TODO: This link structure might need adjustment if impersonating for a volunteer not tied to current auth user */}
-                    <Link href={`/app/volunteers/${v.id}/schedule`}> 
+                    <Link href={`/app/volunteers/${v.id}/schedule`}>
                        <Button variant="outline" size="sm">View Schedule</Button>
                     </Link>
                   </li>

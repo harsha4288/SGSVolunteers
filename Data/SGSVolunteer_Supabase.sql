@@ -36,8 +36,8 @@ ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE public.events IS 'Stores event details.';
 
 -- Seed default event
-INSERT INTO public.events (event_name, start_date, end_date) 
-VALUES ('Gita Mahayajna 2025', '2025-07-08', '2025-07-12') 
+INSERT INTO public.events (event_name, start_date, end_date)
+VALUES ('Gita Mahayajna 2025', '2025-07-08', '2025-07-12')
 ON CONFLICT (event_name) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -47,8 +47,8 @@ CREATE TABLE public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE, -- Link to Supabase Auth user, NULLABLE
     email TEXT UNIQUE NOT NULL, -- Login email for the app account
-    display_name TEXT, 
-    bio TEXT,          
+    display_name TEXT,
+    bio TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -62,12 +62,12 @@ COMMENT ON COLUMN public.profiles.user_id IS 'FK to auth.users.id. Can be NULL u
 -- Create `volunteers` Table (Individual Volunteer Details)
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.volunteers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), 
-    profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, 
-    email TEXT NOT NULL, 
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    email TEXT NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    phone TEXT, 
+    phone TEXT,
     gender TEXT,
     gm_family BOOLEAN,
     association_with_mahayajna TEXT,
@@ -95,9 +95,9 @@ COMMENT ON COLUMN public.volunteers.requested_tshirt_quantity IS 'Number of T-sh
 CREATE TABLE public.time_slots (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     event_id BIGINT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
-    slot_name TEXT NOT NULL UNIQUE, 
-    start_time TIMESTAMPTZ NOT NULL, 
-    end_time TIMESTAMPTZ NOT NULL,   
+    slot_name TEXT NOT NULL UNIQUE,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -110,7 +110,7 @@ COMMENT ON TABLE public.time_slots IS 'Defines specific time slots for volunteer
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.seva_categories (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    category_name TEXT NOT NULL UNIQUE, 
+    category_name TEXT NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -124,7 +124,7 @@ COMMENT ON TABLE public.seva_categories IS 'Defines categories of seva or tasks.
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.roles (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    role_name TEXT NOT NULL UNIQUE, 
+    role_name TEXT NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -145,7 +145,7 @@ CREATE TABLE public.profile_roles (
     profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     role_id BIGINT NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
     assigned_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (profile_id, role_id) 
+    PRIMARY KEY (profile_id, role_id)
 );
 ALTER TABLE public.profile_roles ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_profile_roles_profile_id ON public.profile_roles(profile_id);
@@ -153,12 +153,82 @@ CREATE INDEX idx_profile_roles_role_id ON public.profile_roles(role_id);
 COMMENT ON TABLE public.profile_roles IS 'Assigns roles to user profiles.';
 
 -- ---------------------------------------------------------------------------
+-- Create trigger to automatically assign Volunteer role to new profiles
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION assign_default_volunteer_role()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Insert the Volunteer role (ID: 3) for the new profile
+    INSERT INTO public.profile_roles (profile_id, role_id, assigned_at)
+    VALUES (NEW.id, 3, NOW());
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create the trigger on the profiles table
+CREATE TRIGGER trg_assign_default_volunteer_role
+AFTER INSERT ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION assign_default_volunteer_role();
+
+-- Assign Volunteer role to all existing profiles that don't have any role
+INSERT INTO public.profile_roles (profile_id, role_id, assigned_at)
+SELECT
+    p.id,
+    3, -- Volunteer role ID
+    NOW()
+FROM
+    public.profiles p
+WHERE
+    NOT EXISTS (
+        SELECT 1
+        FROM public.profile_roles pr
+        WHERE pr.profile_id = p.id
+    );
+
+-- Assign specific roles to key users
+-- Assign Admin role to datta.rajesh@gmail.com
+INSERT INTO public.profile_roles (profile_id, role_id, assigned_at)
+SELECT
+    p.id,
+    1, -- Admin role ID
+    NOW()
+FROM
+    public.profiles p
+WHERE
+    p.email = 'datta.rajesh@gmail.com'
+AND
+    NOT EXISTS (
+        SELECT 1
+        FROM public.profile_roles pr
+        WHERE pr.profile_id = p.id AND pr.role_id = 1
+    );
+
+-- Assign Team Lead role to harshayarlagadda2@gmail.com
+INSERT INTO public.profile_roles (profile_id, role_id, assigned_at)
+SELECT
+    p.id,
+    2, -- Team Lead role ID
+    NOW()
+FROM
+    public.profiles p
+WHERE
+    p.email = 'harshayarlagadda2@gmail.com'
+AND
+    NOT EXISTS (
+        SELECT 1
+        FROM public.profile_roles pr
+        WHERE pr.profile_id = p.id AND pr.role_id = 2
+    );
+
+-- ---------------------------------------------------------------------------
 -- Create `tshirt_inventory` Table
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.tshirt_inventory (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     event_id BIGINT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
-    size TEXT NOT NULL, 
+    size TEXT NOT NULL,
     quantity INTEGER NOT NULL CHECK (quantity >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -173,11 +243,11 @@ COMMENT ON TABLE public.tshirt_inventory IS 'Tracks T-shirt inventory by size fo
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.tshirt_issuances (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    volunteer_id UUID NOT NULL REFERENCES public.volunteers(id) ON DELETE CASCADE, 
+    volunteer_id UUID NOT NULL REFERENCES public.volunteers(id) ON DELETE CASCADE,
     tshirt_inventory_id BIGINT NOT NULL REFERENCES public.tshirt_inventory(id) ON DELETE RESTRICT,
     issued_by_profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     issuance_date TIMESTAMPTZ DEFAULT NOW(),
-    size TEXT, 
+    size TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -218,7 +288,7 @@ CREATE TABLE public.volunteer_commitments (
     volunteer_id UUID NOT NULL REFERENCES public.volunteers(id) ON DELETE CASCADE,
     time_slot_id BIGINT NOT NULL REFERENCES public.time_slots(id) ON DELETE CASCADE,
     commitment_type TEXT NOT NULL CHECK (commitment_type IN ('PROMISED_AVAILABILITY', 'ASSIGNED_TASK')),
-    seva_category_id BIGINT REFERENCES public.seva_categories(id) ON DELETE SET NULL, 
+    seva_category_id BIGINT REFERENCES public.seva_categories(id) ON DELETE SET NULL,
     task_notes TEXT,
     source_reference TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),

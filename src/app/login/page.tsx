@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Database, Profile } from "@/lib/types/supabase";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [supabase, setSupabase] = React.useState<SupabaseClient<Database> | null>(null);
   const [loadingProfiles, setLoadingProfiles] = React.useState(true);
@@ -56,9 +54,14 @@ export default function LoginPage() {
       let uiDetailMessage = "Could not fetch profiles from the database.";
 
       try {
+        // Ensure supabase is not null (TypeScript check)
+        if (!supabase) {
+          throw new Error("Supabase client is null");
+        }
+
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
-          .select("id, email, display_name, user_id")
+          .select("*") // Select all fields to match the Profile type
           .order("email", { ascending: true });
 
         if (profilesError) {
@@ -70,15 +73,15 @@ export default function LoginPage() {
           if (profilesError.details) consoleLogParts.push(`Details: ${profilesError.details}`);
           if (profilesError.hint) consoleLogParts.push(`Hint: ${profilesError.hint}`);
           if (profilesError.code) consoleLogParts.push(`Code: ${profilesError.code}`);
-          
+
           consoleLogParts.push("Supabase error object (raw):", profilesError);
           try {
             consoleLogParts.push("Supabase error object (JSON):", JSON.stringify(profilesError, null, 2));
           } catch (e) {
             consoleLogParts.push("Could not stringify Supabase error object.");
           }
-          
-          console.error(...consoleLogParts); 
+
+          console.error(...consoleLogParts);
           setError(uiDetailMessage);
           setProfiles([]);
           setLoadingProfiles(false);
@@ -86,15 +89,15 @@ export default function LoginPage() {
         }
 
         const validProfiles = (profilesData || []).filter(p => p.email && !p.email.includes('***'));
-        setProfiles(validProfiles);
+        setProfiles(validProfiles as Profile[]);
 
-      } catch (err: any) { 
+      } catch (err: any) {
         consoleLogParts.push("Generic error during fetchProfiles execution:");
         let detail = "An unexpected error occurred. The error object was not informative.";
 
         if (err && err.message) {
           consoleLogParts.push(err.message);
-          detail = err.message; 
+          detail = err.message;
           if (err.message.toLowerCase().includes('failed to fetch')) {
             detail += " This network error often points to issues with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, or Supabase CORS configuration. Please verify these and restart your development server.";
           }
@@ -102,7 +105,7 @@ export default function LoginPage() {
         if (err && typeof err === 'object') {
              consoleLogParts.push("Error object:", err);
         }
-        
+
         uiDetailMessage = `Failed to fetch profiles: ${detail}`;
         console.error(...consoleLogParts);
         setError(uiDetailMessage);
@@ -119,22 +122,53 @@ export default function LoginPage() {
         toast({ title: "Error", description: "Supabase client not available.", variant: "destructive" });
         return;
     }
-    
-    localStorage.setItem("impersonatedProfileId", profile.id);
-    localStorage.setItem("impersonatedEmail", profile.email);
-    localStorage.setItem("impersonatedDisplayName", profile.display_name || profile.email.split('@')[0]);
-    
-    if (profile.user_id) {
-        localStorage.setItem("impersonatedAuthUserId", profile.user_id); 
-    } else {
-        localStorage.removeItem("impersonatedAuthUserId");
-    }
 
-    toast({
-      title: "Impersonating User",
-      description: `Now viewing as ${profile.display_name || profile.email}.`,
-    });
-    router.push("/app/dashboard"); 
+    try {
+      // Store impersonation data in localStorage
+      localStorage.setItem("impersonatedProfileId", profile.id);
+      localStorage.setItem("impersonatedEmail", profile.email);
+      localStorage.setItem("impersonatedDisplayName", profile.display_name || profile.email.split('@')[0]);
+
+      if (profile.user_id) {
+          localStorage.setItem("impersonatedAuthUserId", profile.user_id);
+      } else {
+          localStorage.removeItem("impersonatedAuthUserId");
+      }
+
+      // Also store in cookies for middleware access
+      document.cookie = `impersonatedProfileId=${profile.id}; path=/; max-age=86400`;
+      document.cookie = `impersonatedEmail=${encodeURIComponent(profile.email)}; path=/; max-age=86400`;
+      document.cookie = `impersonatedDisplayName=${encodeURIComponent(profile.display_name || profile.email.split('@')[0])}; path=/; max-age=86400`;
+
+      // Trigger a custom event to notify other components about the impersonation
+      // The standard 'storage' event only fires for other tabs, not the current one
+      window.dispatchEvent(new Event('storage-update'));
+
+      console.log("Impersonation data set:", {
+        profileId: profile.id,
+        email: profile.email,
+        displayName: profile.display_name || profile.email.split('@')[0]
+      });
+
+      toast({
+        title: "Impersonating User",
+        description: `Now viewing as ${profile.display_name || profile.email}.`,
+      });
+
+      // Add a small delay to ensure cookies are set before navigation
+      setTimeout(() => {
+        console.log("Navigating to dashboard...");
+        // Use window.location.href instead of router.push for a full page reload
+        window.location.href = "/app/dashboard";
+      }, 100);
+    } catch (error) {
+      console.error("Error during impersonation:", error);
+      toast({
+        title: "Impersonation Failed",
+        description: "An error occurred while setting up impersonation.",
+        variant: "destructive"
+      });
+    }
   };
 
   const filteredProfiles = profiles.filter(profile =>

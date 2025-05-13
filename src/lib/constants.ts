@@ -1,6 +1,16 @@
 
 import type { NavItem } from "@/lib/types";
-import { LayoutDashboard, Users, Sparkles, Handshake, Shirt, ClipboardCheck } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Sparkles,
+  Handshake,
+  Shirt,
+  ClipboardCheck,
+  UserCog,
+  CalendarClock,
+  Shield
+} from "lucide-react";
 
 export const SITE_CONFIG = {
   name: "VolunteerVerse",
@@ -23,6 +33,16 @@ export const APP_NAV_ITEMS: NavItem[] = [
     title: "Volunteers",
     href: "/app/volunteers",
     icon: Users,
+  },
+  {
+    title: "Volunteer Assignments",
+    href: "/app/volunteer-assignments",
+    icon: CalendarClock,
+  },
+  {
+    title: "User Management",
+    href: "/app/user-management",
+    icon: UserCog,
   },
   {
     title: "AI Tagging",
