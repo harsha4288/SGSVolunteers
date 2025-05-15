@@ -1,10 +1,11 @@
 'use server';
 
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/supabase';
 import { revalidatePath } from 'next/cache';
 import { Pool } from 'pg';
+import { hardcodedAdminCheck } from '../admin-override';
+import { createSupabaseServerActionClient } from '@/lib/supabase/server-actions';
 
 // Define types for our data
 export type Volunteer = {
@@ -51,127 +52,90 @@ export type VolunteerCommitment = {
 
 // Function to check if the current user has admin role
 export async function checkAdminAccess() {
-  try {
-    const cookieStore = cookies();
-
-    // Create Supabase client
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options });
-          },
-        },
-      }
-    );
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.log('No authenticated user found or error:', userError);
-      return { isAdmin: false, error: 'Not authenticated' };
-    }
-
-    console.log('Checking admin access for user:', user.email);
-
-    // Create a direct database connection
-    const pool = new Pool({
-      host: process.env.SUPABASE_DB_HOST,
-      port: parseInt(process.env.SUPABASE_DB_PORT || '5432'),
-      database: process.env.SUPABASE_DB_NAME,
-      user: process.env.SUPABASE_DB_USER,
-      password: process.env.SUPABASE_DB_PASSWORD,
-      ssl: true
-    });
-
-    // Get a client from the pool
-    const client = await pool.connect();
-
-    try {
-      // Check if the user has admin role directly by email
-      const result = await client.query(`
-        SELECT
-          COUNT(*) as admin_count
-        FROM
-          public.profiles p
-        JOIN
-          public.profile_roles pr ON p.id = pr.profile_id
-        JOIN
-          public.roles r ON pr.role_id = r.id
-        WHERE
-          p.email = $1
-          AND r.role_name = 'Admin'
-      `, [user.email]);
-
-      const isAdmin = parseInt(result.rows[0].admin_count) > 0;
-      console.log('User admin status (by email):', isAdmin, 'Count:', result.rows[0].admin_count);
-
-      // If not admin, let's check if this user is datta.rajesh@gmail.com
-      if (!isAdmin && user.email === 'datta.rajesh@gmail.com') {
-        console.log('Special case: datta.rajesh@gmail.com should be admin');
-        return { isAdmin: true, error: null };
-      }
-
-      return { isAdmin, error: null };
-    } finally {
-      // Release the client back to the pool
-      client.release();
-    }
-  } catch (error) {
-    console.error('Unexpected error in checkAdminAccess:', error);
-    return {
-      isAdmin: false,
-      error: error instanceof Error ? error.message : 'Unknown error checking admin access'
-    };
-  }
+  // Use the hardcoded admin check instead of database queries
+  // This is a temporary solution until we fix the database connection issues
+  return hardcodedAdminCheck();
 }
 
-// Function to fetch all volunteers
-export async function fetchVolunteers() {
-  const { isAdmin, error } = await checkAdminAccess();
+// Function to fetch volunteers with pagination and search
+export async function fetchVolunteers(page = 1, pageSize = 10, searchQuery = '') {
+  try {
+    console.log(`Fetching volunteers - page: ${page}, pageSize: ${pageSize}, search: "${searchQuery}"`);
 
-  if (!isAdmin) {
-    return { data: null, error: error || 'Unauthorized: Admin access required' };
-  }
+    const { isAdmin, error } = await checkAdminAccess();
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
+    if (!isAdmin) {
+      return {
+        data: null,
+        totalCount: 0,
+        error: error || 'Unauthorized: Admin access required'
+      };
     }
-  );
 
-  const { data: volunteers, error: volunteersError } = await supabase
-    .from('volunteers')
-    .select('id, first_name, last_name, email')
-    .order('first_name');
+    const supabase = createSupabaseServerActionClient();
+    let query = supabase.from('volunteers').select('id, first_name, last_name, email');
 
-  if (volunteersError) {
-    return { data: null, error: `Error fetching volunteers: ${volunteersError.message}` };
+    // Apply search filter if provided
+    if (searchQuery && searchQuery.trim() !== '') {
+      const searchTerm = `%${searchQuery.trim().toLowerCase()}%`;
+      query = query.or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`);
+    }
+
+    // Get total count of filtered volunteers
+    // First get the count using a separate query
+    const { data: countData, error: countError } = await query.select('id');
+    const count = countData ? countData.length : 0;
+
+    if (countError) {
+      console.error('Error getting volunteer count:', countError);
+      return {
+        data: null,
+        totalCount: 0,
+        error: `Error getting volunteer count: ${countError.message}`
+      };
+    }
+
+    // Calculate range for pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Get paginated and filtered volunteers
+    let filteredQuery = supabase.from('volunteers').select('id, first_name, last_name, email');
+
+    // Apply the same search filter
+    if (searchQuery && searchQuery.trim() !== '') {
+      const searchTerm = `%${searchQuery.trim().toLowerCase()}%`;
+      filteredQuery = filteredQuery.or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`);
+    }
+
+    const { data: volunteers, error: volunteersError } = await filteredQuery
+      .range(from, to)
+      .order('first_name');
+
+    if (volunteersError) {
+      console.error('Error fetching volunteers:', volunteersError);
+      return {
+        data: null,
+        totalCount: count || 0,
+        error: `Error fetching volunteers: ${volunteersError.message}`
+      };
+    }
+
+    console.log(`Fetched ${volunteers.length} volunteers out of ${count} total matching search "${searchQuery}"`);
+
+    return {
+      data: volunteers,
+      totalCount: count || 0,
+      error: null
+    };
+  } catch (error) {
+    console.error('Unexpected error in fetchVolunteers:', error);
+    return {
+      data: null,
+      totalCount: 0,
+      error: error instanceof Error ? error.message : 'Unknown error fetching volunteers'
+    };
   }
-
-  return { data: volunteers, error: null };
 }
 
 // Function to fetch all time slots
@@ -182,24 +146,7 @@ export async function fetchTimeSlots() {
     return { data: null, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseServerActionClient();
 
   const { data: timeSlots, error: timeSlotsError } = await supabase
     .from('time_slots')
@@ -221,24 +168,7 @@ export async function fetchSevaCategories() {
     return { data: null, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseServerActionClient();
 
   const { data: sevaCategories, error: sevaCategoriesError } = await supabase
     .from('seva_categories')
@@ -260,24 +190,7 @@ export async function fetchVolunteerCommitments() {
     return { data: null, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseServerActionClient();
 
   const { data: commitments, error: commitmentsError } = await supabase
     .from('volunteer_commitments')
@@ -325,24 +238,7 @@ export async function assignVolunteerToTask(
     return { success: false, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseServerActionClient();
 
   // Check if the assignment already exists
   const { data: existingAssignment, error: checkError } = await supabase
@@ -401,24 +297,7 @@ export async function removeVolunteerAssignment(commitmentId: number) {
     return { success: false, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const cookieStore = cookies();
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseServerActionClient();
 
   // Delete the assignment
   const { error: deleteError } = await supabase

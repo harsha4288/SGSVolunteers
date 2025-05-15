@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -415,6 +414,61 @@ export type Database = {
           }
         ]
       }
+      roles: {
+        Row: {
+          id: number;
+          role_name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          role_name: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          role_name?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      profile_roles: {
+        Row: {
+          profile_id: string;
+          role_id: number;
+          assigned_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          role_id: number;
+          assigned_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          role_id?: number;
+          assigned_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profile_roles_profile_id_fkey",
+            columns: ["profile_id"],
+            referencedRelation: "profiles",
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_roles_role_id_fkey",
+            columns: ["role_id"],
+            referencedRelation: "roles",
+            referencedColumns: ["id"]
+          }
+        ];
+      };
     }
     Views: {
       [_ in never]: never

@@ -48,6 +48,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -58,7 +59,11 @@ import {
   Plus,
   Trash2,
   UserCog,
-  Users
+  Users,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -74,6 +79,11 @@ export default function VolunteerAssignmentsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalVolunteers, setTotalVolunteers] = useState(0);
+  const [pageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
   // Form state
   const [selectedVolunteer, setSelectedVolunteer] = useState<string>('');
@@ -109,6 +119,19 @@ export default function VolunteerAssignmentsPage() {
     checkAccess();
   }, []);
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      // Reset to first page when search changes
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage]);
+
   // Fetch data
   useEffect(() => {
     if (!accessChecked) return;
@@ -123,13 +146,16 @@ export default function VolunteerAssignmentsPage() {
       setError(null);
 
       try {
-        // Fetch volunteers
-        const { data: volunteersData, error: volunteersError } = await fetchVolunteers();
+        // Fetch volunteers with pagination and search
+        const { data: volunteersData, totalCount, error: volunteersError } =
+          await fetchVolunteers(currentPage, pageSize, debouncedSearchQuery);
+
         if (volunteersError) {
           setError(volunteersError);
           return;
         }
         setVolunteers(volunteersData || []);
+        setTotalVolunteers(totalCount);
 
         // Fetch time slots
         const { data: timeSlotsData, error: timeSlotsError } = await fetchTimeSlots();
@@ -163,7 +189,7 @@ export default function VolunteerAssignmentsPage() {
     };
 
     fetchData();
-  }, [isAdmin, accessChecked]);
+  }, [isAdmin, accessChecked, currentPage, pageSize, debouncedSearchQuery]);
 
   // Handle assigning a volunteer to a task
   const handleAssignVolunteer = async () => {
@@ -548,8 +574,18 @@ export default function VolunteerAssignmentsPage() {
                     Manage Volunteer Assignments
                   </CardTitle>
                   <CardDescription>
-                    Assign volunteers to specific tasks and time slots.
+                    Assign volunteers to specific tasks and time slots. Use the search box to find volunteers quickly.
                   </CardDescription>
+                  <div className="mt-4 flex flex-col space-y-2">
+                    <div className="text-sm font-medium">Quick Guide:</div>
+                    <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                      <li>Search for a volunteer using the search box</li>
+                      <li>Select a time slot from the middle panel</li>
+                      <li>Choose a seva category from the right panel</li>
+                      <li>Click "Create New Assignment" at the bottom</li>
+                      <li>Add optional notes and confirm the assignment</li>
+                    </ol>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -557,21 +593,75 @@ export default function VolunteerAssignmentsPage() {
                       <Card>
                         <CardHeader className="pb-2">
                           <CardTitle className="text-base">Volunteers</CardTitle>
+                          <div className="mt-2 relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search volunteers..."
+                              className="pl-8"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-1 top-1.5 h-6 w-6 rounded-full p-0"
+                                onClick={() => setSearchQuery('')}
+                              >
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Clear search</span>
+                              </Button>
+                            )}
+                          </div>
                         </CardHeader>
                         <CardContent className="h-[300px] overflow-y-auto">
-                          <ul className="space-y-2">
-                            {volunteers.map((volunteer) => (
-                              <li key={volunteer.id} className="p-2 hover:bg-muted rounded-md">
-                                <div className="font-medium">
-                                  {volunteer.first_name} {volunteer.last_name}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {volunteer.email}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
+                          {volunteers.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              {debouncedSearchQuery
+                                ? `No volunteers found matching "${debouncedSearchQuery}"`
+                                : "No volunteers found"}
+                            </div>
+                          ) : (
+                            <ul className="space-y-2">
+                              {volunteers.map((volunteer) => (
+                                <li key={volunteer.id} className="p-2 hover:bg-muted rounded-md">
+                                  <div className="font-medium">
+                                    {volunteer.first_name} {volunteer.last_name}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {volunteer.email}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </CardContent>
+                        <CardFooter className="flex justify-between border-t pt-4">
+                          <div className="text-sm text-muted-foreground">
+                            Showing {volunteers.length} of {totalVolunteers} volunteers
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1 || loading}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="text-sm">
+                              Page {currentPage} of {Math.ceil(totalVolunteers / pageSize) || 1}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => (prev * pageSize < totalVolunteers ? prev + 1 : prev))}
+                              disabled={currentPage * pageSize >= totalVolunteers || loading}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardFooter>
                       </Card>
 
                       <Card>

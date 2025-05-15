@@ -17,6 +17,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -35,7 +36,18 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, UserCog, Shield, ShieldAlert, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  AlertCircle,
+  UserCog,
+  Shield,
+  ShieldAlert,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function UserManagementPage() {
@@ -47,6 +59,11 @@ export default function UserManagementPage() {
   const [selectedRoles, setSelectedRoles] = useState<Record<string, number>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [pageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const { toast } = useToast();
 
   // Check if the current user has admin access
@@ -75,6 +92,19 @@ export default function UserManagementPage() {
     checkAccess();
   }, []);
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      // Reset to first page when search changes
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage]);
+
   // Fetch users and roles data
   useEffect(() => {
     if (!accessChecked) return;
@@ -89,13 +119,16 @@ export default function UserManagementPage() {
       setError(null);
 
       try {
-        // Fetch users with their roles
-        const { data: usersData, error: usersError } = await fetchUsersWithRoles();
+        // Fetch users with their roles with pagination and search
+        const { data: usersData, totalCount, error: usersError } =
+          await fetchUsersWithRoles(currentPage, pageSize, debouncedSearchQuery);
+
         if (usersError) {
           setError(usersError);
           return;
         }
         setUsers(usersData || []);
+        setTotalUsers(totalCount);
 
         // Fetch available roles
         const { data: rolesData, error: rolesError } = await fetchRoles();
@@ -113,7 +146,7 @@ export default function UserManagementPage() {
     };
 
     fetchData();
-  }, [isAdmin, accessChecked]);
+  }, [isAdmin, accessChecked, currentPage, pageSize, debouncedSearchQuery]);
 
   // Handle adding a role to a user
   const handleAddRole = async (profileId: string) => {
@@ -287,6 +320,28 @@ export default function UserManagementPage() {
           <CardDescription>
             Manage user roles and permissions. Add or remove Team Lead and Admin roles.
           </CardDescription>
+          <div className="mt-4 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1.5 h-6 w-6 rounded-full p-0"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Clear search</span>
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {error && (
@@ -377,6 +432,34 @@ export default function UserManagementPage() {
             </Table>
           )}
         </CardContent>
+        <CardFooter className="flex justify-between">
+          <div className="flex items-center text-sm text-muted-foreground">
+            Showing {users.length} of {totalUsers} users
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Previous Page</span>
+            </Button>
+            <div className="text-sm">
+              Page {currentPage} of {Math.ceil(totalUsers / pageSize) || 1}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => (prev * pageSize < totalUsers ? prev + 1 : prev))}
+              disabled={currentPage * pageSize >= totalUsers || loading}
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span className="sr-only">Next Page</span>
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

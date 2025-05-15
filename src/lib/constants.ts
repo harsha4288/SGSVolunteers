@@ -35,6 +35,11 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: Users,
   },
   {
+    title: "Assignments",
+    href: "/app/assignments",
+    icon: CalendarClock,
+  },
+  {
     title: "Volunteer Assignments",
     href: "/app/volunteer-assignments",
     icon: CalendarClock,
