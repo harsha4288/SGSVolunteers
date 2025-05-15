@@ -154,6 +154,7 @@ export type Database = {
           slot_name: string // TEXT, UNIQUE with event_id
           start_time: string // TIMESTAMPTZ
           end_time: string // TIMESTAMPTZ
+          description: string | null // TEXT, full descriptive name
           created_at: string
         }
         Insert: {
@@ -162,6 +163,7 @@ export type Database = {
           slot_name: string
           start_time: string
           end_time: string
+          description?: string | null
           created_at?: string
         }
         Update: {
@@ -170,6 +172,7 @@ export type Database = {
           slot_name?: string
           start_time?: string
           end_time?: string
+          description?: string | null
           created_at?: string
         }
         Relationships: [

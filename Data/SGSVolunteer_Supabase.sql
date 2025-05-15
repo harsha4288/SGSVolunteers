@@ -98,12 +98,15 @@ CREATE TABLE public.time_slots (
     slot_name TEXT NOT NULL UNIQUE,
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ NOT NULL,
+    description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.time_slots ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_time_slots_slot_name ON public.time_slots(slot_name);
 COMMENT ON TABLE public.time_slots IS 'Defines specific time slots for volunteer activities.';
+COMMENT ON COLUMN public.time_slots.slot_name IS 'Short name used for assignments (e.g., "8th PM", "9th AM").';
+COMMENT ON COLUMN public.time_slots.description IS 'Full descriptive name of the time slot (e.g., "8th July (Tuesday) - Evening").';
 
 -- ---------------------------------------------------------------------------
 -- Create `seva_categories` Table

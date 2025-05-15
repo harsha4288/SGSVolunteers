@@ -20,7 +20,7 @@ const CURRENT_EVENT_ID = 1; // Placeholder: This should be determined dynamicall
 
 type CommitmentWithDetails = VolunteerCommitment & {
   volunteers: Pick<Volunteer, 'id' | 'first_name' | 'last_name'> | null;
-  time_slots: Pick<TimeSlot, 'id' | 'slot_name' | 'start_time' | 'end_time'> | null;
+  time_slots: Pick<TimeSlot, 'id' | 'slot_name' | 'description' | 'start_time' | 'end_time'> | null;
   seva_categories: Pick<SevaCategory, 'id' | 'category_name'> | null;
 };
 
@@ -31,7 +31,7 @@ export default function CheckInPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentEvent, setCurrentEvent] = useState<SupabaseEvent | null>(null);
-  
+
   const [localCheckInStatus, setLocalCheckInStatus] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function CheckInPage() {
             .eq('id', CURRENT_EVENT_ID)
             .single();
         if (eventError) console.error('Error fetching event details for check-in:', eventError.message);
-        else setCurrentEvent(data as SupabaseEvent); 
+        else setCurrentEvent(data as SupabaseEvent);
     }
     fetchEventDetails();
   }, [supabase]);
@@ -66,7 +66,7 @@ export default function CheckInPage() {
         .select(`
           *,
           volunteers (id, first_name, last_name),
-          time_slots (id, slot_name, start_time, end_time),
+          time_slots (id, slot_name, description, start_time, end_time),
           seva_categories (id, category_name)
         `)
         .eq('event_id', CURRENT_EVENT_ID)
@@ -102,7 +102,7 @@ export default function CheckInPage() {
 
     const currentlyCheckedIn = !!localCheckInStatus[commitmentId];
     const newCheckedInState = !currentlyCheckedIn;
-    
+
     setLocalCheckInStatus(prev => ({ ...prev, [commitmentId]: newCheckedInState }));
 
     const updatePayload: Partial<UpdateVolunteerCommitment> = {
@@ -127,20 +127,20 @@ export default function CheckInPage() {
         title: "Check-in Updated",
         description: `${commitment.volunteers?.first_name} ${commitment.volunteers?.last_name} marked as ${newCheckedInState ? 'Checked In' : 'Not Checked In'}.`,
       });
-      setCommitments(prevCommitments => 
-        prevCommitments.map(c => 
+      setCommitments(prevCommitments =>
+        prevCommitments.map(c =>
           c.id === commitmentId ? { ...c, checked_in_at: updatePayload.checked_in_at } : c
         )
       );
     }
   };
-  
+
   const formatTime = (dateTimeString: string | null | undefined) => {
     if (!dateTimeString) return 'N/A';
     try {
       return format(new Date(dateTimeString), "MMM d, h:mm a");
     } catch (e) {
-      return dateTimeString; 
+      return dateTimeString;
     }
   };
 
@@ -183,7 +183,7 @@ export default function CheckInPage() {
               Select the checkbox to mark a volunteer as checked-in for their specific task and time slot.
             </p>
           </div>
-          
+
           <ScrollArea className="h-[500px] w-full rounded-md border p-4">
             <div className="space-y-4">
               {commitments.length > 0 ? (
@@ -192,7 +192,7 @@ export default function CheckInPage() {
                     <div>
                       <p className="font-medium">{commitment.volunteers?.first_name} {commitment.volunteers?.last_name}</p>
                       <p className="text-sm text-muted-foreground">Task: {commitment.seva_categories?.category_name || "N/A"}</p>
-                      <p className="text-xs text-muted-foreground">Slot: {commitment.time_slots?.slot_name}</p>
+                      <p className="text-xs text-muted-foreground">Slot: {commitment.time_slots?.description || commitment.time_slots?.slot_name}</p>
                        <p className="text-xs text-muted-foreground">
                         Time: {formatTime(commitment.time_slots?.start_time)} - {formatTime(commitment.time_slots?.end_time)}
                        </p>

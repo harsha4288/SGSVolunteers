@@ -58,9 +58,12 @@ def generate_uuid():
 
 def parse_slot_description_to_timestamps(slot_desc_key, event_year=EVENT_YEAR, default_month=EVENT_DEFAULT_MONTH, event_tz=EVENT_TIMEZONE):
     """
-    Parses a slot description string into a list of (start_datetime_utc, end_datetime_utc, original_slot_desc) tuples.
+    Parses a slot description string into a list of (start_datetime_utc, end_datetime_utc, slot_name, slot_description) tuples.
     Handles multi-day keys like "ALL EVENT DAYS..." by returning multiple tuples.
     Returns UTC-aware datetimes.
+
+    slot_name: Short name used for assignments (e.g., "8th PM", "9th AM")
+    slot_description: Full descriptive name (e.g., "8th July (Tuesday) - Evening")
     """
     slot_desc_key_lower = slot_desc_key.lower().strip()
     parsed_datetimes = []
@@ -72,13 +75,20 @@ def parse_slot_description_to_timestamps(slot_desc_key, event_year=EVENT_YEAR, d
         for day_num in range(start_day, end_day + 1):
             try:
                 event_dt_local = date(event_year, default_month, day_num)
-                event_dt_local = date(event_year, default_month, day_num)
                 start_dt_local = datetime.combine(event_dt_local, slot_start_time_local)
                 end_dt_local = datetime.combine(event_dt_local, slot_end_time_local)
                 # Make timezone aware using replace() and then convert to UTC
                 start_dt_aware = start_dt_local.replace(tzinfo=event_tz)
                 end_dt_aware = end_dt_local.replace(tzinfo=event_tz)
-                parsed_datetimes.append((start_dt_aware.astimezone(timezone.utc), end_dt_aware.astimezone(timezone.utc), slot_desc_key))
+                # Generate short name for this day
+                day_suffix = "th" if day_num not in [1, 2, 3] else ["st", "nd", "rd"][day_num-1]
+                short_name = f"{day_num}{day_suffix} Full"
+                parsed_datetimes.append((
+                    start_dt_aware.astimezone(timezone.utc),
+                    end_dt_aware.astimezone(timezone.utc),
+                    short_name,
+                    slot_desc_key  # Use original full description
+                ))
             except ValueError as e:
                 print(f"Warning: Could not create date for '{slot_desc_key}' (Day: {day_num}): {e}")
         return parsed_datetimes
@@ -90,33 +100,45 @@ def parse_slot_description_to_timestamps(slot_desc_key, event_year=EVENT_YEAR, d
         end_dt_local = datetime.combine(DEFAULT_EVENT_END_DATE, time(23,59,59))   # Event end
         start_dt_aware = start_dt_local.replace(tzinfo=event_tz)
         end_dt_aware = end_dt_local.replace(tzinfo=event_tz)
-        parsed_datetimes.append((start_dt_aware.astimezone(timezone.utc), end_dt_aware.astimezone(timezone.utc), ALL_DAYS_ASSIGNMENT_SLOT_DESC))
+        short_name = "All Days"
+        description = ALL_DAYS_ASSIGNMENT_SLOT_DESC
+        parsed_datetimes.append((
+            start_dt_aware.astimezone(timezone.utc),
+            end_dt_aware.astimezone(timezone.utc),
+            short_name,
+            description
+        ))
         return parsed_datetimes
+
+    # Check if this is already a short format assignment column name (e.g., "8th PM", "9th AM")
+    is_assignment_column = slot_desc_key in ASSIGNMENT_COLUMN_NAMES
 
     # General parsing for single day slots (e.g., "9th AM", "10th Full", "8th July (Tuesday) - Evening")
     slot_start_time_local, slot_end_time_local = None, None
-    
+    time_period = None
+
     for keyword, times in TIME_DEFINITIONS.items():
         if keyword in slot_desc_key_lower:
             slot_start_time_local, slot_end_time_local = times
+            time_period = keyword
             break
-    
+
     if slot_start_time_local is None or slot_end_time_local is None: # Default to full day if no specific time part
         slot_start_time_local, slot_end_time_local = TIME_DEFINITIONS.get("full day", (time(9,0), time(17,0)))
-
+        time_period = "full day"
 
     day_match = re.search(r'(\d+)(?:st|nd|rd|th)?', slot_desc_key)
     if not day_match:
         print(f"Debug: No day number found in slot_desc_key: {slot_desc_key}")
         return []
-    
+
     day = int(day_match.group(1))
-    
+
     current_month = default_month
     month_match_search = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', slot_desc_key_lower, re.IGNORECASE)
     if month_match_search:
         month_str = month_match_search.group(1)
-        month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 
+        month_map = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
                      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12}
         current_month = month_map.get(month_str, default_month)
 
@@ -126,10 +148,47 @@ def parse_slot_description_to_timestamps(slot_desc_key, event_year=EVENT_YEAR, d
         end_dt_local = datetime.combine(event_dt_local, slot_end_time_local)
         start_dt_aware = start_dt_local.replace(tzinfo=event_tz)
         end_dt_aware = end_dt_local.replace(tzinfo=event_tz)
-        parsed_datetimes.append((start_dt_aware.astimezone(timezone.utc), end_dt_aware.astimezone(timezone.utc), slot_desc_key))
+
+        # Generate short name based on the day and time period
+        day_suffix = "th" if day not in [1, 2, 3] else ["st", "nd", "rd"][day-1]
+
+        # Map time period to short format (AM, PM, Full)
+        time_short = "AM" if time_period in ["morning", "am"] else \
+                    "PM" if time_period in ["evening", "pm"] else \
+                    "Full" if time_period in ["full day", "all day", "full time"] else \
+                    "Full"  # Default
+
+        # Generate standardized short name format regardless of input format
+        # This ensures both "8th July (Tuesday) - Evening" and "8th PM" map to the same short name
+        standardized_short_name = f"{day}{day_suffix} {time_short}"
+
+        # If this is an assignment column, check if it matches our standardized format
+        # If not, we'll use our standardized format anyway to ensure consistency
+        if is_assignment_column and slot_desc_key != standardized_short_name:
+            print(f"Mapping assignment column '{slot_desc_key}' to standardized name '{standardized_short_name}'")
+
+        # Always use the standardized short name for consistency
+        short_name = standardized_short_name
+
+        # For the description, use the full descriptive name if available, otherwise use the short name
+        # This ensures the description field contains the most detailed information
+        if "july" in slot_desc_key_lower and any(day_part in slot_desc_key_lower for day_part in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]):
+            # This is already a full descriptive name
+            description = slot_desc_key
+        else:
+            # This is a short name, we'll keep the original as the description for now
+            # In the time_slots processing, we'll update descriptions with full names when available
+            description = slot_desc_key
+
+        parsed_datetimes.append((
+            start_dt_aware.astimezone(timezone.utc),
+            end_dt_aware.astimezone(timezone.utc),
+            short_name,
+            description
+        ))
     except ValueError as e:
         print(f"Warning: Could not create date for slot_desc_key '{slot_desc_key}' (Day: {day}, Month: {current_month}): {e}")
-            
+
     return parsed_datetimes
 
 
@@ -214,7 +273,7 @@ def run_migration():
         if profile_records:
             execute_values(cur, "INSERT INTO public.profiles (id, user_id, email) VALUES %s ON CONFLICT (email) DO NOTHING;", profile_records)
             print(f"Processed {len(profile_records)} unique emails for `profiles`.")
-        
+
         # Fetch profile_ids to link to volunteers
         cur.execute("SELECT id, email FROM public.profiles;")
         email_to_profile_id_map = {email_val.lower().strip(): pid for pid, email_val in cur.fetchall()}
@@ -225,7 +284,7 @@ def run_migration():
         # Store raw availability data per volunteer_key for later processing
         volunteer_key_to_raw_availability = {}
         # This map will be populated after inserting/updating and re-fetching
-        volunteer_key_to_uuid_map = {} 
+        volunteer_key_to_uuid_map = {}
 
         for _, row in df_excel.iterrows():
             vol_email = str(row.get('email', '')).lower().strip()
@@ -235,7 +294,7 @@ def run_migration():
             if not vol_email or not vol_first_name or not vol_last_name:
                 print(f"Skipping row due to missing email/first/last name: {row.get('email')}, {row.get('first_name')}, {row.get('last_name')}")
                 continue
-            
+
             # We generate a UUID here for the INSERT, but the ON CONFLICT might mean a different UUID is in the DB.
             # The key is to link raw_avail_data to the (email, first, last) key, then use the DB-fetched UUID.
             temp_volunteer_uuid_for_insert = generate_uuid() # This UUID is for the initial INSERT attempt
@@ -244,7 +303,7 @@ def run_migration():
             raw_avail_data = {col: bool(row[col]) for col in availability_json_cols if col in row and pd.notna(row[col])}
             volunteer_key = (vol_email, vol_first_name, vol_last_name)
             volunteer_key_to_raw_availability[volunteer_key] = raw_avail_data
-            
+
             # volunteer_key_to_uuid_map[volunteer_key] = volunteer_uuid # This was problematic
 
             requested_tshirts_val = row.get('requested_tshirt_quantity')
@@ -264,14 +323,14 @@ def run_migration():
                 (lambda ts: None if pd.isna(ts) else ts)(pd.to_datetime(row.get('google_form_submission_timestamp'), errors='coerce')),
                 requested_tshirts_int # Added requested_tshirt_quantity
             ))
-        
+
         if volunteer_records:
             execute_values(cur, """
                 INSERT INTO public.volunteers (
                     id, profile_id, email, first_name, last_name, phone, gender, gm_family,
                     association_with_mahayajna, mahayajna_student_name, student_batch,
                     hospitality_needed, location, other_location, additional_info,
-                    google_form_submission_timestamp, requested_tshirt_quantity 
+                    google_form_submission_timestamp, requested_tshirt_quantity
                 ) VALUES %s ON CONFLICT (email, first_name, last_name) DO UPDATE SET
                     profile_id = EXCLUDED.profile_id, phone = EXCLUDED.phone, gender = EXCLUDED.gender,
                     gm_family = EXCLUDED.gm_family, association_with_mahayajna = EXCLUDED.association_with_mahayajna,
@@ -287,7 +346,7 @@ def run_migration():
         # Re-fetch volunteer UUIDs in case of ON CONFLICT updates
         cur.execute("SELECT id, email, first_name, last_name FROM public.volunteers;")
         volunteer_key_to_uuid_map = {
-            (str(em).lower().strip(), str(fn).strip(), str(ln).strip()): vid 
+            (str(em).lower().strip(), str(fn).strip(), str(ln).strip()): vid
             for vid, em, fn, ln in cur.fetchall()
         }
 
@@ -301,23 +360,68 @@ def run_migration():
         for assign_col_name in ASSIGNMENT_COLUMN_NAMES:
             all_slot_desc_keys.add(assign_col_name) # Add assignment column names as potential slot descriptions
 
+        # Create a mapping to store the best description for each short name
+        # This will help us use the full descriptive name when available
+        short_name_to_best_description = {}
+
+        # First pass: collect all descriptions for each short name
+        for slot_key in all_slot_desc_keys:
+            parsed_ts_list = parse_slot_description_to_timestamps(slot_key)
+            for _, _, short_name, description in parsed_ts_list:
+                # Prefer full descriptive names (those containing "July" and day names)
+                desc_lower = description.lower()
+                if "july" in desc_lower and any(day_part in desc_lower for day_part in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]):
+                    # This is a full descriptive name, always prefer it
+                    short_name_to_best_description[short_name] = description
+                elif short_name not in short_name_to_best_description:
+                    # Only use short names if we don't have a better description yet
+                    short_name_to_best_description[short_name] = description
+
+        print(f"Collected descriptions for {len(short_name_to_best_description)} unique time slots")
+
+        # Second pass: create time slot records with the best descriptions
         time_slot_db_records = []
-        # Ensure unique slot_name in DB by using a set for processed descriptions
-        # The slot_name in DB will be the original_slot_desc from parser
-        processed_db_slot_names = set() 
+        processed_db_slot_names = set()
 
         for slot_key in all_slot_desc_keys:
             parsed_ts_list = parse_slot_description_to_timestamps(slot_key)
-            for start_utc, end_utc, original_desc_for_db in parsed_ts_list:
-                if original_desc_for_db not in processed_db_slot_names:
-                    time_slot_db_records.append((event_id, original_desc_for_db, start_utc, end_utc))
-                    processed_db_slot_names.add(original_desc_for_db)
-        
+            for start_utc, end_utc, short_name, _ in parsed_ts_list:
+                if short_name not in processed_db_slot_names:
+                    # Use the best description we found for this short name
+                    best_description = short_name_to_best_description.get(short_name, short_name)
+                    time_slot_db_records.append((event_id, short_name, start_utc, end_utc, best_description))
+                    processed_db_slot_names.add(short_name)
+                    print(f"Time slot: {short_name} -> Description: {best_description}")
+
         if time_slot_db_records:
-            execute_values(cur, """
-                INSERT INTO public.time_slots (event_id, slot_name, start_time, end_time)
-                VALUES %s ON CONFLICT (slot_name) DO NOTHING;
-            """, time_slot_db_records)
+            # Check if description column exists in time_slots table
+            cur.execute("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'time_slots'
+                AND column_name = 'description';
+            """)
+            has_description_column = cur.fetchone() is not None
+
+            if has_description_column:
+                execute_values(cur, """
+                    INSERT INTO public.time_slots (event_id, slot_name, start_time, end_time, description)
+                    VALUES %s ON CONFLICT (slot_name) DO UPDATE SET
+                    description = EXCLUDED.description,
+                    start_time = EXCLUDED.start_time,
+                    end_time = EXCLUDED.end_time;
+                """, time_slot_db_records)
+            else:
+                # If description column doesn't exist yet, use the old query
+                # This allows backward compatibility until the column is added
+                execute_values(cur, """
+                    INSERT INTO public.time_slots (event_id, slot_name, start_time, end_time)
+                    VALUES %s ON CONFLICT (slot_name) DO UPDATE SET
+                    start_time = EXCLUDED.start_time,
+                    end_time = EXCLUDED.end_time;
+                """, [(event_id, name, start, end) for (event_id, name, start, end, _) in time_slot_db_records])
+
             print(f"Processed {len(time_slot_db_records)} unique slot descriptions for `time_slots`.")
 
         cur.execute("SELECT id, slot_name FROM public.time_slots;")
@@ -353,15 +457,22 @@ def run_migration():
             if raw_avail_data:
                 for slot_desc_key, is_selected in raw_avail_data.items():
                     if is_selected:
-                        time_slot_id = slot_name_to_id_map.get(slot_desc_key)
-                        if time_slot_id:
-                            commitment_records.append((
-                                db_volunteer_uuid, time_slot_id, 'PROMISED_AVAILABILITY', None, 
-                                None, f"Google Form: {slot_desc_key}"
-                            ))
+                        # Get the short name for this slot description
+                        parsed_ts_list = parse_slot_description_to_timestamps(slot_desc_key)
+                        if parsed_ts_list:
+                            # Use the short name to look up the time slot ID
+                            _, _, short_name, _ = parsed_ts_list[0]
+                            time_slot_id = slot_name_to_id_map.get(short_name)
+                            if time_slot_id:
+                                commitment_records.append((
+                                    db_volunteer_uuid, time_slot_id, 'PROMISED_AVAILABILITY', None,
+                                    None, f"Google Form: {slot_desc_key}"
+                                ))
+                            else:
+                                print(f"Warning (Promised Avail): Time slot ID not found for short name '{short_name}' from description '{slot_desc_key}'. Volunteer key: {volunteer_key_tuple}")
                         else:
-                            print(f"Warning (Promised Avail): Time slot ID not found for description '{slot_desc_key}'. Volunteer key: {volunteer_key_tuple}")
-        
+                            print(f"Warning (Promised Avail): Could not parse time slot description '{slot_desc_key}'. Volunteer key: {volunteer_key_tuple}")
+
         print(f"Collected {len(commitment_records)} 'PROMISED_AVAILABILITY' records so far.")
 
         # 8b. Assigned Tasks
@@ -369,7 +480,7 @@ def run_migration():
             vol_email = str(row.get('email', '')).lower().strip()
             vol_first_name = str(row.get('first_name', '')).strip()
             vol_last_name = str(row.get('last_name', '')).strip()
-            
+
             volunteer_key = (vol_email, vol_first_name, vol_last_name)
             volunteer_uuid = volunteer_key_to_uuid_map.get(volunteer_key)
 
@@ -382,12 +493,10 @@ def run_migration():
                 if pd.notna(task_description_from_cell) and str(task_description_from_cell).strip():
                     task_name_clean = str(task_description_from_cell).strip()
                     seva_cat_id = get_or_create_seva_category_id(cur, task_name_clean)
-                    
-                    # Determine the slot_name in DB for this assignment column
-                    # For "All Days" Excel column, it maps to ALL_DAYS_ASSIGNMENT_SLOT_DESC
-                    # For other columns like "8th PM", the Excel column name is the slot_name
-                    db_slot_name_for_assignment = ALL_DAYS_ASSIGNMENT_SLOT_DESC if assign_col_excel_name == "All Days" else assign_col_excel_name
-                    time_slot_id = slot_name_to_id_map.get(db_slot_name_for_assignment)
+
+                    # For assignment columns, we use the short name directly
+                    # The short name is the same as the Excel column name for assignment columns
+                    time_slot_id = slot_name_to_id_map.get(assign_col_excel_name)
 
                     if time_slot_id and seva_cat_id:
                         commitment_records.append((
@@ -395,9 +504,9 @@ def run_migration():
                             None, f"Excel Assignment: {assign_col_excel_name}" # task_notes, source_reference
                         ))
                     else:
-                        if not time_slot_id: print(f"Warning (Task Assign): Time slot ID not found for DB slot name '{db_slot_name_for_assignment}' (from Excel col '{assign_col_excel_name}'). Vol: {volunteer_uuid}")
+                        if not time_slot_id: print(f"Warning (Task Assign): Time slot ID not found for assignment column '{assign_col_excel_name}'. Vol: {volunteer_uuid}")
                         # seva_cat_id should always be found due to get_or_create
-        
+
         if commitment_records:
             print(f"Total commitments to insert (Promised + Assigned): {len(commitment_records)}")
             execute_values(cur, """

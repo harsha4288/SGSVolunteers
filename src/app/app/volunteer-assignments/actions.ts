@@ -150,7 +150,7 @@ export async function fetchTimeSlots() {
 
   const { data: timeSlots, error: timeSlotsError } = await supabase
     .from('time_slots')
-    .select('id, slot_name, start_time, end_time')
+    .select('id, slot_name, start_time, end_time, description')
     .order('start_time');
 
   if (timeSlotsError) {

@@ -342,7 +342,7 @@ export function TeamLeadView({ profileId, currentEventId }: TeamLeadViewProps) {
                     <TableCell>{member.seva_category?.category_name || "Unassigned"}</TableCell>
                     <TableCell>
                       <div>
-                        <p>{member.time_slot?.slot_name || "No time slot"}</p>
+                        <p>{member.time_slot?.description || member.time_slot?.slot_name || "No time slot"}</p>
                         <p className="text-xs text-muted-foreground">
                           {member.time_slot ? (
                             <>

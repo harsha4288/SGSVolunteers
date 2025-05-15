@@ -19,6 +19,7 @@ export interface TimeSlot {
   slot_name: string;
   start_time: string;
   end_time: string;
+  description: string | null;
 }
 
 export interface Task {
@@ -135,7 +136,7 @@ export function AssignmentsDashboard({
       try {
         const { data: timeSlotsData, error: timeSlotsError } = await supabase
           .from("time_slots")
-          .select("id, event_id, slot_name, start_time, end_time")
+          .select("id, event_id, slot_name, start_time, end_time, description")
           .eq("event_id", selectedEvent)
           .order("start_time");
 

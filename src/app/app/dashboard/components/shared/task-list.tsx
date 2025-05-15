@@ -38,6 +38,7 @@ export interface Task {
   };
   time_slot: {
     slot_name: string;
+    description: string | null;
     start_time: string;
     end_time: string;
   };

@@ -1,7 +1,7 @@
 # Volunteer Management Application: Database Design & Authentication Plan
 
-**Date:** May 11, 2025 (Updated: May 15, 2025)
-**Version:** 1.2 (Includes Roles & Auditing, Default Role Assignment)
+**Date:** May 11, 2025 (Updated: May 20, 2025)
+**Version:** 1.3 (Includes Roles & Auditing, Default Role Assignment, Time Slot Description)
 
 ## 1. Introduction
 
@@ -132,9 +132,10 @@ Defines specific time slots for volunteer activities within an event.
 |----------------|-------------|-------------------------------------------|--------------------------------------------------------------------------|
 | `id`           | BIGINT      | PK, Generated Always as Identity          | Unique identifier for the time slot.                                     |
 | `event_id`     | BIGINT      | NOT NULL, FK to `public.events(id)` ON DELETE CASCADE | Links to the event this time slot belongs to.                          |
-| `slot_name`    | TEXT        | NOT NULL, UNIQUE                          | Descriptive name of the slot (e.g., "9th AM", "All Event Days...").      |
+| `slot_name`    | TEXT        | NOT NULL, UNIQUE                          | Short name used for assignments (e.g., "8th PM", "9th AM").              |
 | `start_time`   | TIMESTAMPTZ | NOT NULL                                  | Full start timestamp (UTC).                                              |
 | `end_time`     | TIMESTAMPTZ | NOT NULL                                  | Full end timestamp (UTC).                                                |
+| `description`  | TEXT        |                                           | Full descriptive name of the time slot (e.g., "8th July (Tuesday) - Evening"). |
 | `created_at`   | TIMESTAMPTZ | DEFAULT NOW()                             | Timestamp of creation.                                                   |
 | `updated_at`   | TIMESTAMPTZ | DEFAULT NOW()                             | Timestamp of last update.                                                |
 
@@ -232,7 +233,7 @@ Tracks T-shirts issued to volunteers.
     3.  Query `public.volunteers` WHERE `profile_id = profiles.id` to list all volunteers managed by this app user.
     4.  For a selected `volunteers.id`, query `public.volunteer_commitments` (JOIN `time_slots`, `seva_categories`) to display their promised availability and assigned tasks.
         *   Use `commitment_type` to differentiate.
-        *   Display `time_slots.slot_name`, `time_slots.start_time` (converted to local TZ), `time_slots.end_time` (converted to local TZ).
+        *   Display `time_slots.description` (or `time_slots.slot_name` if description is null), `time_slots.start_time` (converted to local TZ), `time_slots.end_time` (converted to local TZ).
         *   If `ASSIGNED_TASK`, display `seva_categories.category_name`.
 
 *   **Team Lead/Admin Actions:**

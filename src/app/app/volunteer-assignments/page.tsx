@@ -399,7 +399,7 @@ export default function VolunteerAssignmentsPage() {
                     <SelectContent>
                       {timeSlots.map((timeSlot) => (
                         <SelectItem key={timeSlot.id} value={timeSlot.id.toString()}>
-                          {timeSlot.slot_name} ({formatDateTime(timeSlot.start_time)} - {formatDateTime(timeSlot.end_time)})
+                          {timeSlot.description || timeSlot.slot_name} ({formatDateTime(timeSlot.start_time)} - {formatDateTime(timeSlot.end_time)})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -509,7 +509,7 @@ export default function VolunteerAssignmentsPage() {
                           <div key={timeSlot.id} className="border rounded-lg p-4">
                             <h3 className="text-lg font-semibold mb-2 flex items-center">
                               <CalendarClock className="mr-2 h-5 w-5" />
-                              {timeSlot.slot_name}
+                              {timeSlot.description || timeSlot.slot_name}
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4">
                               {formatDateTime(timeSlot.start_time)} - {formatDateTime(timeSlot.end_time)}
@@ -673,7 +673,7 @@ export default function VolunteerAssignmentsPage() {
                             {timeSlots.map((timeSlot) => (
                               <li key={timeSlot.id} className="p-2 hover:bg-muted rounded-md">
                                 <div className="font-medium">
-                                  {timeSlot.slot_name}
+                                  {timeSlot.description || timeSlot.slot_name}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   {formatDateTime(timeSlot.start_time)} - {formatDateTime(timeSlot.end_time)}

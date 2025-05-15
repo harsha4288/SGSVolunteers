@@ -248,7 +248,7 @@ export function AssignmentsTable({
                 <TableHead className="w-[200px]">Volunteer</TableHead>
                 {timeSlots.map((slot) => (
                   <TableHead key={slot.id} className="text-center">
-                    {slot.slot_name}
+                    {slot.description || slot.slot_name}
                   </TableHead>
                 ))}
               </TableRow>

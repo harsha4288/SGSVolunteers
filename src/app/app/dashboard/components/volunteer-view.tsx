@@ -197,7 +197,7 @@ export function VolunteerView({ profileId, currentEventId }: VolunteerViewProps)
                       )}
                     </div>
                     <CardDescription>
-                      {task.time_slot?.slot_name || "No time slot"}
+                      {task.time_slot?.description || task.time_slot?.slot_name || "No time slot"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pb-4">

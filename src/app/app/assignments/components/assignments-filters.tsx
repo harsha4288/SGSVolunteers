@@ -77,7 +77,7 @@ export function AssignmentsFilters({
             <SelectItem value="all">All</SelectItem>
             {timeSlots.map((slot) => (
               <SelectItem key={slot.id} value={slot.id.toString()}>
-                {slot.slot_name}
+                {slot.description || slot.slot_name}
               </SelectItem>
             ))}
           </SelectContent>

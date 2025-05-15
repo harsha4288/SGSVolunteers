@@ -70,7 +70,7 @@ export function AdminView({ profileId, currentEventId }: AdminViewProps) {
         const supabase = createClient();
         const { data: timeSlotsData, error: timeSlotsError } = await supabase
           .from("time_slots")
-          .select("id, slot_name, start_time, end_time")
+          .select("id, slot_name, start_time, end_time, description")
           .order("start_time");
 
         if (timeSlotsError) {
@@ -248,7 +248,7 @@ export function AdminView({ profileId, currentEventId }: AdminViewProps) {
                 value: cat.id.toString()
               })),
               'timeSlot': timeSlots.map(slot => ({
-                label: `${slot.slot_name} (${new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
+                label: `${slot.description || slot.slot_name} (${new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
                 value: slot.id.toString()
               }))
             }}
@@ -284,7 +284,7 @@ export function AdminView({ profileId, currentEventId }: AdminViewProps) {
                     <TableCell>{volunteer.seva_category?.category_name || "Unassigned"}</TableCell>
                     <TableCell>
                       <div>
-                        <p>{volunteer.time_slot?.slot_name || "No time slot"}</p>
+                        <p>{volunteer.time_slot?.description || volunteer.time_slot?.slot_name || "No time slot"}</p>
                         <p className="text-xs text-muted-foreground">
                           {volunteer.time_slot ? (
                             <>

@@ -31,6 +31,7 @@ export interface TimeSlot {
   start_time: string;
   end_time: string;
   event_id: number;
+  description?: string | null;
 }
 
 export interface SevaCategory {
