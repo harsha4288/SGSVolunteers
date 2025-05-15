@@ -78,7 +78,7 @@ export function AssignmentsTable({
         .from("volunteer_check_ins")
         .select("id")
         .eq("volunteer_id", assignment.volunteer_id)
-        .eq("event_id", selectedEvent);
+        .eq("event_id", Number(selectedEvent));
 
       if (checkError) throw new Error(checkError.message);
 
@@ -87,7 +87,7 @@ export function AssignmentsTable({
         const { error: updateError } = await supabase
           .from("volunteer_check_ins")
           .update({
-            check_in_time: status === "checked_in" ? new Date().toISOString() : null,
+            check_in_time: status === "checked_in" ? new Date().toISOString() : "",
             recorded_by_profile_id: profileId,
           })
           .eq("id", existingCheckIns[0].id);
@@ -100,9 +100,9 @@ export function AssignmentsTable({
           .insert([
             {
               volunteer_id: assignment.volunteer_id,
-              event_id: parseInt(selectedEvent),
+              event_id: Number(selectedEvent),
               recorded_by_profile_id: profileId,
-              check_in_time: status === "checked_in" ? new Date().toISOString() : null,
+              check_in_time: status === "checked_in" ? new Date().toISOString() : "",
               location: assignment.seva_category.category_name,
             },
           ]);
@@ -248,7 +248,7 @@ export function AssignmentsTable({
                 <TableHead className="w-[200px]">Volunteer</TableHead>
                 {timeSlots.map((slot) => (
                   <TableHead key={slot.id} className="text-center">
-                    {slot.description || slot.slot_name}
+                    {slot.slot_name}
                   </TableHead>
                 ))}
               </TableRow>

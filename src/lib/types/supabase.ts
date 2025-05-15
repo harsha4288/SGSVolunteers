@@ -472,6 +472,61 @@ export type Database = {
           }
         ];
       };
+      volunteer_check_ins: {
+        Row: {
+          id: number;
+          volunteer_id: string;
+          event_id: number;
+          recorded_by_profile_id: string | null;
+          check_in_time: string;
+          check_out_time: string | null;
+          location: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          volunteer_id: string;
+          event_id: number;
+          recorded_by_profile_id?: string | null;
+          check_in_time: string;
+          check_out_time?: string | null;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          volunteer_id?: string;
+          event_id?: number;
+          recorded_by_profile_id?: string | null;
+          check_in_time?: string;
+          check_out_time?: string | null;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_check_ins_volunteer_id_fkey",
+            columns: ["volunteer_id"],
+            referencedRelation: "volunteers",
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volunteer_check_ins_event_id_fkey",
+            columns: ["event_id"],
+            referencedRelation: "events",
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volunteer_check_ins_recorded_by_profile_id_fkey",
+            columns: ["recorded_by_profile_id"],
+            referencedRelation: "profiles",
+            referencedColumns: ["id"]
+          }
+        ];
+      };
     }
     Views: {
       [_ in never]: never
