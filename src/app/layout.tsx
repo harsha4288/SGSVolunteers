@@ -4,6 +4,7 @@ import { Inter as FontSans } from 'next/font/google'; // Using Inter as a common
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { DateOverrideProvider } from '@/components/providers/date-override-provider';
 import { Toaster } from "@/components/ui/toaster"; // Shadcn Toaster
 import { SITE_CONFIG } from '@/lib/constants';
 
@@ -41,8 +42,10 @@ export default function RootLayout({
           storageKey="volunteerverse-theme"
           defaultTheme="system"
         >
-          {children}
-          <Toaster />
+          <DateOverrideProvider>
+            {children}
+            <Toaster />
+          </DateOverrideProvider>
         </ThemeProvider>
       </body>
     </html>

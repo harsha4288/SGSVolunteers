@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
+import { DateOverrideControl } from "@/components/date-override-control";
 
 export interface Event {
   id: number;
@@ -41,7 +42,7 @@ export interface Assignment {
   id: number;
   volunteer_id: string;
   time_slot_id: number;
-  seva_category_id: number;
+  seva_category_id: number | null;
   commitment_type: string;
   task_notes: string | null;
   volunteer: {
@@ -56,7 +57,7 @@ export interface Assignment {
   };
   seva_category: {
     category_name: string;
-  };
+  } | null;
   check_in_status?: "checked_in" | "absent" | null;
 }
 
@@ -78,35 +79,43 @@ export function AssignmentsDashboard({
   const [searchQuery, setSearchQuery] = React.useState<string>("");
 
   // State for data
-  const [events, setEvents] = React.useState<Event[]>([]);
   const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [assignments, setAssignments] = React.useState<Assignment[]>([]);
-  const [volunteers, setVolunteers] = React.useState<Volunteer[]>([]);
 
   // Loading and error states
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Listen for event changes from the header
+  React.useEffect(() => {
+    const handleEventChange = (e: CustomEvent) => {
+      if (e.detail && e.detail.eventId) {
+        setSelectedEvent(e.detail.eventId);
+        setSelectedTimeSlot("all"); // Reset time slot when event changes
+      }
+    };
+
+    // Add event listener
+    window.addEventListener("eventChange", handleEventChange as EventListener);
+
+    // Check for stored event ID on mount
+    const storedEventId = localStorage.getItem("selectedEventId");
+    if (storedEventId) {
+      setSelectedEvent(storedEventId);
+    }
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("eventChange", handleEventChange as EventListener);
+    };
+  }, []);
 
   // Fetch initial data
   React.useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Fetch events
-        const { data: eventsData, error: eventsError } = await supabase
-          .from("events")
-          .select("id, event_name")
-          .order("start_date", { ascending: false });
-
-        if (eventsError) throw new Error(`Error fetching events: ${eventsError.message}`);
-        setEvents(eventsData || []);
-
-        // Set default event if available
-        if (eventsData && eventsData.length > 0) {
-          setSelectedEvent(eventsData[0].id.toString());
-        }
 
         // Fetch tasks (seva categories)
         const { data: tasksData, error: tasksError } = await supabase
@@ -137,7 +146,7 @@ export function AssignmentsDashboard({
         const { data: timeSlotsData, error: timeSlotsError } = await supabase
           .from("time_slots")
           .select("id, event_id, slot_name, start_time, end_time, description")
-          .eq("event_id", selectedEvent)
+          .eq("event_id", parseInt(selectedEvent, 10)) // Convert string to number
           .order("start_time");
 
         if (timeSlotsError) throw new Error(`Error fetching time slots: ${timeSlotsError.message}`);
@@ -188,7 +197,7 @@ export function AssignmentsDashboard({
 
         // Add time slot filter if selected
         if (selectedTimeSlot && selectedTimeSlot !== "all") {
-          query = query.eq("time_slot_id", selectedTimeSlot);
+          query = query.eq("time_slot_id", parseInt(selectedTimeSlot, 10)); // Convert string to number
         } else {
           // Otherwise, filter by event through time slots
           query = query.in(
@@ -199,7 +208,7 @@ export function AssignmentsDashboard({
 
         // Add task filter if selected
         if (selectedTask && selectedTask !== "all") {
-          query = query.eq("seva_category_id", selectedTask);
+          query = query.eq("seva_category_id", parseInt(selectedTask, 10)); // Convert string to number
         }
 
         // Execute the query
@@ -218,6 +227,54 @@ export function AssignmentsDashboard({
           );
         }
 
+        // Fetch check-in status for all assignments
+        if (filteredAssignments.length > 0) {
+          // Get all volunteer IDs
+          const volunteerIds = [...new Set(filteredAssignments.map(a => a.volunteer_id))];
+
+          // Fetch check-in records for these volunteers for the current event
+          const { data: checkIns, error: checkInsError } = await supabase
+            .from("volunteer_check_ins")
+            .select("*")
+            .eq("event_id", parseInt(selectedEvent, 10))
+            .in("volunteer_id", volunteerIds);
+
+          if (checkInsError) throw new Error(`Error fetching check-in status: ${checkInsError.message}`);
+
+          // Create a map of volunteer_id to check-in status
+          const checkInMap: Record<string, { status: "checked_in" | "absent", timeSlotIds: number[] }> = {};
+
+          if (checkIns && checkIns.length > 0) {
+            checkIns.forEach(checkIn => {
+              // If check_out_time exists, it means the volunteer is marked as absent
+              // Otherwise, if check_in_time exists, they are checked in
+              const status = checkIn.check_out_time ? "absent" : "checked_in";
+
+              if (!checkInMap[checkIn.volunteer_id]) {
+                checkInMap[checkIn.volunteer_id] = { status, timeSlotIds: [] };
+              }
+
+              // Store the time slot IDs for this check-in
+              // This is a simplification - in a real implementation, you might want to
+              // match check-ins to specific time slots more precisely
+              const timeSlotIds = filteredAssignments
+                .filter(a => a.volunteer_id === checkIn.volunteer_id)
+                .map(a => a.time_slot_id);
+
+              checkInMap[checkIn.volunteer_id].timeSlotIds = timeSlotIds;
+            });
+          }
+
+          // Update assignments with check-in status
+          filteredAssignments = filteredAssignments.map(assignment => {
+            const checkInInfo = checkInMap[assignment.volunteer_id];
+            if (checkInInfo && checkInInfo.timeSlotIds.includes(assignment.time_slot_id)) {
+              return { ...assignment, check_in_status: checkInInfo.status };
+            }
+            return assignment;
+          });
+        }
+
         setAssignments(filteredAssignments);
 
       } catch (err: any) {
@@ -232,11 +289,6 @@ export function AssignmentsDashboard({
   }, [supabase, selectedEvent, selectedTimeSlot, selectedTask, searchQuery, timeSlots]);
 
   // Handle filter changes
-  const handleEventChange = (value: string) => {
-    setSelectedEvent(value);
-    setSelectedTimeSlot("all"); // Reset time slot when event changes
-  };
-
   const handleTimeSlotChange = (value: string) => {
     setSelectedTimeSlot(value);
   };
@@ -269,20 +321,24 @@ export function AssignmentsDashboard({
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <AssignmentsFilters
-        events={events}
-        timeSlots={timeSlots}
-        tasks={tasks}
-        selectedEvent={selectedEvent}
-        selectedTimeSlot={selectedTimeSlot}
-        selectedTask={selectedTask}
-        searchQuery={searchQuery}
-        onEventChange={handleEventChange}
-        onTimeSlotChange={handleTimeSlotChange}
-        onTaskChange={handleTaskChange}
-        onSearchChange={handleSearchChange}
-      />
+    <div className="space-y-2 p-2 sm:p-4">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+        <div className="flex-1">
+          <AssignmentsFilters
+            timeSlots={timeSlots}
+            tasks={tasks}
+            selectedTimeSlot={selectedTimeSlot}
+            selectedTask={selectedTask}
+            searchQuery={searchQuery}
+            onTimeSlotChange={handleTimeSlotChange}
+            onTaskChange={handleTaskChange}
+            onSearchChange={handleSearchChange}
+          />
+        </div>
+        <div className="flex-shrink-0">
+          <DateOverrideControl />
+        </div>
+      </div>
 
       <AssignmentsTable
         assignments={assignments}
@@ -290,7 +346,6 @@ export function AssignmentsDashboard({
         userRole={userRole}
         profileId={profileId}
         supabase={supabase}
-        isLoading={loading}
         selectedEvent={selectedEvent}
       />
     </div>

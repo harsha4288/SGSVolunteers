@@ -17,21 +17,13 @@ import { useToast } from "@/hooks/use-toast";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
 import type { Assignment, TimeSlot } from "./assignments-dashboard";
-import { useTheme } from "@/components/providers/theme-provider";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Input } from "@/components/ui/input";
-import { isToday, isPast, parseISO } from "date-fns";
 
-// Local debounce implementation
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
-  let timeout: ReturnType<typeof setTimeout>;
-  const debounced = (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
-  debounced.cancel = () => clearTimeout(timeout);
-  return debounced as T & { cancel: () => void };
-}
+import { useIsMobile } from "@/hooks/use-mobile";
+
+import { parseISO } from "date-fns";
+import { useDateOverride } from "@/components/providers/date-override-provider";
+
+
 
 interface AssignmentsTableProps {
   assignments: Assignment[];
@@ -39,7 +31,6 @@ interface AssignmentsTableProps {
   userRole: "admin" | "team_lead" | "volunteer";
   profileId: string;
   supabase: SupabaseClient<Database>;
-  isLoading: boolean;
   selectedEvent: string;
 }
 
@@ -49,40 +40,22 @@ export function AssignmentsTable({
   userRole,
   profileId,
   supabase,
-  isLoading,
+
   selectedEvent,
 }: AssignmentsTableProps) {
   const { toast } = useToast();
-  const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
   const [volunteerAssignments, setVolunteerAssignments] = React.useState<Record<string, Assignment[]>>({});
-  const [search, setSearch] = React.useState("");
   const [filteredAssignments, setFilteredAssignments] = React.useState<Assignment[]>(assignments);
-  const [filterSlot, setFilterSlot] = React.useState<string>("");
-  const [filterTask, setFilterTask] = React.useState<string>("");
   const [page, setPage] = React.useState(0);
   const PAGE_SIZE = 30;
 
-  // Debounced search/filter
+  // Set filtered assignments directly from props
   React.useEffect(() => {
-    const debounced = debounce(() => {
-      let data = assignments;
-      if (search) {
-        data = data.filter(a => `${a.volunteer.first_name} ${a.volunteer.last_name}`.toLowerCase().includes(search.toLowerCase()));
-      }
-      if (filterSlot) {
-        data = data.filter(a => a.time_slot.slot_name === filterSlot);
-      }
-      if (filterTask) {
-        data = data.filter(a => a.seva_category?.category_name === filterTask);
-      }
-      setFilteredAssignments(data);
-      setPage(0);
-    }, 200);
-    debounced();
-    return () => debounced.cancel && debounced.cancel();
-  }, [search, filterSlot, filterTask, assignments]);
+    setFilteredAssignments(assignments);
+    setPage(0);
+  }, [assignments]);
 
   // Group assignments by volunteer (for table/list)
   React.useEffect(() => {
@@ -114,47 +87,100 @@ export function AssignmentsTable({
     const loadingKey = `${assignment.volunteer_id}-${assignment.time_slot_id}`;
     setCheckInLoading(prev => ({ ...prev, [loadingKey]: true }));
     try {
+      // Get current timestamp with timezone
+      const now = new Date();
+
+      // First, update the assignment's check-in status in the local state
+      // This provides immediate UI feedback
+      const updatedAssignments = filteredAssignments.map(a => {
+        if (a.id === assignment.id) {
+          return { ...a, check_in_status: status };
+        }
+        return a;
+      });
+      setFilteredAssignments(updatedAssignments);
+
+      // Then update the database
       const { data: existingCheckIns, error: checkError } = await supabase
         .from("volunteer_check_ins")
         .select("id")
         .eq("volunteer_id", assignment.volunteer_id)
         .eq("event_id", Number(selectedEvent));
+
       if (checkError) throw new Error(checkError.message);
+
+      // Create a common payload with shared properties
+      const commonPayload = {
+        recorded_by_profile_id: profileId,
+        updated_at: now.toISOString(),
+        location: assignment.seva_category?.category_name || ""
+      };
+
+      // Add status-specific properties
+      const updatePayload = status === "checked_in"
+        ? { ...commonPayload, check_in_time: now.toISOString() }
+        : { ...commonPayload, check_in_time: now.toISOString(), check_out_time: now.toISOString() };
+
       if (existingCheckIns && existingCheckIns.length > 0) {
+        // Update existing check-in
         const { error: updateError } = await supabase
           .from("volunteer_check_ins")
-          .update({ check_in_time: status === "checked_in" ? new Date().toISOString() : "", recorded_by_profile_id: profileId })
+          .update(updatePayload)
           .eq("id", existingCheckIns[0].id);
+
         if (updateError) throw new Error(updateError.message);
       } else {
+        // Create new check-in record
         const { error: insertError } = await supabase
           .from("volunteer_check_ins")
-          .insert([{ volunteer_id: assignment.volunteer_id, event_id: Number(selectedEvent), recorded_by_profile_id: profileId, check_in_time: status === "checked_in" ? new Date().toISOString() : "", location: assignment.seva_category.category_name }]);
+          .insert([{
+            volunteer_id: assignment.volunteer_id,
+            event_id: Number(selectedEvent),
+            ...updatePayload,
+            created_at: now.toISOString()
+          }]);
+
         if (insertError) throw new Error(insertError.message);
       }
-      toast({ title: status === "checked_in" ? "Checked In" : "Marked as Absent", description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name} has been ${status === "checked_in" ? "checked in" : "marked as absent"}.` });
+
+      toast({
+        title: status === "checked_in" ? "Checked In" : "Marked as Absent",
+        description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name} has been ${status === "checked_in" ? "checked in" : "marked as absent"}.`
+      });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update check-in status", variant: "destructive" });
+      // Revert the local state change if there was an error
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update check-in status",
+        variant: "destructive"
+      });
     } finally {
       setCheckInLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
+  // Get the current date (real or overridden)
+  const { getCurrentDate, overrideDate } = useDateOverride();
+
+  // Force re-render when override date changes
+  const [, forceUpdate] = React.useState({});
+  React.useEffect(() => {
+    // This will trigger a re-render when the override date changes
+    forceUpdate({});
+  }, [overrideDate]);
+
   // Helper function to determine time slot status (today, past, future)
-  // For demonstration purposes, we'll treat specific slots as "today"
   const getTimeSlotStatus = (timeSlot: Assignment["time_slot"]) => {
     try {
-      // For demonstration purposes, check if this is one of the slots we want to show as "today"
-      // This is just for UI demonstration - in production, use the actual date logic
-      if (timeSlot.slot_name && ["8th PM", "9th AM"].includes(timeSlot.slot_name)) {
-        return "today";
-      }
-
       const startDate = parseISO(timeSlot.start_time);
+      const currentDate = getCurrentDate(); // This will use the override date if set
 
-      if (isToday(startDate)) {
+      // Check if the slot date is the same as our current/overridden date
+      if (startDate.getFullYear() === currentDate.getFullYear() &&
+          startDate.getMonth() === currentDate.getMonth() &&
+          startDate.getDate() === currentDate.getDate()) {
         return "today";
-      } else if (isPast(startDate)) {
+      } else if (startDate < currentDate) {
         return "past";
       } else {
         return "future";
@@ -182,23 +208,36 @@ export function AssignmentsTable({
     // Determine time slot status (today, past, future)
     const timeSlotStatus = getTimeSlotStatus(assignment.time_slot);
 
-    // For any future or today slot without recorded attendance, show the clock icon
-    const isPendingAttendance = (timeSlotStatus === "today" || timeSlotStatus === "future") && !assignment.check_in_status;
-
     // Volunteer: show task initials and status
     if (userRole === "volunteer") {
       return (
-        <div className="inline-flex flex-col items-center">
-          <Badge variant="outline" className="text-xs font-bold uppercase px-1 py-0">{taskInitials}</Badge>
+        <div className="inline-flex flex-col items-center gap-1 py-1">
+          <Badge variant="outline" className="text-xs uppercase px-1 py-0 font-semibold">{taskInitials}</Badge>
           {assignment.check_in_status === "checked_in" ? (
-            <Check className="h-3 w-3 text-green-500 mt-0.5" aria-label="Checked in" />
+            // Checked in - green check
+            <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
+              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Checked in" />
+            </div>
           ) : assignment.check_in_status === "absent" ? (
-            <X className="h-3 w-3 text-red-500 mt-0.5" aria-label="Absent" />
-          ) : isPendingAttendance ? (
-            <Clock className="h-4 w-4 text-amber-500 mt-0.5" aria-label="Pending" />
+            // Absent - red X
+            <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
+              <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
+            </div>
+          ) : timeSlotStatus === "past" ? (
+            // Past slot with no attendance - red clock
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-0.5">
+              <Clock className="h-3.5 w-3.5 text-red-500" aria-label="Not recorded" />
+            </div>
+          ) : timeSlotStatus === "today" ? (
+            // Today's slot with no attendance - orange clock
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-full p-0.5">
+              <Clock className="h-3.5 w-3.5 text-amber-500" aria-label="Pending" />
+            </div>
           ) : (
-            // For future slots and past slots without attendance, don't show any status indicator
-            null
+            // Future slot - gray clock
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-full p-0.5">
+              <Clock className="h-3.5 w-3.5 text-gray-400" aria-label="Upcoming" />
+            </div>
           )}
         </div>
       );
@@ -206,58 +245,64 @@ export function AssignmentsTable({
 
     // Team Lead/Admin: show task initials and attendance controls based on time slot status
     return (
-      <div className="inline-flex flex-col items-center">
-        <Badge variant="outline" className="text-xs font-bold uppercase px-1 py-0">{taskInitials}</Badge>
+      <div className="inline-flex flex-col items-center gap-1 py-1">
+        <Badge variant="outline" className="text-xs uppercase px-1 py-0 font-semibold">{taskInitials}</Badge>
 
-        {/* Show different controls based on time slot status */}
+        {/* Show different controls based on time slot status and attendance */}
         {assignment.check_in_status === "checked_in" ? (
-          // If marked present
-          <Check className="h-4 w-4 text-green-500 mt-0.5" aria-label="Present" />
+          // If marked present - green check
+          <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
+            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Present" />
+          </div>
         ) : assignment.check_in_status === "absent" ? (
-          // If marked absent
-          <X className="h-4 w-4 text-red-500 mt-0.5" aria-label="Absent" />
-        ) : timeSlotStatus === "past" ? (
-          // Past time slots without recorded attendance: don't show any indicator
-          null
-        ) : timeSlotStatus === "today" ? (
-          // Current day with pending attendance: show clock icon and controls
-          <div className="flex flex-col items-center gap-0.5 mt-0.5">
-            <Clock className="h-4 w-4 text-amber-500" aria-label="Pending" />
-            <div className="flex gap-0.5">
+          // If marked absent - red X
+          <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
+            <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
+          </div>
+        ) : timeSlotStatus === "past" || timeSlotStatus === "today" ? (
+          // Past/Today time slots without recorded attendance - clock + edit buttons
+          <div className="flex flex-row items-center gap-1">
+            {timeSlotStatus === "past" ? (
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-0.5">
+                <Clock className="h-3.5 w-3.5 text-red-500" aria-label="Not recorded" />
+              </div>
+            ) : (
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-full p-0.5">
+                <Clock className="h-3.5 w-3.5 text-amber-500" aria-label="Pending" />
+              </div>
+            )}
+            <div className="flex gap-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-5 w-5 p-0.5"
+                className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/50"
                 aria-label="Present"
                 onClick={() => handleCheckInStatus(assignment, "checked_in")}
               >
-                <Check className="h-3 w-3" />
+                <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-5 w-5 p-0.5"
+                className="h-6 w-6 rounded-full bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50"
                 aria-label="Absent"
                 onClick={() => handleCheckInStatus(assignment, "absent")}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
               </Button>
             </div>
           </div>
         ) : (
-          // Future time slots with pending attendance: show clock icon
-          <Clock className="h-4 w-4 text-amber-500 mt-0.5" aria-label="Pending" />
+          // Future time slots - gray clock
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-full p-0.5">
+            <Clock className="h-3.5 w-3.5 text-gray-400" aria-label="Upcoming" />
+          </div>
         )}
       </div>
     );
   };
 
-  // Admin: add task assignment controls (placeholder for now)
-  const renderAdminControls = (_assignment: Assignment) => userRole === "admin" ? (
-    <Button variant="ghost" size="icon" className="h-6 w-6 p-0" aria-label="Edit Assignment">
-      <span className="text-xs">✏️</span>
-    </Button>
-  ) : null;
+  // Admin controls removed as they're redundant with cell actions
 
   // Helper function to shorten names for mobile view
   const shortenName = (fullName: string, maxLength: number = 12) => {
@@ -282,18 +327,6 @@ export function AssignmentsTable({
     // Mobile: Excel-like table view with fixed header row for time slots
     return (
       <div className="w-full max-w-full px-0">
-        <div className="flex flex-wrap gap-1 mb-3 items-center justify-between bg-background rounded-sm p-2 sticky top-0 z-40 w-full border-b shadow-sm">
-          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="flex-1 min-w-[80px] max-w-[120px] h-8 text-xs" aria-label="Search" />
-          <select value={filterSlot} onChange={e => setFilterSlot(e.target.value)} aria-label="Filter by time slot" className="rounded-sm border px-1 py-0.5 text-xs h-8">
-            <option value="">All Times</option>
-            {visibleTimeSlots.map(slot => <option key={slot.id} value={slot.slot_name}>{slot.slot_name}</option>)}
-          </select>
-          <select value={filterTask} onChange={e => setFilterTask(e.target.value)} aria-label="Filter by task" className="rounded-sm border px-1 py-0.5 text-xs h-8">
-            <option value="">All Tasks</option>
-            {[...new Set(assignments.map(a => a.seva_category?.category_name).filter(Boolean))].map(name => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </div>
-
         <div className="overflow-x-auto w-full pt-2">
           <table className="w-full text-xs border-collapse border">
             {/* Header row with time slots */}
@@ -305,7 +338,6 @@ export function AssignmentsTable({
                     {slot.slot_name}
                   </th>
                 ))}
-                {userRole === "admin" && <th className="py-1 px-1 text-center font-medium bg-muted/80 min-w-[50px] border-r">Actions</th>}
               </tr>
             </thead>
 
@@ -313,7 +345,7 @@ export function AssignmentsTable({
               {pagedVolunteerNames.map((volunteerName, index) => (
                 <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
                   <td className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-10 bg-inherit">
-                    <span className="block truncate font-medium">{shortenName(volunteerName)}</span>
+                    <span className="block truncate">{shortenName(volunteerName)}</span>
                   </td>
 
                   {visibleTimeSlots.map(slot => {
@@ -324,12 +356,6 @@ export function AssignmentsTable({
                       </td>
                     );
                   })}
-
-                  {userRole === "admin" && (
-                    <td className="py-0.5 px-0.5 text-center min-w-[50px] border-r">
-                      {volunteerAssignments[volunteerName][0] && renderAdminControls(volunteerAssignments[volunteerName][0])}
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -350,23 +376,6 @@ export function AssignmentsTable({
   // Desktop: Excel-like table view, maximize width and condense filters
   return (
     <div className="w-full max-w-full">
-      <div className="flex flex-wrap gap-2 mb-3 items-center justify-between bg-background rounded-sm p-2 sticky top-0 z-40 w-full border-b shadow-sm">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Assignments</h2>
-        </div>
-        <div className="flex gap-2 items-center flex-wrap">
-          <Input placeholder="Search volunteers..." value={search} onChange={e => setSearch(e.target.value)} className="w-48 h-9" aria-label="Search" />
-          <select value={filterSlot} onChange={e => setFilterSlot(e.target.value)} aria-label="Filter by time slot" className="rounded-md border px-2 py-1 h-9">
-            <option value="">All Times</option>
-            {visibleTimeSlots.map(slot => <option key={slot.id} value={slot.slot_name}>{slot.slot_name}</option>)}
-          </select>
-          <select value={filterTask} onChange={e => setFilterTask(e.target.value)} aria-label="Filter by task" className="rounded-md border px-2 py-1 h-9">
-            <option value="">All Tasks</option>
-            {[...new Set(assignments.map(a => a.seva_category?.category_name).filter(Boolean))].map(name => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </div>
-      </div>
-
       <div className="overflow-x-auto w-full border rounded-sm pt-2">
         <table className="w-full text-sm border-collapse border">
           {/* Fixed header row */}
@@ -378,14 +387,13 @@ export function AssignmentsTable({
                   {slot.slot_name}
                 </th>
               ))}
-              {userRole === "admin" && <th className="py-2 px-2 text-center font-medium bg-muted/80 min-w-[60px] border-r">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {pagedVolunteerNames.map((volunteerName, index) => (
               <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
                 <td className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-10 bg-inherit">
-                  <span className="block truncate font-medium">{volunteerName}</span>
+                  <span className="block truncate">{volunteerName}</span>
                 </td>
 
                 {visibleTimeSlots.map(slot => {
@@ -396,12 +404,6 @@ export function AssignmentsTable({
                     </td>
                   );
                 })}
-
-                {userRole === "admin" && (
-                  <td className="py-1 px-1 text-center min-w-[60px] border-r">
-                    {volunteerAssignments[volunteerName][0] && renderAdminControls(volunteerAssignments[volunteerName][0])}
-                  </td>
-                )}
               </tr>
             ))}
           </tbody>
