@@ -260,37 +260,26 @@ export function AssignmentsTable({
             <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
           </div>
         ) : timeSlotStatus === "past" || timeSlotStatus === "today" ? (
-          // Past/Today time slots without recorded attendance - clock + edit buttons
-          <div className="flex flex-row items-center gap-1">
-            {timeSlotStatus === "past" ? (
-              <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-0.5">
-                <Clock className="h-3.5 w-3.5 text-red-500" aria-label="Not recorded" />
-              </div>
-            ) : (
-              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-full p-0.5">
-                <Clock className="h-3.5 w-3.5 text-amber-500" aria-label="Pending" />
-              </div>
-            )}
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/50"
-                aria-label="Present"
-                onClick={() => handleCheckInStatus(assignment, "checked_in")}
-              >
-                <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-full bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50"
-                aria-label="Absent"
-                onClick={() => handleCheckInStatus(assignment, "absent")}
-              >
-                <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-              </Button>
-            </div>
+          // Past/Today time slots without recorded attendance - just show check/x buttons for Admin/TL
+          <div className="flex gap-1 justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/50"
+              aria-label="Present"
+              onClick={() => handleCheckInStatus(assignment, "checked_in")}
+            >
+              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-full bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50"
+              aria-label="Absent"
+              onClick={() => handleCheckInStatus(assignment, "absent")}
+            >
+              <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+            </Button>
           </div>
         ) : (
           // Future time slots - gray clock
