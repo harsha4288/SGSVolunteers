@@ -74,7 +74,6 @@ export type Database = {
         Row: {
           id: string // UUID, PK
           profile_id: string // UUID, FK to public.profiles.id
-          event_id: number // FK to public.events.id
           email: string
           first_name: string
           last_name: string
@@ -101,7 +100,6 @@ export type Database = {
         Insert: {
           id?: string // UUID
           profile_id: string // UUID
-          event_id: number
           email: string
           first_name: string
           last_name: string
@@ -118,7 +116,6 @@ export type Database = {
         Update: {
           id?: string // UUID
           profile_id?: string // UUID
-          event_id?: number
           email?: string
           first_name?: string
           last_name?: string
@@ -137,12 +134,6 @@ export type Database = {
             foreignKeyName: "volunteers_profile_id_fkey"
             columns: ["profile_id"]
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "volunteers_event_id_fkey"
-            columns: ["event_id"]
-            referencedRelation: "events"
             referencedColumns: ["id"]
           }
         ]

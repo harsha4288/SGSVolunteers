@@ -41,7 +41,6 @@ async function getVolunteersData() {
     .select(`
       id,
       profile_id,
-      event_id,
       email,
       first_name,
       last_name,
@@ -79,7 +78,7 @@ export default async function VolunteersPage() {
       </div>
     );
   }
-  
+
   const searchableColumns: SearchableColumn[] = [
     { id: 'first_name', title: 'First Name'},
     { id: 'last_name', title: 'Last Name'},
