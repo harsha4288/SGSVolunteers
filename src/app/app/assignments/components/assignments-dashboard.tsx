@@ -328,7 +328,7 @@ export function AssignmentsDashboard({
   }
 
   return (
-    <div className="space-y-2 p-2 sm:p-4">
+    <div className="space-y-2 p-2 sm:p-4 overflow-hidden">
       <div className="flex flex-nowrap items-center gap-2 mb-2 overflow-x-auto">
         <div className="flex-1 min-w-0">
           <AssignmentsFilters
@@ -347,14 +347,16 @@ export function AssignmentsDashboard({
         </div>
       </div>
 
-      <AssignmentsTable
-        assignments={assignments}
-        timeSlots={timeSlots}
-        userRole={userRole}
-        profileId={profileId}
-        supabase={supabase}
-        selectedEvent={selectedEvent}
-      />
+      <div className="overflow-hidden">
+        <AssignmentsTable
+          assignments={assignments}
+          timeSlots={timeSlots}
+          userRole={userRole}
+          profileId={profileId}
+          supabase={supabase}
+          selectedEvent={selectedEvent}
+        />
+      </div>
     </div>
   );
 }

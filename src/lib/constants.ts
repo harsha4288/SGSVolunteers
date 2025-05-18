@@ -55,14 +55,19 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: Sparkles,
   },
   {
-    title: "T-shirt Inventory",
-    href: "/app/inventory",
+    title: "T-Shirts",
+    href: "/app/tshirts",
     icon: Shirt,
   },
   {
     title: "Check-in System",
     href: "/app/check-in",
     icon: ClipboardCheck,
+  },
+  {
+    title: "My Profile",
+    href: "/app/profile",
+    icon: UserCog,
   },
 ];
 

@@ -87,7 +87,13 @@ export default {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
-  		}
+  		},
+      zIndex: {
+        '30': '30',
+        '40': '40',
+        '50': '50',
+        '60': '60'
+      }
   	}
   },
   plugins: [require("tailwindcss-animate")],

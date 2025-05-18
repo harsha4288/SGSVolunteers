@@ -19,11 +19,18 @@ export function SiteHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
-      <div className="flex h-14 items-center">
-        {/* Left section with sidebar trigger */}
-        <div className="fixed left-1 sm:left-6 lg:left-8 z-50 flex items-center">
-          {isMobile && <SidebarTrigger className="mr-1 flex-shrink-0" />}
+      <div className="flex h-14 items-center w-full">
+        {/* Left section - leave space for the logo in the sidebar */}
+        <div className="w-[3.5rem] md:w-[4rem] flex-shrink-0">
+          {/* This space is intentionally left empty to avoid overlapping with the logo */}
         </div>
+
+        {/* Mobile sidebar trigger - positioned to not overlap with logo */}
+        {isMobile && (
+          <div className="flex items-center ml-2">
+            <SidebarTrigger className="flex-shrink-0" />
+          </div>
+        )}
 
         {/* Center section with event selector */}
         <div className="flex-1 flex justify-center items-center">

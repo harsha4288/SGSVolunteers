@@ -348,12 +348,12 @@ export function AssignmentsTable({
     // Mobile: Excel-like table view with fixed header row for time slots
     return (
       <div className="w-full max-w-full px-0">
-        <div className="overflow-x-auto w-full pt-2">
+        <div className="overflow-x-auto overflow-y-visible w-full pt-2">
           <table className="w-full text-xs border-collapse border">
             {/* Header row with time slots */}
-            <thead className="sticky top-0 z-20 shadow-md">
+            <thead className="sticky top-0 z-40 shadow-md">
               <tr className="border-b border-t">
-                <th className="py-1 px-2 text-left font-medium bg-muted/80 border-r min-w-[80px] max-w-[80px] sticky left-0 z-10">Volunteer</th>
+                <th className="py-1 px-2 text-left font-medium border-r min-w-[80px] max-w-[80px] sticky-header sticky-header-light sticky-header-dark">Volunteer</th>
                 {visibleTimeSlots.map(slot => (
                   <th key={slot.id} className="py-1 px-1 text-center font-medium bg-muted/80 border-r min-w-[60px]">
                     {slot.slot_name}
@@ -364,8 +364,15 @@ export function AssignmentsTable({
 
             <tbody>
               {pagedVolunteerNames.map((volunteerName, index) => (
-                <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
-                  <td className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-5 bg-inherit">
+                <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background row-even" : "bg-muted/10 row-odd"} border-b`}>
+                  <td
+                    className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-30 sticky-column"
+                    style={{
+                      backgroundColor: theme === 'dark'
+                        ? (index % 2 === 0 ? 'hsl(240, 10%, 3.9%)' : 'hsla(240, 3.7%, 15.9%, 0.1)')
+                        : (index % 2 === 0 ? 'white' : 'hsla(240, 4.8%, 95.9%, 0.1)')
+                    }}
+                  >
                     <span className="block truncate">{shortenName(volunteerName)}</span>
                   </td>
 
@@ -397,12 +404,12 @@ export function AssignmentsTable({
   // Desktop: Excel-like table view, maximize width and condense filters
   return (
     <div className="w-full max-w-full">
-      <div className="overflow-x-auto w-full border rounded-sm pt-2">
+      <div className="overflow-x-auto overflow-y-visible w-full border rounded-sm pt-2">
         <table className="w-full text-sm border-collapse border">
           {/* Fixed header row */}
-          <thead className="sticky top-0 z-20 shadow-md">
+          <thead className="sticky top-0 z-40 shadow-md">
             <tr className="border-b border-t">
-              <th className="py-2 px-3 text-left font-medium bg-muted/80 border-r min-w-[180px] max-w-[180px] sticky left-0 z-10">Volunteer</th>
+              <th className="py-2 px-3 text-left font-medium border-r min-w-[180px] max-w-[180px] sticky-header sticky-header-light sticky-header-dark">Volunteer</th>
               {visibleTimeSlots.map(slot => (
                 <th key={slot.id} className="py-2 px-2 text-center font-medium bg-muted/80 border-r min-w-[80px]">
                   {slot.slot_name}
@@ -412,8 +419,15 @@ export function AssignmentsTable({
           </thead>
           <tbody>
             {pagedVolunteerNames.map((volunteerName, index) => (
-              <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
-                <td className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-5 bg-inherit">
+              <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background row-even" : "bg-muted/10 row-odd"} border-b`}>
+                <td
+                  className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-30 sticky-column"
+                  style={{
+                    backgroundColor: theme === 'dark'
+                      ? (index % 2 === 0 ? 'hsl(240, 10%, 3.9%)' : 'hsla(240, 3.7%, 15.9%, 0.1)')
+                      : (index % 2 === 0 ? 'white' : 'hsla(240, 4.8%, 95.9%, 0.1)')
+                  }}
+                >
                   <span className="block truncate">{volunteerName}</span>
                 </td>
 

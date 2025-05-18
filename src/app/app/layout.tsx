@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { UserCog, Settings } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -45,11 +46,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <MainNav />
         </SidebarContent>
         <SidebarFooter className="p-2 flex-col gap-2">
-          {/* Example of items in footer. Can be UserNav or ThemeToggle if preferred here */}
-          {/* For icon-only collapsed state, these might be better in the header */}
+          {/* Sidebar footer links */}
           <div className="group-data-[collapsible=icon]:hidden flex flex-col gap-1">
-            <Button variant="ghost" className="w-full justify-start">User Profile</Button>
-            <Button variant="ghost" className="w-full justify-start">Settings</Button>
+            <Link href="/app/profile">
+              <Button variant="ghost" className="w-full justify-start">
+                <UserCog className="mr-2 h-4 w-4" />
+                My Profile
+              </Button>
+            </Link>
+            <Link href="/app/settings">
+              <Button variant="ghost" className="w-full justify-start">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+            </Link>
           </div>
         </SidebarFooter>
       </Sidebar>

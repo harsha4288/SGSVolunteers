@@ -41,7 +41,7 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    
+
     --radius: 0.5rem;
 
     /* Sidebar specific theme variables for light mode */
@@ -111,4 +111,78 @@ body {
     min-height: 100vh;
     font-feature-settings: "rlig" 1,"calt" 1;
   }
+}
+
+/* Custom styles for sticky columns in tables */
+.sticky-column-light {
+  background-color: hsl(0, 0%, 100%) !important; /* Light mode background */
+}
+
+.sticky-column-light-alt {
+  background-color: hsl(240, 4.8%, 95.9%, 0.1) !important; /* Light mode alternating row */
+}
+
+.dark .sticky-column-dark {
+  background-color: hsl(240, 10%, 3.9%) !important; /* Dark mode background */
+}
+
+.dark .sticky-column-dark-alt {
+  background-color: hsl(240, 3.7%, 15.9%, 0.1) !important; /* Dark mode alternating row */
+}
+
+/* Specific styles for even/odd rows */
+tr.row-even td.sticky-column {
+  background-color: hsl(0, 0%, 100%) !important; /* Light mode even row */
+}
+
+tr.row-odd td.sticky-column {
+  background-color: hsl(240, 4.8%, 95.9%, 0.1) !important; /* Light mode odd row */
+}
+
+.dark tr.row-even td.sticky-column {
+  background-color: hsl(240, 10%, 3.9%) !important; /* Dark mode even row */
+}
+
+.dark tr.row-odd td.sticky-column {
+  background-color: hsl(240, 3.7%, 15.9%, 0.1) !important; /* Dark mode odd row */
+}
+
+/* Additional specific background colors for alternating rows */
+.bg-background.row-even td.sticky-column {
+  background-color: hsl(0, 0%, 100%) !important; /* Light mode even row */
+}
+
+.bg-muted\/10.row-odd td.sticky-column {
+  background-color: hsla(240, 4.8%, 95.9%, 0.1) !important; /* Light mode odd row */
+}
+
+.dark .bg-background.row-even td.sticky-column {
+  background-color: hsl(240, 10%, 3.9%) !important; /* Dark mode even row */
+}
+
+.dark .bg-muted\/10.row-odd td.sticky-column {
+  background-color: hsla(240, 3.7%, 15.9%, 0.1) !important; /* Dark mode odd row */
+}
+
+/* Ensure sticky columns have proper positioning */
+td.sticky-column {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 30 !important;
+}
+
+/* Header cell background */
+.sticky-header-light {
+  background-color: hsl(240, 4.8%, 95.9%, 0.8) !important; /* Light mode header */
+}
+
+.dark .sticky-header-dark {
+  background-color: hsl(240, 3.7%, 15.9%, 0.8) !important; /* Dark mode header */
+}
+
+/* Sticky header cell */
+th.sticky-header {
+  position: sticky;
+  left: 0;
+  z-index: 50;
 }

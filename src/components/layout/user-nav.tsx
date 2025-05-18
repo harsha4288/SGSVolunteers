@@ -211,6 +211,13 @@ export function UserNav() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => router.push('/app/profile')}>
+              <UserIcon className="mr-2 h-4 w-4" />
+              <span>My Profile</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={stopImpersonation} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <UserMinus className="mr-2 h-4 w-4" />
             <span>Stop Impersonating</span>
@@ -257,6 +264,10 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => router.push('/app/profile')}>
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>My Profile</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push('/app/settings')}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
