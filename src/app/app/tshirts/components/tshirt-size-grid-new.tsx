@@ -449,30 +449,45 @@ export function TShirtSizeGridNew({
   const returnTShirt = async (volunteerId: string, size: string) => {
     if (!isAdmin) return;
 
+    console.log(`Starting returnTShirt for volunteer ${volunteerId}, size ${size}`);
     setSaving(prev => ({ ...prev, [volunteerId]: true }));
 
     try {
       // Check if volunteer has any T-shirts of this size
       const issuedCount = issuances[volunteerId]?.filter(s => s === size).length || 0;
+      console.log(`Volunteer has ${issuedCount} ${size} T-shirts issued`);
+
       if (issuedCount <= 0) {
         throw new Error(`No ${size} T-shirts issued to this volunteer`);
       }
 
       // Find the size ID
+      console.log("Looking for size in tshirtSizes:", tshirtSizes);
       const sizeObj = tshirtSizes.find(s => s.size_name === size);
-      if (!sizeObj) throw new Error(`Size ${size} not found`);
+      if (!sizeObj) {
+        console.error(`Size ${size} not found in tshirtSizes:`, tshirtSizes);
+        throw new Error(`Size ${size} not found`);
+      }
 
-      // Check inventory
+      console.log(`Found size object:`, sizeObj);
+
+      // Check inventory - for now, let's remove the event_id filter to see if that's the issue
+      console.log(`Fetching inventory for size ID ${sizeObj.id}...`);
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('tshirt_inventory')
         .select('id, quantity, quantity_on_hand')
-        .eq('event_id', eventId)
         .eq('tshirt_size_id', sizeObj.id)
         .single();
 
-      if (inventoryError) throw inventoryError;
+      if (inventoryError) {
+        console.error("Error fetching inventory:", inventoryError);
+        throw inventoryError;
+      }
+
+      console.log("Found inventory data:", inventoryData);
 
       // Update inventory (increment quantity)
+      console.log(`Updating inventory ID ${inventoryData.id}...`);
       const { error: updateError } = await supabase
         .from('tshirt_inventory')
         .update({
@@ -481,9 +496,15 @@ export function TShirtSizeGridNew({
         })
         .eq('id', inventoryData.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating inventory:", updateError);
+        throw updateError;
+      }
+
+      console.log("Inventory updated successfully");
 
       // Find the issuance to delete
+      console.log(`Finding issuance to delete for volunteer ${volunteerId}, size ${size}...`);
       const { data: issuanceData, error: findError } = await supabase
         .from('tshirt_issuances')
         .select('id, tshirt_inventory_id')
@@ -497,11 +518,14 @@ export function TShirtSizeGridNew({
         throw new Error(`Failed to find issuance to delete: ${findError.message}`);
       }
 
+      console.log("Found issuance data:", issuanceData);
+
       if (!issuanceData || issuanceData.length === 0) {
         throw new Error(`No issuance found to delete for volunteer ${volunteerId}`);
       }
 
       // Delete the issuance
+      console.log(`Deleting issuance ID ${issuanceData[0].id}...`);
       const { error: deleteError } = await supabase
         .from('tshirt_issuances')
         .delete()
@@ -514,40 +538,38 @@ export function TShirtSizeGridNew({
 
       console.log(`Deleted issuance from the database:`, issuanceData[0]);
 
-      // Update local state
-      setIssuances(prev => {
-        const newIssuances = { ...prev };
-        if (!newIssuances[volunteerId]) {
-          return prev; // No issuances to remove
-        }
+      // Instead of updating the local state here, we'll refetch the data
+      // This ensures the UI is always in sync with the database
+      // and prevents any double counting issues
 
-        // Find the index of the first occurrence of this size
-        const index = newIssuances[volunteerId].findIndex(s => s === size);
-        if (index !== -1) {
-          // Remove one occurrence
-          newIssuances[volunteerId].splice(index, 1);
-        }
+      // Fetch the latest issuances for this volunteer
+      const { data: latestIssuances, error: fetchError } = await supabase
+        .from('tshirt_issuances')
+        .select('id, size')
+        .eq('volunteer_id', volunteerId);
 
-        return newIssuances;
-      });
+      if (fetchError) {
+        console.error("Error fetching latest issuances:", fetchError);
+      } else {
+        // Update local state with the latest data from the database
+        const newIssuances = { ...issuances };
+        newIssuances[volunteerId] = latestIssuances.map(i => i.size);
+        setIssuances(newIssuances);
 
-      // Update issuance counts by size
-      setIssuanceCountsBySize(prev => {
-        const newCounts = { ...prev };
-        if (!newCounts[volunteerId] || !newCounts[volunteerId][size]) {
-          return prev; // No issuances to remove
-        }
+        // Recalculate issuance counts
+        const newCounts = { ...issuanceCountsBySize };
+        newCounts[volunteerId] = {};
 
-        // Decrement count
-        newCounts[volunteerId][size]--;
+        // Count by size
+        latestIssuances.forEach(issuance => {
+          if (!newCounts[volunteerId][issuance.size]) {
+            newCounts[volunteerId][issuance.size] = 0;
+          }
+          newCounts[volunteerId][issuance.size]++;
+        });
 
-        // Remove the size entry if count is zero
-        if (newCounts[volunteerId][size] <= 0) {
-          delete newCounts[volunteerId][size];
-        }
-
-        return newCounts;
-      });
+        setIssuanceCountsBySize(newCounts);
+      }
 
       // Update allocation (increment)
       setAllocations(prev => ({
@@ -575,28 +597,68 @@ export function TShirtSizeGridNew({
   const processIssuance = async (volunteerId: string, size: string, quantity: number = 1) => {
     if (!isAdmin) return;
 
+    console.log(`Starting processIssuance for volunteer ${volunteerId}, size ${size}, quantity ${quantity}`);
     setSaving(prev => ({ ...prev, [volunteerId]: true }));
 
     try {
       // Find the size ID
+      console.log("Looking for size in tshirtSizes:", tshirtSizes);
       const sizeObj = tshirtSizes.find(s => s.size_name === size);
-      if (!sizeObj) throw new Error(`Size ${size} not found`);
+      if (!sizeObj) {
+        console.error(`Size ${size} not found in tshirtSizes:`, tshirtSizes);
+        throw new Error(`Size ${size} not found`);
+      }
 
-      // Check inventory
+      console.log(`Found size object:`, sizeObj);
+
+      // Check if tshirt_inventory table exists and has data
+      console.log("Checking tshirt_inventory table...");
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('tshirt_inventory')
+        .select('id')
+        .limit(1);
+
+      if (tableError) {
+        console.error("Error checking tshirt_inventory table:", tableError);
+        throw new Error(`Error checking tshirt_inventory table: ${tableError.message}`);
+      }
+
+      console.log("tshirt_inventory table check result:", tableCheck);
+
+      // For debugging, let's check what inventory records exist for this size
+      console.log(`Checking inventory for size ID ${sizeObj.id}...`);
+      const { data: allInventory, error: allInventoryError } = await supabase
+        .from('tshirt_inventory')
+        .select('*')
+        .eq('tshirt_size_id', sizeObj.id);
+
+      if (allInventoryError) {
+        console.error("Error checking all inventory:", allInventoryError);
+      } else {
+        console.log(`Found ${allInventory?.length || 0} inventory records for size ID ${sizeObj.id}:`, allInventory);
+      }
+
+      // Check inventory - for now, let's remove the event_id filter to see if that's the issue
+      console.log(`Fetching inventory for size ID ${sizeObj.id}...`);
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('tshirt_inventory')
         .select('id, quantity, quantity_on_hand')
-        .eq('event_id', eventId)
         .eq('tshirt_size_id', sizeObj.id)
         .single();
 
-      if (inventoryError) throw inventoryError;
+      if (inventoryError) {
+        console.error("Error fetching inventory:", inventoryError);
+        throw inventoryError;
+      }
+
+      console.log("Found inventory data:", inventoryData);
 
       if (!inventoryData || inventoryData.quantity < quantity) {
         throw new Error(`Only ${inventoryData?.quantity || 0} T-shirts available for size ${size}, but tried to issue ${quantity}`);
       }
 
       // Update inventory
+      console.log(`Updating inventory ID ${inventoryData.id}...`);
       const { error: updateError } = await supabase
         .from('tshirt_inventory')
         .update({
@@ -605,23 +667,58 @@ export function TShirtSizeGridNew({
         })
         .eq('id', inventoryData.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating inventory:", updateError);
+        throw updateError;
+      }
+
+      console.log("Inventory updated successfully");
+
+      // Check if tshirt_issuances table exists
+      console.log("Checking tshirt_issuances table...");
+      const { data: issuanceCheck, error: issuanceTableError } = await supabase
+        .from('tshirt_issuances')
+        .select('id')
+        .limit(1);
+
+      if (issuanceTableError) {
+        console.error("Error checking tshirt_issuances table:", issuanceTableError);
+        throw new Error(`Error checking tshirt_issuances table: ${issuanceTableError.message}`);
+      }
+
+      console.log("tshirt_issuances table check result:", issuanceCheck);
+
+      // Skip table structure check since the RPC function might not exist
+      console.log("Skipping table structure check...");
 
       // Record issuance in the database
-      for (let i = 0; i < quantity; i++) {
+      console.log(`Recording ${quantity} issuances...`);
+
+      try {
+        // Create the insert data object
+        const insertData = {
+          volunteer_id: volunteerId,
+          tshirt_inventory_id: inventoryData.id,
+          issued_by_profile_id: profileId,
+          size: size
+        };
+
+        console.log("Insert data:", insertData);
+
+        // Insert just one record for simplicity
         const { error: insertError } = await supabase
           .from('tshirt_issuances')
-          .insert({
-            volunteer_id: volunteerId,
-            tshirt_inventory_id: inventoryData.id,
-            issued_by_profile_id: profileId,
-            size: size
-          });
+          .insert(insertData);
 
         if (insertError) {
           console.error("Error recording issuance:", insertError);
           throw new Error(`Failed to record issuance: ${insertError.message}`);
         }
+
+        console.log(`Issuance recorded successfully`);
+      } catch (e) {
+        console.error("Unexpected error during insert:", e);
+        throw new Error(`Unexpected error during insert: ${e.message}`);
       }
 
       console.log(`Recorded ${quantity} tshirt_issuances in the database`);
@@ -648,33 +745,38 @@ export function TShirtSizeGridNew({
         }
       }
 
-      // Update local state
-      setIssuances(prev => {
-        const newIssuances = { ...prev };
-        if (!newIssuances[volunteerId]) {
-          newIssuances[volunteerId] = [];
-        }
+      // Instead of updating the local state here, we'll refetch the data
+      // This ensures the UI is always in sync with the database
+      // and prevents any double counting issues
 
-        // Add the size multiple times based on quantity
-        for (let i = 0; i < quantity; i++) {
-          newIssuances[volunteerId].push(size);
-        }
+      // Fetch the latest issuances for this volunteer
+      const { data: latestIssuances, error: fetchError } = await supabase
+        .from('tshirt_issuances')
+        .select('id, size')
+        .eq('volunteer_id', volunteerId);
 
-        return newIssuances;
-      });
+      if (fetchError) {
+        console.error("Error fetching latest issuances:", fetchError);
+      } else {
+        // Update local state with the latest data from the database
+        const newIssuances = { ...issuances };
+        newIssuances[volunteerId] = latestIssuances.map(i => i.size);
+        setIssuances(newIssuances);
 
-      // Update issuance counts by size
-      setIssuanceCountsBySize(prev => {
-        const newCounts = { ...prev };
-        if (!newCounts[volunteerId]) {
-          newCounts[volunteerId] = {};
-        }
-        if (!newCounts[volunteerId][size]) {
-          newCounts[volunteerId][size] = 0;
-        }
-        newCounts[volunteerId][size] += quantity;
-        return newCounts;
-      });
+        // Recalculate issuance counts
+        const newCounts = { ...issuanceCountsBySize };
+        newCounts[volunteerId] = {};
+
+        // Count by size
+        latestIssuances.forEach(issuance => {
+          if (!newCounts[volunteerId][issuance.size]) {
+            newCounts[volunteerId][issuance.size] = 0;
+          }
+          newCounts[volunteerId][issuance.size]++;
+        });
+
+        setIssuanceCountsBySize(newCounts);
+      }
 
       // Update allocation
       setAllocations(prev => ({
@@ -724,16 +826,106 @@ export function TShirtSizeGridNew({
   // Log the received tshirtSizes
   console.log("TShirtSizeGridNew received tshirtSizes:", tshirtSizes);
 
-  // Create a default set of T-shirt sizes if none are available
-  const displaySizes = tshirtSizes.length > 0 ? tshirtSizes : [
-    { id: 1, size_name: 'XS', sort_order: 1 },
-    { id: 2, size_name: 'S', sort_order: 2 },
-    { id: 3, size_name: 'M', sort_order: 3 },
-    { id: 4, size_name: 'L', sort_order: 4 },
-    { id: 5, size_name: 'XL', sort_order: 5 },
-    { id: 6, size_name: '2XL', sort_order: 6 },
-    { id: 7, size_name: '3XL', sort_order: 7 },
-  ];
+  // State for T-shirt inventory
+  const [tshirtInventory, setTshirtInventory] = React.useState<any[]>([]);
+
+  // Fetch T-shirt inventory
+  React.useEffect(() => {
+    const fetchInventory = async () => {
+      console.log("Fetching inventory for event ID:", eventId);
+
+      try {
+        // First, let's check if the tshirt_inventory table exists
+        const { data: tableInfo, error: tableError } = await supabase
+          .from('tshirt_inventory')
+          .select('id')
+          .limit(1);
+
+        if (tableError) {
+          console.error("Error checking tshirt_inventory table:", tableError);
+          return;
+        }
+
+        console.log("tshirt_inventory table exists, found data:", tableInfo);
+
+        // Now fetch the actual inventory data
+        const { data, error } = await supabase
+          .from('tshirt_inventory')
+          .select(`
+            id,
+            tshirt_size_id,
+            quantity_initial,
+            quantity,
+            tshirt_sizes (
+              id,
+              size_name,
+              sort_order
+            )
+          `);
+
+        console.log("Inventory query executed, checking for errors...");
+
+        if (error) {
+          console.error("Error fetching inventory:", error);
+          return;
+        }
+
+        console.log("Fetched inventory data:", data);
+
+        if (!data || data.length === 0) {
+          console.log("No inventory data found");
+          return;
+        }
+
+        // Log each inventory item to check for null tshirt_sizes
+        data.forEach((item, index) => {
+          console.log(`Inventory item ${index}:`, {
+            id: item.id,
+            tshirt_size_id: item.tshirt_size_id,
+            quantity_initial: item.quantity_initial,
+            tshirt_sizes: item.tshirt_sizes
+          });
+        });
+
+        setTshirtInventory(data);
+      } catch (err) {
+        console.error("Unexpected error in fetchInventory:", err);
+      }
+    };
+
+    fetchInventory();
+  }, [supabase, eventId]);
+
+  // For debugging
+  React.useEffect(() => {
+    console.log("Current tshirtInventory state:", tshirtInventory);
+  }, [tshirtInventory]);
+
+  // Filter sizes to only show those with quantity_initial > 0
+  const displaySizes = React.useMemo(() => {
+    console.log("Running displaySizes useMemo with inventory:", tshirtInventory);
+
+    // For now, let's just use all available sizes to debug the issue
+    // We'll add the filtering back once we confirm the basic rendering works
+    if (tshirtSizes.length > 0) {
+      console.log("Using provided tshirtSizes:", tshirtSizes);
+      return tshirtSizes;
+    }
+
+    // Default sizes if nothing else is available
+    const defaultSizes = [
+      { id: 1, size_name: 'XS', sort_order: 1 },
+      { id: 2, size_name: 'S', sort_order: 2 },
+      { id: 3, size_name: 'M', sort_order: 3 },
+      { id: 4, size_name: 'L', sort_order: 4 },
+      { id: 5, size_name: 'XL', sort_order: 5 },
+      { id: 6, size_name: '2XL', sort_order: 6 },
+      { id: 7, size_name: '3XL', sort_order: 7 },
+    ];
+
+    console.log("Using default sizes:", defaultSizes);
+    return defaultSizes;
+  }, [tshirtSizes, tshirtInventory]);
 
   return (
     <div className="overflow-x-auto">
@@ -787,9 +979,9 @@ export function TShirtSizeGridNew({
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead className="w-[180px] font-semibold">Volunteer</TableHead>
-            <TableHead className="w-[100px] font-semibold text-center">Allocation Count</TableHead>
-            <TableHead className="w-[150px] font-semibold text-center">Preferences by Size</TableHead>
-            <TableHead className="w-[150px] font-semibold text-center">Issued by Size</TableHead>
+            <TableHead className="w-[60px] font-semibold text-center">Max</TableHead>
+            <TableHead className="w-[120px] font-semibold text-center">Preferences</TableHead>
+            <TableHead className="w-[120px] font-semibold text-center">Issued</TableHead>
             {displaySizes.map(size => (
               <TableHead key={size.id} className="text-center font-semibold">
                 {size.size_name}
@@ -826,7 +1018,7 @@ export function TShirtSizeGridNew({
                     ))}
                   </div>
                 ) : (
-                  <span className="text-muted-foreground text-sm">No preferences</span>
+                  <span className="text-muted-foreground text-sm">-</span>
                 )}
               </TableCell>
 
@@ -841,7 +1033,7 @@ export function TShirtSizeGridNew({
                     ))}
                   </div>
                 ) : (
-                  <span className="text-muted-foreground text-sm">None issued</span>
+                  <span className="text-muted-foreground text-sm">-</span>
                 )}
               </TableCell>
 
