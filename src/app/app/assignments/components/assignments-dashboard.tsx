@@ -241,35 +241,42 @@ export function AssignmentsDashboard({
 
           if (checkInsError) throw new Error(`Error fetching check-in status: ${checkInsError.message}`);
 
-          // Create a map of volunteer_id to check-in status
-          const checkInMap: Record<string, { status: "checked_in" | "absent", timeSlotIds: number[] }> = {};
+          // Create a map to store check-in status for each volunteer and time slot
+          // Key format: `${volunteerId}-${timeSlotId}`
+          const checkInStatusMap: Record<string, "checked_in" | "absent"> = {};
 
           if (checkIns && checkIns.length > 0) {
+            // First, get all time slots for the event to match with check-ins
+            const eventTimeSlots = timeSlots.map(slot => ({
+              id: slot.id,
+              date: new Date(slot.start_time).toISOString().split('T')[0] // Get just the date part
+            }));
+
             checkIns.forEach(checkIn => {
-              // If check_out_time exists, it means the volunteer is marked as absent
-              // Otherwise, if check_in_time exists, they are checked in
-              const status = checkIn.check_out_time ? "absent" : "checked_in";
+              const checkInDate = new Date(checkIn.check_in_time).toISOString().split('T')[0];
 
-              if (!checkInMap[checkIn.volunteer_id]) {
-                checkInMap[checkIn.volunteer_id] = { status, timeSlotIds: [] };
-              }
+              // Find matching time slots for this check-in date
+              const matchingTimeSlots = eventTimeSlots.filter(slot =>
+                slot.date === checkInDate
+              );
 
-              // Store the time slot IDs for this check-in
-              // This is a simplification - in a real implementation, you might want to
-              // match check-ins to specific time slots more precisely
-              const timeSlotIds = filteredAssignments
-                .filter(a => a.volunteer_id === checkIn.volunteer_id)
-                .map(a => a.time_slot_id);
-
-              checkInMap[checkIn.volunteer_id].timeSlotIds = timeSlotIds;
+              // For each matching time slot, set the check-in status
+              matchingTimeSlots.forEach(slot => {
+                const key = `${checkIn.volunteer_id}-${slot.id}`;
+                // If check_out_time exists, it means the volunteer is marked as absent
+                // Otherwise, if check_in_time exists, they are checked in
+                checkInStatusMap[key] = checkIn.check_out_time ? "absent" : "checked_in";
+              });
             });
           }
 
           // Update assignments with check-in status
           filteredAssignments = filteredAssignments.map(assignment => {
-            const checkInInfo = checkInMap[assignment.volunteer_id];
-            if (checkInInfo && checkInInfo.timeSlotIds.includes(assignment.time_slot_id)) {
-              return { ...assignment, check_in_status: checkInInfo.status };
+            const key = `${assignment.volunteer_id}-${assignment.time_slot_id}`;
+            const status = checkInStatusMap[key];
+
+            if (status) {
+              return { ...assignment, check_in_status: status };
             }
             return assignment;
           });
@@ -322,8 +329,8 @@ export function AssignmentsDashboard({
 
   return (
     <div className="space-y-2 p-2 sm:p-4">
-      <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
-        <div className="flex-1">
+      <div className="flex flex-nowrap items-center gap-2 mb-2 overflow-x-auto">
+        <div className="flex-1 min-w-0">
           <AssignmentsFilters
             timeSlots={timeSlots}
             tasks={tasks}
@@ -335,7 +342,7 @@ export function AssignmentsDashboard({
             onSearchChange={handleSearchChange}
           />
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 ml-auto">
           <DateOverrideControl />
         </div>
       </div>

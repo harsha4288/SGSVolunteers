@@ -10,14 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Check, X, Minus, AlertCircle, Clock } from "lucide-react";
+import { Loader2, Check, X, Minus, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
 import type { Assignment, TimeSlot } from "./assignments-dashboard";
-
+import { getTaskIconConfig } from "@/lib/task-icons";
+import { useTheme } from "next-themes";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { parseISO } from "date-fns";
@@ -40,11 +39,11 @@ export function AssignmentsTable({
   userRole,
   profileId,
   supabase,
-
   selectedEvent,
 }: AssignmentsTableProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { theme } = useTheme();
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
   const [volunteerAssignments, setVolunteerAssignments] = React.useState<Record<string, Assignment[]>>({});
   const [filteredAssignments, setFilteredAssignments] = React.useState<Assignment[]>(assignments);
@@ -192,7 +191,7 @@ export function AssignmentsTable({
   };
 
   // Render assignment cell (role-based)
-  const renderAssignmentCell = (assignment: Assignment, slotId: number) => {
+  const renderAssignmentCell = (assignment: Assignment, slotId: number, isDesktop = false) => {
     // If no assignment for this slot, show a minus sign
     if (!assignment || assignment.time_slot_id !== slotId) {
       return <Minus className="h-4 w-4 text-muted-foreground inline-block" aria-label="Not assigned" />;
@@ -202,23 +201,44 @@ export function AssignmentsTable({
     const isLoadingCheckIn = checkInLoading[loadingKey];
     if (isLoadingCheckIn) return <Loader2 className="h-4 w-4 animate-spin text-primary inline-block" />;
 
-    // Get task initials
-    const taskInitials = assignment.seva_category?.category_name?.split(" ").map(w => w[0]).join("") || "";
+    // Get task icon configuration
+    const taskName = assignment.seva_category?.category_name || "";
+    const taskConfig = getTaskIconConfig(taskName);
+    const TaskIcon = taskConfig.icon;
+
+    // Use appropriate colors based on theme
+    const isDark = theme === 'dark';
+    const iconColor = isDark ? taskConfig.darkColor : taskConfig.color;
+    const bgColor = isDark ? taskConfig.darkBgColor : taskConfig.bgColor;
 
     // Determine time slot status (today, past, future)
     const timeSlotStatus = getTimeSlotStatus(assignment.time_slot);
 
-    // Volunteer: show task initials and status
+    // Volunteer: show task icon and status
     if (userRole === "volunteer") {
       return (
         <div className="inline-flex flex-col items-center gap-1 py-1">
-          <Badge variant="outline" className="text-xs uppercase px-1 py-0 font-semibold">{taskInitials}</Badge>
-          {assignment.check_in_status === "checked_in" ? (
+          <div className="flex items-center gap-1" title={taskName}>
+            <div
+              className="rounded-full p-1"
+              style={{ backgroundColor: bgColor }}
+            >
+              <TaskIcon className="h-3 w-3" style={{ color: iconColor }} aria-label={taskName} />
+            </div>
+            {isDesktop ? (
+              <span className="text-xs font-semibold max-w-[100px] truncate">{taskName}</span>
+            ) : (
+              <span className="text-xs font-semibold">{taskConfig.label}</span>
+            )}
+          </div>
+
+          {/* Only show check-in status for past or today's slots */}
+          {(timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "checked_in" ? (
             // Checked in - green check
             <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
               <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Checked in" />
             </div>
-          ) : assignment.check_in_status === "absent" ? (
+          ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
             // Absent - red X
             <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
               <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
@@ -243,18 +263,30 @@ export function AssignmentsTable({
       );
     }
 
-    // Team Lead/Admin: show task initials and attendance controls based on time slot status
+    // Team Lead/Admin: show task icon and attendance controls based on time slot status
     return (
       <div className="inline-flex flex-col items-center gap-1 py-1">
-        <Badge variant="outline" className="text-xs uppercase px-1 py-0 font-semibold">{taskInitials}</Badge>
+        <div className="flex items-center gap-1" title={taskName}>
+          <div
+            className="rounded-full p-1"
+            style={{ backgroundColor: bgColor }}
+          >
+            <TaskIcon className="h-3 w-3" style={{ color: iconColor }} aria-label={taskName} />
+          </div>
+          {isDesktop ? (
+            <span className="text-xs font-semibold max-w-[100px] truncate">{taskName}</span>
+          ) : (
+            <span className="text-xs font-semibold">{taskConfig.label}</span>
+          )}
+        </div>
 
         {/* Show different controls based on time slot status and attendance */}
-        {assignment.check_in_status === "checked_in" ? (
+        {(timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "checked_in" ? (
           // If marked present - green check
           <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
             <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Present" />
           </div>
-        ) : assignment.check_in_status === "absent" ? (
+        ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
           // If marked absent - red X
           <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
             <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
@@ -341,7 +373,7 @@ export function AssignmentsTable({
                     const assignment = volunteerAssignments[volunteerName].find(a => a.time_slot_id === slot.id);
                     return (
                       <td key={slot.id} className="py-0.5 px-0.5 text-center border-r min-w-[60px]">
-                        {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-4 w-4 text-muted-foreground inline-block" />}
+                        {assignment ? renderAssignmentCell(assignment, slot.id, false) : <Minus className="h-4 w-4 text-muted-foreground inline-block" />}
                       </td>
                     );
                   })}
@@ -388,8 +420,8 @@ export function AssignmentsTable({
                 {visibleTimeSlots.map(slot => {
                   const assignment = volunteerAssignments[volunteerName].find(a => a.time_slot_id === slot.id);
                   return (
-                    <td key={slot.id} className="py-1 px-1 text-center border-r min-w-[80px]">
-                      {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
+                    <td key={slot.id} className="py-1 px-1 text-center border-r min-w-[120px]">
+                      {assignment ? renderAssignmentCell(assignment, slot.id, true) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
                     </td>
                   );
                 })}

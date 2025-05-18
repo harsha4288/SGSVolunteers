@@ -38,9 +38,9 @@ export function AssignmentsFilters({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center w-full">
+    <div className="flex flex-wrap items-center gap-2 w-full">
       {/* Search Input - Leftmost element */}
-      <div className="relative md:col-span-5 col-span-1 order-first">
+      <div className="relative flex-1 min-w-[200px] order-first">
         <Input
           id="volunteer-search"
           type="text"
@@ -53,7 +53,7 @@ export function AssignmentsFilters({
       </div>
 
       {/* Time Slot Filter */}
-      <div className="md:col-span-3 col-span-1">
+      <div className="w-[150px] flex-shrink-0">
         <Select value={selectedTimeSlot} onValueChange={onTimeSlotChange}>
           <SelectTrigger id="time-slot-filter" className="w-full">
             <SelectValue placeholder="All Times" />
@@ -70,7 +70,7 @@ export function AssignmentsFilters({
       </div>
 
       {/* Task Filter */}
-      <div className="md:col-span-3 col-span-1">
+      <div className="w-[150px] flex-shrink-0">
         <Select value={selectedTask} onValueChange={onTaskChange}>
           <SelectTrigger id="task-filter" className="w-full">
             <SelectValue placeholder="All Tasks" />
