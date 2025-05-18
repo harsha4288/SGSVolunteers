@@ -18,18 +18,24 @@ export function SiteHeader() {
                            pathname.includes('/app/check-in');
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
-      <div className="container flex h-14 max-w-screen-2xl items-center px-1 sm:px-6 lg:px-8">
-        {isMobile && <SidebarTrigger className="mr-1 flex-shrink-0" />}
-        <div className="flex-1 flex items-center overflow-hidden">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+      <div className="flex h-14 items-center">
+        {/* Left section with sidebar trigger */}
+        <div className="fixed left-1 sm:left-6 lg:left-8 z-50 flex items-center">
+          {isMobile && <SidebarTrigger className="mr-1 flex-shrink-0" />}
+        </div>
+
+        {/* Center section with event selector */}
+        <div className="flex-1 flex justify-center items-center">
           {showEventSelector && (
-            <div className="mr-2 flex-shrink-0 max-w-[180px] sm:max-w-none">
+            <div className="flex-shrink-0 max-w-[180px] sm:max-w-none">
               <EventSelector className="w-full" />
             </div>
           )}
-          {/* Add breadcrumbs or page title here if needed */}
         </div>
-        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0 ml-1">
+
+        {/* Right section with theme toggle and user nav */}
+        <div className="fixed right-1 sm:right-6 lg:right-8 z-50 flex items-center gap-1 sm:gap-3">
           <ThemeToggle />
           <UserNav />
         </div>

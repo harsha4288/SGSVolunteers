@@ -351,9 +351,9 @@ export function AssignmentsTable({
         <div className="overflow-x-auto w-full pt-2">
           <table className="w-full text-xs border-collapse border">
             {/* Header row with time slots */}
-            <thead className="sticky top-0 z-30 shadow-md">
+            <thead className="sticky top-0 z-20 shadow-md">
               <tr className="border-b border-t">
-                <th className="py-1 px-2 text-left font-medium bg-muted/80 border-r min-w-[80px] max-w-[80px] sticky left-0 z-20">Volunteer</th>
+                <th className="py-1 px-2 text-left font-medium bg-muted/80 border-r min-w-[80px] max-w-[80px] sticky left-0 z-10">Volunteer</th>
                 {visibleTimeSlots.map(slot => (
                   <th key={slot.id} className="py-1 px-1 text-center font-medium bg-muted/80 border-r min-w-[60px]">
                     {slot.slot_name}
@@ -365,7 +365,7 @@ export function AssignmentsTable({
             <tbody>
               {pagedVolunteerNames.map((volunteerName, index) => (
                 <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
-                  <td className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-10 bg-inherit">
+                  <td className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-5 bg-inherit">
                     <span className="block truncate">{shortenName(volunteerName)}</span>
                   </td>
 
@@ -400,9 +400,9 @@ export function AssignmentsTable({
       <div className="overflow-x-auto w-full border rounded-sm pt-2">
         <table className="w-full text-sm border-collapse border">
           {/* Fixed header row */}
-          <thead className="sticky top-0 z-30 shadow-md">
+          <thead className="sticky top-0 z-20 shadow-md">
             <tr className="border-b border-t">
-              <th className="py-2 px-3 text-left font-medium bg-muted/80 border-r min-w-[180px] max-w-[180px] sticky left-0 z-20">Volunteer</th>
+              <th className="py-2 px-3 text-left font-medium bg-muted/80 border-r min-w-[180px] max-w-[180px] sticky left-0 z-10">Volunteer</th>
               {visibleTimeSlots.map(slot => (
                 <th key={slot.id} className="py-2 px-2 text-center font-medium bg-muted/80 border-r min-w-[80px]">
                   {slot.slot_name}
@@ -413,7 +413,7 @@ export function AssignmentsTable({
           <tbody>
             {pagedVolunteerNames.map((volunteerName, index) => (
               <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background" : "bg-muted/10"} border-b`}>
-                <td className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-10 bg-inherit">
+                <td className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-5 bg-inherit">
                   <span className="block truncate">{volunteerName}</span>
                 </td>
 
