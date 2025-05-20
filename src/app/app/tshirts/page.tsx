@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Shirt } from "lucide-react";
-import { TShirtSizeGridNew } from "./components/tshirt-size-grid-new";
+import { TShirtSizeGrid } from "./components/TShirtSizeGrid";
 import { QRCodeDisplay } from "./components/qr-code-display";
 import { QRCodeScanner } from "./components/qr-code-scanner";
 import type { Database } from "@/lib/types/supabase";
@@ -395,7 +395,7 @@ export default function TShirtsPage() {
           </div>
 
           {/* T-Shirt Size Grid */}
-          <TShirtSizeGridNew
+          <TShirtSizeGrid
             key={`tshirt-grid-${Date.now()}`} // Force re-render
             supabase={supabase}
             isAdmin={isAdmin}

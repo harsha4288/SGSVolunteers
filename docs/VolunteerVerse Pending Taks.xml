@@ -1,0 +1,388 @@
+```xml
+<tasks>
+    <task>
+        <order>1</order>
+        <title>Implement Email + OTP Authentication</title>
+        <epic>Authentication</epic>
+        <module>Authentication</module>
+        <type>Task</type>
+        <priority>Low</priority>
+        <description>Replace impersonation with email + OTP login. Store OTP in cookies for persistent login on the same device. Include a fallback to Google SSO if feasible. **Current Issue**: Impersonation is insecure. **Expected Behavior**: Secure login with email + OTP, persistent via cookies, optional Google SSO. **Context**: Foundational security feature, not urgent for demo.</description>
+        <notes>Low priority as demo can proceed without it.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design authentication components to be reusable across projects
+            - Separate authentication logic from UI components using custom hooks or services
+            - Ensure new code files do not exceed 500 lines; break down if necessary
+        </important_guidelines>
+    </task>
+    <task>
+        <order>2</order>
+        <title>Fix Inconsistent Availability in Assignments</title>
+        <epic>Bug Fixes</epic>
+        <module>Assignments</module>
+        <type>Bug</type>
+        <priority>High</priority>
+        <description>Fix inconsistent availability display in admin screen search. **Current Issue**: Availability (e.g., 8th morning) flips on refresh. **Expected Behavior**: Availability reflects commitments consistently. **Context**: Likely due to linking assignments/check-ins to profile IDs instead of volunteer IDs.</description>
+        <notes>Investigate profile ID vs. volunteer ID mismatch.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Investigate and fix the bug without deleting unrelated code
+            - Reuse existing components or functions to avoid redundancy
+            - Ensure the fix aligns with SOLID principles, particularly Single Responsibility
+        </important_guidelines>
+    </task>
+    <task>
+        <order>3</order>
+        <title>Fix Attendance Icons for Volunteer Role</title>
+        <epic>Bug Fixes</epic>
+        <module>Assignments</module>
+        <type>Bug</type>
+        <priority>Medium</priority>
+        <description>Update Volunteer role to see green tick/red cross for past/current attendance instead of clock icons. **Current Issue**: Volunteers see clock icons post-attendance. **Expected Behavior**: Green tick (attended) or red cross (not attended) for past/current slots; keep clock logic (red past, orange current, gray future) for unlogged slots. **Context**: Admin/Team Lead display correctly.</description>
+        <notes>Specific to Volunteer role UI.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure icon display is consistent across desktop and mobile views
+            - Verify that icons adapt correctly to light and dark themes
+            - Use appropriate ARIA attributes for accessibility if icons are interactive
+        </important_guidelines>
+    </task>
+    <task>
+        <order>4</order>
+        <title>Fix Search Functionality in Assignments</title>
+        <epic>Search Fixes</epic>
+        <module>Assignments</module>
+        <type>Sub-Task</type>
+        <priority>Medium</priority>
+        <description>Prevent "search volunteer" from refreshing data until the search button is clicked. Add a small search/go button for mobile. **Current Issue**: Search triggers prematurely. **Expected Behavior**: Data pulls only on button click or enter key (desktop). **Context**: Improves user control, fixes mobile return key failure.</description>
+        <notes>Part of global search fix; prioritize mobile usability.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Implement proper data fetching triggers to prevent premature refreshes
+            - Ensure the search button is accessible via keyboard navigation
+            - Optimize data fetching to minimize unnecessary database calls
+        </important_guidelines>
+    </task>
+    <task>
+        <order>5</order>
+        <title>Fix Volunteer Login Bug in Assignments</title>
+        <epic>Bug Fixes</epic>
+        <module>Assignments</module>
+        <type>Bug</type>
+        <priority>High</priority>
+        <description>Fix Volunteer role login to show only family members (same email ID) on Assignments screen. **Current Issue**: Shows all volunteers or none. **Expected Behavior**: Displays only family members tied to the email, using volunteer IDs not profile IDs. **Context**: Profile ID mismatch affects Volunteer usability.</description>
+        <notes>Root cause likely profile ID vs. volunteer ID; critical for demo.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Investigate and fix the bug without deleting unrelated code
+            - Reuse existing components or functions to avoid redundancy
+            - Ensure the fix aligns with SOLID principles, particularly Single Responsibility
+        </important_guidelines>
+    </task>
+    <task>
+        <order>6</order>
+        <title>Fix Volunteer Login Bug in T-shirts</title>
+        <epic>Bug Fixes</epic>
+        <module>T-shirts</module>
+        <type>Bug</type>
+        <priority>High</priority>
+        <description>Fix Volunteer role login to show only family members (same email ID) on T-shirts screen. **Current Issue**: Shows all volunteers or none. **Expected Behavior**: Displays only family members tied to the email, using volunteer IDs not profile IDs. **Context**: Same root cause as Assignments bug.</description>
+        <notes>Root cause likely profile ID vs. volunteer ID; critical for demo.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Investigate and fix the bug without deleting unrelated code
+            - Reuse existing components or functions to avoid redundancy
+            - Ensure the fix aligns with SOLID principles, particularly Single Responsibility
+        </important_guidelines>
+    </task>
+    <task>
+        <order>7</order>
+        <title>Fix Barcode Generation in T-shirts</title>
+        <epic>Bug Fixes</epic>
+        <module>T-shirts</module>
+        <type>Bug</type>
+        <priority>High</priority>
+        <description>Fix barcode generation failure for Volunteer role and test scanning functionality. **Current Issue**: Barcodes don’t generate for Volunteers. **Expected Behavior**: Barcodes generate and scan correctly for all roles. **Context**: Essential for T-shirt distribution demo.</description>
+        <notes>Needs validation post-fix for demo readiness.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure the fix does not disrupt existing barcode logic for other roles
+            - Reuse existing components or functions to avoid redundancy
+            - Follow SOLID principles, especially Single Responsibility
+        </important_guidelines>
+    </task>
+    <task>
+        <order>8</order>
+        <title>Fix Search Functionality in T-shirts</title>
+        <epic>Search Fixes</epic>
+        <module>T-shirts</module>
+        <type>Sub-Task</type>
+        <priority>Medium</priority>
+        <description>Prevent "search volunteer" from refreshing data until the search button is clicked. Add a small search/go button for mobile. **Current Issue**: Search triggers prematurely. **Expected Behavior**: Data pulls only on button click or enter key (desktop). **Context**: Improves user control, fixes mobile return key failure.</description>
+        <notes>Part of global search fix; prioritize mobile usability.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Implement proper data fetching triggers to prevent premature refreshes
+            - Ensure the search button is accessible via keyboard navigation
+            - Optimize data fetching to minimize unnecessary database calls
+        </important_guidelines>
+    </task>
+    <task>
+        <order>9</order>
+        <title>Add VolunteerVerse Branding</title>
+        <epic>UI Enhancements</epic>
+        <module>UI</module>
+        <type>Enhancement</type>
+        <priority>High</priority>
+        <description>Add VolunteerVerse logo, title, and one-line description in the top-left corner of all screens. **Current Issue**: No branding present. **Expected Behavior**: Consistent branding across the app. **Context**: Key for demo visibility.</description>
+        <notes>High priority for professional demo appearance.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure branding elements adapt to light/dark themes
+            - Use design tokens for consistent styling
+            - Maintain consistent desktop/mobile responsive design
+        </important_guidelines>
+    </task>
+    <task>
+        <order>10</order>
+        <title>Restrict Team Lead View to Allocated Tasks</title>
+        <epic>Role-Based Access</epic>
+        <module>Global</module>
+        <type>Task</type>
+        <priority>High</priority>
+        <description>Restrict Team Lead view to show only volunteers assigned to their tasks across all screens. **Current Issue**: Team Leads see all volunteers. **Expected Behavior**: Show only their assigned volunteers. **Context**: Critical for role-based security.</description>
+        <notes>High priority for demo; impacts usability and security.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design role-based access logic to be reusable across modules
+            - Separate business logic from UI components using custom hooks or services
+            - Ensure the restriction applies consistently across all relevant screens
+        </important_guidelines>
+    </task>
+    <task>
+        <order>11</order>
+        <title>Add Volunteer Popup for Admins</title>
+        <epic>Admin Tools</epic>
+        <module>Admin Interface</module>
+        <type>Enhancement</type>
+        <priority>High</priority>
+        <description>Create a popup for Admins to add volunteers with First Name, Last Name, and Email. Default to Volunteer role, allow multiple roles. **Current Issue**: No easy way to add volunteers. **Expected Behavior**: Streamlined volunteer addition with role options. **Context**: Needed for demo volunteer management.</description>
+        <notes>Ties to authentication setup; demo-critical.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design the popup component to be reusable for similar admin actions
+            - Ensure the component follows responsive design for desktop and mobile
+            - Use semantic HTML and ARIA attributes for interactive elements
+        </important_guidelines>
+    </task>
+    <task>
+        <order>12</order>
+        <title>Add Volunteer Popup in T-shirts Screen</title>
+        <epic>Admin Tools</epic>
+        <module>T-shirts</module>
+        <type>Enhancement</type>
+        <priority>High</priority>
+        <description>Add a popup on T-shirts screen for Admins to add volunteers with Email, First Name, and Last Name. Prevent duplicates (same name/email), allow multiple per email, warn on similar names (e.g., Tom vs. Tommy Hanks). **Current Issue**: No quick add feature. **Expected Behavior**: Efficient addition with duplicate checks. **Context**: Demo-critical for T-shirt management.</description>
+        <notes>Ensure duplicate logic aligns with shared email feature.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design the popup component to be reusable for similar admin actions
+            - Reuse existing validation logic for duplicate checks
+            - Ensure the popup is accessible and works in both themes
+        </important_guidelines>
+    </task>
+    <task>
+        <order>13</order>
+        <title>Fix Mobile Column Overlap in T-shirts</title>
+        <epic>UI Enhancements</epic>
+        <module>T-shirts</module>
+        <type>UI Enhancement</type>
+        <priority>Medium</priority>
+        <description>Fix column overlap on mobile for Volunteer role by switching to a vertical layout for T-shirt sizes. **Current Issue**: Columns overlap or require scrolling. **Expected Behavior**: Clean vertical display on mobile. **Context**: Usability improvement, not demo-critical.</description>
+        <notes>Users can flip phone as workaround; nice-to-have fix.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Implement responsive design to switch layouts based on screen size
+            - Ensure the vertical layout maintains accessibility standards
+            - Use design tokens instead of hardcoded values for spacing
+        </important_guidelines>
+    </task>
+    <task>
+        <order>14</order>
+        <title>Streamline Columns in T-shirts Screen</title>
+        <epic>UI Enhancements</epic>
+        <module>T-shirts</module>
+        <type>Enhancement</type>
+        <priority>Medium</priority>
+        <description>Hide Preferences for Volunteer/Team Lead roles and Issued for Admin role. Use dynamic T-shirt size columns (preferences for Volunteers/Team Leads, issued counts for Admins). Add email ID below volunteer name. **Current Issue**: Cluttered UI. **Expected Behavior**: Cleaner, role-specific UI. **Context**: Preserves existing dynamic logic.</description>
+        <notes>Must maintain validation (Admins can exceed limits).</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure dynamic columns adapt correctly based on user role
+            - Use design tokens for consistent styling of hidden/shown columns
+            - Maintain consistent desktop/mobile responsive design
+        </important_guidelines>
+    </task>
+    <task>
+        <order>15</order>
+        <title>Add Header Row in T-shirts Screen</title>
+        <epic>UI Enhancements</epic>
+        <module>T-shirts</module>
+        <type>Enhancement</type>
+        <priority>Low</priority>
+        <description>Add a merged header row above T-shirt size columns, labeled as Preferences (Volunteers/Team Leads) or Issued (Admins) by role. Use plain-text note if complex. **Current Issue**: Column purpose unclear. **Expected Behavior**: Clear labeling by role. **Context**: Enhances clarity, not urgent.</description>
+        <notes>Fallback to plain text if styling is tricky.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure the header row is responsive and works in both themes
+            - Use semantic HTML for better accessibility
+            - Use design tokens for consistent styling
+        </important_guidelines>
+    </task>
+    <task>
+        <order>16</order>
+        <title>Add T-shirt Inventory Screen</title>
+        <epic>Inventory Management</epic>
+        <module>T-shirts</module>
+        <type>Enhancement</type>
+        <priority>Medium</priority>
+        <description>Add a T-shirt inventory screen with editable initial quantity and dynamic current quantity (via trigger or calculation). **Current Issue**: No stock tracking. **Expected Behavior**: Track T-shirt stock levels. **Context**: Operational feature, not demo-critical.</description>
+        <notes>Supports T-shirt management; medium priority.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design inventory components to be reusable across projects
+            - Implement lazy loading for inventory data if large
+            - Ensure the screen is optimized for both desktop and mobile
+        </important_guidelines>
+    </task>
+    <task>
+        <order>17</order>
+        <title>Add Location to Tasks</title>
+        <epic>DB Enhancements</epic>
+        <module>Tasks</module>
+        <type>Enhancement</type>
+        <priority>Low</priority>
+        <description>Add a location dimension to tasks, requiring database design changes. **Current Issue**: Tasks lack location data. **Expected Behavior**: Tasks tied to locations (e.g., Temple, Event Center). **Context**: Foundational for future reporting.</description>
+        <notes>Low priority; not urgent for demo.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Ensure database changes are backward compatible
+            - Follow SOLID principles for new logic
+            - Document component APIs with TypeScript interfaces
+        </important_guidelines>
+    </task>
+    <task>
+        <order>18</order>
+        <title>Create Requirements UI</title>
+        <epic>Reporting</epic>
+        <module>Requirements by Task</module>
+        <type>UI Enhancement</type>
+        <priority>Medium</priority>
+        <description>Create a UI to track total requirements per location and timeslot, requiring DB changes. **Current Issue**: No way to set/view needs. **Expected Behavior**: Admins can view/set volunteer needs per task/timeslot/location. **Context**: Supports reporting setup.</description>
+        <notes>Depends on location dimension (Task 17).</notes>
+        <blocker_task_id>17</blocker_task_id>
+        <important_guidelines>
+            - Design the UI component to be reusable for similar reporting needs
+            - Implement proper data fetching and caching
+            - Ensure keyboard navigation works for all interactive components
+        </important_guidelines>
+    </task>
+    <task>
+        <order>19</order>
+        <title>Add Variance Report Interface</title>
+        <epic>Reporting</epic>
+        <module>Requirements by Task</module>
+        <type>Report Enhancement</type>
+        <priority>Medium</priority>
+        <description>Add an interface for a requirements vs. availability variance report. **Current Issue**: No gap visibility. **Expected Behavior**: Show gaps between needed and committed volunteers. **Context**: Useful for planning, not demo-critical.</description>
+        <notes>Depends on Task 18 for data structure.</notes>
+        <blocker_task_id>18</blocker_task_id>
+        <important_guidelines>
+            - Use virtualization for large data sets in the report
+            - Ensure the report is accessible and works in both themes
+            - Optimize data fetching with proper caching strategies
+        </important_guidelines>
+    </task>
+    <task>
+        <order>20</order>
+        <title>Add Availability vs. Actual Report</title>
+        <epic>Reporting</epic>
+        <module>Availability</module>
+        <type>Report Enhancement</type>
+        <priority>Medium</priority>
+        <description>Add an interface for an availability vs. actual attendance report. **Current Issue**: No comparison available. **Expected Behavior**: Compare committed vs. actual attendance. **Context**: Useful for post-event analysis.</description>
+        <notes>Medium priority; not demo-critical.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Optimize data fetching for report generation
+            - Ensure the report UI is responsive and accessible
+            - Use virtualization for long lists if needed
+        </important_guidelines>
+    </task>
+    <task>
+        <order>21</order>
+        <title>Build Dynamic Dashboard</title>
+        <epic>Dashboard</epic>
+        <module>Dashboard</module>
+        <type>Enhancement</type>
+        <priority>Medium</priority>
+        <description>Build a dynamic dashboard showing role-specific stats (volunteers per task/date/timeslot), event/day summaries, FAQs, and alerts, tagged to timeslots/seva categories. **Current Issue**: No centralized view. **Expected Behavior**: Role-tailored hub. **Context**: Useful but not demo-critical.</description>
+        <notes>Medium priority; stats enhance usability.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design dashboard components to be reusable across roles
+            - Implement lazy loading for data-heavy sections
+            - Ensure light/dark theme toggle works across all components
+        </important_guidelines>
+    </task>
+    <task>
+        <order>22</order>
+        <title>Create Admin Interface for Alerts/FAQs</title>
+        <epic>Admin Tools</epic>
+        <module>Admin Interface</module>
+        <type>Enhancement</type>
+        <priority>Medium</priority>
+        <description>Create a single-table admin interface to manage event alerts, FAQs, plans, and notes, categorized by timeslot and seva category. **Current Issue**: No management tool. **Expected Behavior**: Easy content management for dashboard. **Context**: Supports dashboard functionality.</description>
+        <notes>Medium priority; operational feature.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Design the admin interface to be reusable for similar tools
+            - Ensure the interface follows responsive design
+            - Use semantic HTML and ARIA attributes for accessibility
+        </important_guidelines>
+    </task>
+    <task>
+        <order>23</order>
+        <title>Project Cleanup</title>
+        <epic>Maintenance</epic>
+        <module>Project Cleanup</module>
+        <type>Task</type>
+        <priority>Low</priority>
+        <description>Remove useless code files and redundant menu items after finalizing role-specific navigation. **Current Issue**: Cluttered codebase. **Expected Behavior**: Lean, maintainable codebase with clear navigation. **Context**: Improves maintainability, not urgent.</description>
+        <notes>Low priority; finalize after key features.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Follow SOLID principles when refactoring code
+            - Ensure no critical functionality is removed accidentally
+            - Eliminate code redundancy by reusing existing components
+        </important_guidelines>
+    </task>
+    <task>
+        <order>24</order>
+        <title>Add Test Scripts</title>
+        <epic>Testing</epic>
+        <module>Testing</module>
+        <type>Task</type>
+        <priority>Medium</priority>
+        <description>Add test scripts to verify critical functionality, with sub-tasks per module, finalized after key features. **Current Issue**: Limited testing. **Expected Behavior**: Ensure stability without breaking features. **Context**: Best done post-implementation.</description>
+        <notes>Medium priority; avoids rework if done later.</notes>
+        <blocker_task_id>None</blocker_task_id>
+        <important_guidelines>
+            - Write tests that are independent and reusable
+            - Ensure tests cover both happy paths and edge cases
+            - Follow SOLID principles for test structure
+        </important_guidelines>
+    </task>
+</tasks>
+```
