@@ -8,6 +8,9 @@ interface TShirtHeaderProps {
   isAdmin?: boolean;
 }
 
+/**
+ * Header component for the T-shirt module
+ */
 export function TShirtHeader({ tshirtSizesCount, isAdmin = false }: TShirtHeaderProps) {
   return (
     <div className="mb-4 p-3 bg-accent/10 rounded-md border border-accent/20">

@@ -4,22 +4,16 @@ import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
-
-interface Volunteer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  requested_tshirt_quantity?: number;
-  profile_id?: string;
-}
-
-interface TShirtSize {
-  id: number;
-  event_id: number;
-  size_name: string;
-  sort_order: number;
-}
+import type { 
+  Volunteer, 
+  TShirtDataState 
+} from "../types";
+import { 
+  getVolunteersToDisplay, 
+  calculateAllocations, 
+  initializeIssuances, 
+  calculateCountsBySize 
+} from "../utils/helpers";
 
 interface UseTShirtDataProps {
   supabase: SupabaseClient<Database>;
@@ -30,17 +24,9 @@ interface UseTShirtDataProps {
   isAdmin: boolean;
 }
 
-interface TShirtDataState {
-  loading: boolean;
-  preferences: Record<string, Record<string, boolean>>;
-  allocations: Record<string, number>;
-  issuances: Record<string, string[]>;
-  preferenceCountsBySize: Record<string, Record<string, number>>;
-  issuanceCountsBySize: Record<string, Record<string, number>>;
-  saving: Record<string, boolean>;
-  volunteersToDisplay: Volunteer[];
-}
-
+/**
+ * Hook to manage T-shirt data for volunteers
+ */
 export function useTShirtData({
   supabase,
   eventId,
@@ -62,18 +48,10 @@ export function useTShirtData({
   });
 
   // Determine which volunteers to display based on role
-  const volunteersToDisplay = React.useMemo(() => {
-    if (isAdmin) {
-      // For admin, show search results if available
-      return searchResults.length > 0 ? searchResults : [];
-    } else {
-      // For volunteer, always show the volunteer and family members if available
-      const volunteers = [];
-      if (volunteer) volunteers.push(volunteer);
-      if (familyMembers && familyMembers.length > 0) volunteers.push(...familyMembers);
-      return volunteers;
-    }
-  }, [isAdmin, volunteer, familyMembers, searchResults]);
+  const volunteersToDisplay = React.useMemo(
+    () => getVolunteersToDisplay(isAdmin, volunteer, familyMembers, searchResults),
+    [isAdmin, volunteer, familyMembers, searchResults]
+  );
 
   // Fetch volunteer allocations, preferences, and issuances
   React.useEffect(() => {
@@ -84,22 +62,11 @@ export function useTShirtData({
       try {
         const volunteerIds = volunteersToDisplay.map(v => v.id);
 
-        // Calculate allocations directly from volunteers data
-        const newAllocations: Record<string, number> = {};
-        volunteersToDisplay.forEach(vol => {
-          // Use requested_tshirt_quantity from the Volunteers table
-          // Default to 1 if requested_tshirt_quantity is not set
-          const requestedQuantity = vol.requested_tshirt_quantity !== undefined ?
-            parseInt(vol.requested_tshirt_quantity as any) : 1;
-
-          newAllocations[vol.id] = isNaN(requestedQuantity) ? 1 : requestedQuantity;
-        });
-
+        // Calculate allocations from volunteer data
+        const newAllocations = calculateAllocations(volunteersToDisplay);
+        
         // Initialize issuances record for all volunteers
-        const newIssuances: Record<string, string[]> = {};
-        volunteerIds.forEach(id => {
-          newIssuances[id] = [];
-        });
+        const newIssuances = initializeIssuances(volunteerIds);
 
         try {
           // Fetch real issuances from the database
@@ -115,7 +82,6 @@ export function useTShirtData({
 
           if (issuanceError) {
             console.error("Error fetching issuances:", issuanceError);
-            // Continue with empty issuances
           } else if (issuanceData && issuanceData.length > 0) {
             // Process issuances
             issuanceData.forEach(issuance => {
@@ -138,18 +104,7 @@ export function useTShirtData({
           }
 
           // Calculate issuance counts by size
-          const tempIssuanceCountsBySize: Record<string, Record<string, number>> = {};
-          volunteerIds.forEach(id => {
-            tempIssuanceCountsBySize[id] = {};
-            if (newIssuances[id]) {
-              newIssuances[id].forEach(size => {
-                if (!tempIssuanceCountsBySize[id][size]) {
-                  tempIssuanceCountsBySize[id][size] = 0;
-                }
-                tempIssuanceCountsBySize[id][size]++;
-              });
-            }
-          });
+          const tempIssuanceCountsBySize = calculateCountsBySize(volunteerIds, newIssuances);
 
           // Set issuance counts by size
           setState(prev => ({
@@ -158,7 +113,6 @@ export function useTShirtData({
           }));
         } catch (error) {
           console.error("Error processing issuances:", error);
-          // Continue with default allocations and empty issuances
         }
 
         // Set issuances regardless of whether there was an error
@@ -184,6 +138,7 @@ export function useTShirtData({
               id,
               volunteer_id,
               tshirt_size_id,
+              quantity,
               tshirt_sizes (
                 id,
                 size_name
@@ -194,7 +149,6 @@ export function useTShirtData({
 
           if (prefsError) {
             console.error("Error fetching preferences:", prefsError);
-            // Continue with empty preferences
           } else if (prefsData && prefsData.length > 0) {
             // Process preferences and count by size
             prefsData.forEach(pref => {
@@ -210,43 +164,25 @@ export function useTShirtData({
               const sizeName = pref.tshirt_sizes?.size_name;
 
               if (sizeName) {
-                // Increment count for this size
+                // Initialize count if it doesn't exist
                 if (!newPrefCountsBySize[pref.volunteer_id][sizeName]) {
                   newPrefCountsBySize[pref.volunteer_id][sizeName] = 0;
                 }
-                newPrefCountsBySize[pref.volunteer_id][sizeName]++;
+
+                // Add this preference's quantity to the total
+                newPrefCountsBySize[pref.volunteer_id][sizeName] += (pref.quantity || 1);
               }
             });
           }
         } catch (error) {
           console.error("Error processing preferences:", error);
-          // Continue with empty preferences
         }
 
         // Set preferences regardless of whether there was an error
         setState(prev => ({
           ...prev,
           preferences: newPreferences,
-          preferenceCountsBySize: newPrefCountsBySize
-        }));
-
-        // Calculate issuance counts by size
-        const tempIssuanceCounts: Record<string, Record<string, number>> = {};
-        volunteerIds.forEach(id => {
-          tempIssuanceCounts[id] = {};
-          if (newIssuances[id]) {
-            newIssuances[id].forEach(size => {
-              if (!tempIssuanceCounts[id][size]) {
-                tempIssuanceCounts[id][size] = 0;
-              }
-              tempIssuanceCounts[id][size]++;
-            });
-          }
-        });
-
-        setState(prev => ({
-          ...prev,
-          issuanceCountsBySize: tempIssuanceCounts,
+          preferenceCountsBySize: newPrefCountsBySize,
           volunteersToDisplay
         }));
       } catch (error) {
@@ -271,10 +207,49 @@ export function useTShirtData({
     }));
   };
 
+  const setPreferences = (newPreferences: Record<string, Record<string, boolean>>) => {
+    setState(prev => ({
+      ...prev,
+      preferences: newPreferences
+    }));
+  };
+
+  const setPreferenceCountsBySize = (newCounts: Record<string, Record<string, number>>) => {
+    setState(prev => ({
+      ...prev,
+      preferenceCountsBySize: newCounts
+    }));
+  };
+
+  const setIssuances = (newIssuances: Record<string, string[]>) => {
+    setState(prev => ({
+      ...prev,
+      issuances: newIssuances
+    }));
+  };
+
+  const setIssuanceCountsBySize = (newCounts: Record<string, Record<string, number>>) => {
+    setState(prev => ({
+      ...prev,
+      issuanceCountsBySize: newCounts
+    }));
+  };
+
+  const setAllocations = (newAllocations: Record<string, number>) => {
+    setState(prev => ({
+      ...prev,
+      allocations: newAllocations
+    }));
+  };
+
   return {
     ...state,
     volunteersToDisplay,
     setSaving,
-    setState
+    setPreferences,
+    setPreferenceCountsBySize,
+    setIssuances,
+    setIssuanceCountsBySize,
+    setAllocations
   };
 }

@@ -8,22 +8,18 @@ interface NoVolunteersAlertProps {
   isAdmin: boolean;
 }
 
+/**
+ * Alert shown when no volunteers are available to display
+ */
 export function NoVolunteersAlert({ isAdmin }: NoVolunteersAlertProps) {
   return (
-    <Alert className="my-4">
+    <Alert className="mt-4">
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>No Volunteers Found</AlertTitle>
       <AlertDescription>
-        {isAdmin ? (
-          "Use the search box above to find volunteers."
-        ) : (
-          <>
-            No volunteer record found for you or your family members.
-            <div className="mt-2">
-              If you believe this is an error, please contact the event administrators.
-            </div>
-          </>
-        )}
+        {isAdmin
+          ? "Use the search box above to find volunteers."
+          : "No volunteer records found for your account."}
       </AlertDescription>
     </Alert>
   );

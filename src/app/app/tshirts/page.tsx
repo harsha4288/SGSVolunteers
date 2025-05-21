@@ -5,28 +5,32 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Shirt } from "lucide-react";
-import { TShirtSizeGridStable } from "./components/TShirtSizeGridStable";
-import { QRCodeDisplay } from "./components/qr-code-display";
-import { QRCodeScanner } from "./components/qr-code-scanner";
-import type { Database } from "@/lib/types/supabase";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { AlertCircle, Shirt, Search, RefreshCw } from "lucide-react";
+import { TShirtTable } from "./components/tshirt-table";
+import { QRCodeDisplay } from "./components/qr/qr-code-display";
+import { QRCodeScanner } from "./components/qr/qr-code-scanner";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types/supabase";
+import { getDefaultSizes } from "./utils/helpers";
+import type { TShirtSize, Volunteer } from "./types";
 
+/**
+ * Main page component for the T-shirt module
+ */
 export default function TShirtsPage() {
   const [supabase, setSupabase] = React.useState<SupabaseClient<Database> | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [profileId, setProfileId] = React.useState<string | null>(null);
-  const [volunteerData, setVolunteerData] = React.useState<any | null>(null);
-  const [familyMembers, setFamilyMembers] = React.useState<any[]>([]);
+  const [volunteerData, setVolunteerData] = React.useState<Volunteer | null>(null);
+  const [familyMembers, setFamilyMembers] = React.useState<Volunteer[]>([]);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [currentEventId, setCurrentEventId] = React.useState<number>(1); // Default to event ID 1
-  const [tshirtSizes, setTshirtSizes] = React.useState<any[]>([]);
+  const [tshirtSizes, setTshirtSizes] = React.useState<TShirtSize[]>([]);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
-  const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [searchResults, setSearchResults] = React.useState<Volunteer[]>([]);
 
   React.useEffect(() => {
     const supabaseInstance = createClient();
@@ -39,48 +43,25 @@ export default function TShirtsPage() {
 
     async function fetchTshirtSizes() {
       try {
-        // Use a non-null assertion since we've already checked above
-        const supabaseInstance = supabase!;
-
-        const { data, error } = await supabaseInstance
+        const { data, error } = await supabase
           .from('tshirt_sizes')
           .select('*')
           .eq('event_id', currentEventId)
           .order('sort_order');
 
         if (error) throw error;
-        console.log("Fetched T-shirt sizes:", data);
 
-        // If no sizes are found, create default sizes
+        // If no sizes are found, use defaults
         if (!data || data.length === 0) {
           console.log("No T-shirt sizes found, using defaults");
-          const defaultSizes = [
-            { id: 1, event_id: currentEventId, size_name: 'XS', sort_order: 1 },
-            { id: 2, event_id: currentEventId, size_name: 'S', sort_order: 2 },
-            { id: 3, event_id: currentEventId, size_name: 'M', sort_order: 3 },
-            { id: 4, event_id: currentEventId, size_name: 'L', sort_order: 4 },
-            { id: 5, event_id: currentEventId, size_name: 'XL', sort_order: 5 },
-            { id: 6, event_id: currentEventId, size_name: '2XL', sort_order: 6 },
-            { id: 7, event_id: currentEventId, size_name: '3XL', sort_order: 7 },
-          ];
-          setTshirtSizes(defaultSizes);
+          setTshirtSizes(getDefaultSizes(currentEventId));
         } else {
           setTshirtSizes(data);
         }
       } catch (error) {
         console.error("Error fetching T-shirt sizes:", error);
-
         // Set default sizes on error
-        const defaultSizes = [
-          { id: 1, event_id: currentEventId, size_name: 'XS', sort_order: 1 },
-          { id: 2, event_id: currentEventId, size_name: 'S', sort_order: 2 },
-          { id: 3, event_id: currentEventId, size_name: 'M', sort_order: 3 },
-          { id: 4, event_id: currentEventId, size_name: 'L', sort_order: 4 },
-          { id: 5, event_id: currentEventId, size_name: 'XL', sort_order: 5 },
-          { id: 6, event_id: currentEventId, size_name: '2XL', sort_order: 6 },
-          { id: 7, event_id: currentEventId, size_name: '3XL', sort_order: 7 },
-        ];
-        setTshirtSizes(defaultSizes);
+        setTshirtSizes(getDefaultSizes(currentEventId));
       }
     }
 
@@ -93,10 +74,7 @@ export default function TShirtsPage() {
 
     setLoading(true);
     try {
-      // Use a non-null assertion since we've already checked above
-      const supabaseInstance = supabase!;
-
-      const { data, error } = await supabaseInstance
+      const { data, error } = await supabase
         .from('volunteers')
         .select('*')
         .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
@@ -127,11 +105,9 @@ export default function TShirtsPage() {
     }
   };
 
+  // Fetch user data and initialize state
   React.useEffect(() => {
     if (!supabase) return;
-
-    // Use a non-null assertion since we've already checked above
-    const supabaseInstance = supabase!;
 
     async function fetchUserData() {
       setLoading(true);
@@ -148,14 +124,14 @@ export default function TShirtsPage() {
         } else {
           try {
             // Not impersonating, get the current user's profile
-            const { data: { user } } = await supabaseInstance.auth.getUser();
+            const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
               throw new Error("No user found. Please log in again.");
             }
 
             // Get the profile ID for this user
-            const { data: profile, error: profileError } = await supabaseInstance
+            const { data: profile, error: profileError } = await supabase
               .from('profiles')
               .select('id')
               .eq('auth_user_id', user.id)
@@ -176,7 +152,7 @@ export default function TShirtsPage() {
         setProfileId(currentProfileId);
 
         // Check if user is admin
-        const { data: userRoles, error: rolesError } = await supabaseInstance
+        const { data: userRoles, error: rolesError } = await supabase
           .from('profile_roles')
           .select('role_id')
           .eq('profile_id', currentProfileId);
@@ -207,7 +183,7 @@ export default function TShirtsPage() {
             console.log("Fetching volunteers with email:", impersonatedEmail);
 
             // Fetch all volunteers with this email
-            const { data: volunteers, error: volunteersError } = await supabaseInstance
+            const { data: volunteers, error: volunteersError } = await supabase
               .from('volunteers')
               .select('*')
               .eq('email', impersonatedEmail);
@@ -258,7 +234,7 @@ export default function TShirtsPage() {
 
 
         // Fetch current event
-        const { data: eventData, error: eventError } = await supabaseInstance
+        const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select('id')
           .eq('id', 1)
@@ -279,7 +255,7 @@ export default function TShirtsPage() {
     }
 
     fetchUserData();
-  }, [supabase]);
+  }, [supabase, isAdmin]);
 
   if (loading || !supabase) {
     return (
@@ -399,8 +375,8 @@ export default function TShirtsPage() {
             )}
           </div>
 
-          {/* T-Shirt Size Grid */}
-          <TShirtSizeGridStable
+          {/* T-Shirt Table */}
+          <TShirtTable
             supabase={supabase}
             isAdmin={isAdmin}
             eventId={currentEventId}
