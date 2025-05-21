@@ -83,6 +83,12 @@ export function createTShirtIssuanceService({
     console.log(`Starting processIssuance for volunteer ${volunteerId}, size ${size}, quantity ${quantity}`);
     setSaving(volunteerId, true);
 
+    // Update allocation immediately for better UX
+    setAllocations(prev => ({
+      ...prev,
+      [volunteerId]: Math.max(0, (prev[volunteerId] || 0) - quantity)
+    }));
+
     try {
       // Find the size ID
       console.log("Looking for size in tshirtSizes:", tshirtSizes);
@@ -161,37 +167,64 @@ export function createTShirtIssuanceService({
         }
       }
 
-      // Fetch the latest issuances for this volunteer
-      const { data: latestIssuances, error: fetchError } = await supabase
-        .from('tshirt_issuances')
-        .select('id, size')
-        .eq('volunteer_id', volunteerId);
+      // Update local state directly first for immediate feedback
+      setIssuances(prev => {
+        const newIssuances = { ...prev };
+        if (!newIssuances[volunteerId]) {
+          newIssuances[volunteerId] = [];
+        }
+        newIssuances[volunteerId] = [...newIssuances[volunteerId], size];
+        return newIssuances;
+      });
 
-      if (fetchError) {
-        console.error("Error fetching latest issuances:", fetchError);
-      } else {
-        // Update local state with the latest data from the database
-        setIssuances(prev => {
-          const newIssuances = { ...prev };
-          newIssuances[volunteerId] = latestIssuances.map(i => i.size);
-          return newIssuances;
-        });
-
-        // Recalculate issuance counts
-        setIssuanceCountsBySize(prev => {
-          const newCounts = { ...prev };
+      // Update issuance counts
+      setIssuanceCountsBySize(prev => {
+        const newCounts = { ...prev };
+        if (!newCounts[volunteerId]) {
           newCounts[volunteerId] = {};
+        }
+        if (!newCounts[volunteerId][size]) {
+          newCounts[volunteerId][size] = 0;
+        }
+        newCounts[volunteerId][size]++;
+        return newCounts;
+      });
 
-          // Count by size
-          latestIssuances.forEach(issuance => {
-            if (!newCounts[volunteerId][issuance.size]) {
-              newCounts[volunteerId][issuance.size] = 0;
-            }
-            newCounts[volunteerId][issuance.size]++;
+      // Then fetch the latest data from the database to ensure consistency
+      try {
+        const { data: latestIssuances, error: fetchError } = await supabase
+          .from('tshirt_issuances')
+          .select('id, size')
+          .eq('volunteer_id', volunteerId);
+
+        if (fetchError) {
+          console.error("Error fetching latest issuances:", fetchError);
+        } else {
+          // Update local state with the latest data from the database
+          setIssuances(prev => {
+            const newIssuances = { ...prev };
+            newIssuances[volunteerId] = latestIssuances.map(i => i.size);
+            return newIssuances;
           });
 
-          return newCounts;
-        });
+          // Recalculate issuance counts
+          setIssuanceCountsBySize(prev => {
+            const newCounts = { ...prev };
+            newCounts[volunteerId] = {};
+
+            // Count by size
+            latestIssuances.forEach(issuance => {
+              if (!newCounts[volunteerId][issuance.size]) {
+                newCounts[volunteerId][issuance.size] = 0;
+              }
+              newCounts[volunteerId][issuance.size]++;
+            });
+
+            return newCounts;
+          });
+        }
+      } catch (error) {
+        console.error("Error updating issuance data:", error);
       }
 
       // Update allocation

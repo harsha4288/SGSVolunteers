@@ -90,31 +90,32 @@ export function useTShirtInventory({
     fetchInventory();
   }, [supabase, eventId]);
 
-  // Filter sizes to only show those with quantity_initial > 0
-  const displaySizes = React.useMemo(() => {
-    console.log("Running displaySizes useMemo with inventory:", tshirtInventory);
+  // Store the sizes in state to make them stable
+  const [displaySizes, setDisplaySizes] = React.useState<TShirtSize[]>([]);
 
-    // For now, let's just use all available sizes to debug the issue
-    // We'll add the filtering back once we confirm the basic rendering works
-    if (tshirtSizes.length > 0) {
+  // Initialize displaySizes once on mount
+  React.useEffect(() => {
+    console.log("Initializing displaySizes from tshirtSizes:", tshirtSizes);
+
+    if (tshirtSizes && tshirtSizes.length > 0) {
       console.log("Using provided tshirtSizes:", tshirtSizes);
-      return tshirtSizes;
+      setDisplaySizes(tshirtSizes);
+    } else {
+      // Default sizes if nothing else is available
+      const defaultSizes = [
+        { id: 1, event_id: eventId, size_name: 'XS', sort_order: 1 },
+        { id: 2, event_id: eventId, size_name: 'S', sort_order: 2 },
+        { id: 3, event_id: eventId, size_name: 'M', sort_order: 3 },
+        { id: 4, event_id: eventId, size_name: 'L', sort_order: 4 },
+        { id: 5, event_id: eventId, size_name: 'XL', sort_order: 5 },
+        { id: 6, event_id: eventId, size_name: '2XL', sort_order: 6 },
+        { id: 7, event_id: eventId, size_name: '3XL', sort_order: 7 },
+      ];
+
+      console.log("Using default sizes:", defaultSizes);
+      setDisplaySizes(defaultSizes);
     }
-
-    // Default sizes if nothing else is available
-    const defaultSizes = [
-      { id: 1, size_name: 'XS', sort_order: 1 },
-      { id: 2, size_name: 'S', sort_order: 2 },
-      { id: 3, size_name: 'M', sort_order: 3 },
-      { id: 4, size_name: 'L', sort_order: 4 },
-      { id: 5, size_name: 'XL', sort_order: 5 },
-      { id: 6, size_name: '2XL', sort_order: 6 },
-      { id: 7, size_name: '3XL', sort_order: 7 },
-    ];
-
-    console.log("Using default sizes:", defaultSizes);
-    return defaultSizes;
-  }, [tshirtSizes, tshirtInventory]);
+  }, []);
 
   return {
     tshirtInventory,

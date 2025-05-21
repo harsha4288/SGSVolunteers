@@ -58,8 +58,8 @@ export function TShirtAllocationRow({
         {currentVolunteer && volunteer.id === currentVolunteer.id && " (You)"}
       </TableCell>
       <TableCell className="text-center border-b">
-        {allocations[volunteer.id] !== undefined ? (
-          <span className={allocations[volunteer.id] > 0 ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground"}>
+        {volunteer.requested_tshirt_quantity !== undefined ? (
+          <span className="text-green-600 dark:text-green-400 font-medium">
             {volunteer.requested_tshirt_quantity || 1}
           </span>
         ) : (

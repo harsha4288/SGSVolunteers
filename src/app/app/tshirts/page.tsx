@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Shirt } from "lucide-react";
-import { TShirtSizeGrid } from "./components/TShirtSizeGrid";
+import { TShirtSizeGridStable } from "./components/TShirtSizeGridStable";
 import { QRCodeDisplay } from "./components/qr-code-display";
 import { QRCodeScanner } from "./components/qr-code-scanner";
 import type { Database } from "@/lib/types/supabase";
@@ -196,50 +196,54 @@ export default function TShirtsPage() {
           setFamilyMembers([]);
         } else {
           try {
-            console.log("Fetching volunteer data for profile ID:", currentProfileId);
+            // Get the impersonated email from localStorage
+            const impersonatedEmail = localStorage.getItem("impersonatedEmail");
 
-            // Based on the DataMigration.py, we should use profile_id to find the volunteer
-            const { data: volunteer, error: volunteerError } = await supabaseInstance
+            if (!impersonatedEmail) {
+              console.error("No impersonated email found in localStorage");
+              throw new Error("No user email found. Please log in again.");
+            }
+
+            console.log("Fetching volunteers with email:", impersonatedEmail);
+
+            // Fetch all volunteers with this email
+            const { data: volunteers, error: volunteersError } = await supabaseInstance
               .from('volunteers')
               .select('*')
-              .eq('profile_id', currentProfileId)
-              .single();
+              .eq('email', impersonatedEmail);
 
-            if (volunteerError) {
-              if (volunteerError.code !== 'PGRST116') {
-                console.error("Error fetching volunteer by profile_id:", volunteerError);
-              }
+            if (volunteersError) {
+              console.error("Error fetching volunteers by email:", volunteersError);
+              throw new Error(`Error fetching volunteers: ${volunteersError.message}`);
+            }
 
-              // No volunteer record found for this user
-              console.warn("No volunteer record found for this user with profile_id:", currentProfileId);
+            if (!volunteers || volunteers.length === 0) {
+              console.warn("No volunteers found with email:", impersonatedEmail);
               setVolunteerData(null);
               setFamilyMembers([]);
-            } else if (volunteer) {
-              console.log("Found volunteer:", volunteer);
-              setVolunteerData(volunteer);
+            } else {
+              console.log(`Found ${volunteers.length} volunteers with email: ${impersonatedEmail}`);
 
-              // Fetch family members with the same email
-              if (volunteer.email) {
-                try {
-                  const { data: family, error: familyError } = await supabaseInstance
-                    .from('volunteers')
-                    .select('*')
-                    .eq('email', volunteer.email)
-                    .neq('id', volunteer.id); // Exclude the current volunteer
+              // Find the volunteer that matches the current profile ID
+              const currentVolunteer = volunteers.find(v => v.profile_id === currentProfileId);
 
-                  if (familyError) {
-                    console.error("Error fetching family members:", familyError);
-                    setFamilyMembers([]);
-                  } else {
-                    console.log("Found family members:", family?.length || 0);
-                    setFamilyMembers(family || []);
-                  }
-                } catch (error) {
-                  console.error("Error fetching family members:", error);
-                  setFamilyMembers([]);
-                }
+              if (currentVolunteer) {
+                console.log("Found volunteer matching profile ID:", currentVolunteer);
+                setVolunteerData(currentVolunteer);
+
+                // Set family members (excluding the current volunteer)
+                const family = volunteers.filter(v => v.id !== currentVolunteer.id);
+                setFamilyMembers(family);
+                console.log("Family members:", family.length);
               } else {
-                setFamilyMembers([]);
+                // If no volunteer matches the profile ID, use the first one as the primary
+                console.log("No volunteer matches profile ID, using first volunteer:", volunteers[0]);
+                setVolunteerData(volunteers[0]);
+
+                // Set family members (excluding the first volunteer)
+                const family = volunteers.slice(1);
+                setFamilyMembers(family);
+                console.log("Family members:", family.length);
               }
             }
           } catch (error) {
@@ -247,6 +251,7 @@ export default function TShirtsPage() {
             // Set empty data if there's an error
             setVolunteerData(null);
             setFamilyMembers([]);
+            setError(error instanceof Error ? error.message : "An unknown error occurred");
           }
         }
 
@@ -395,8 +400,7 @@ export default function TShirtsPage() {
           </div>
 
           {/* T-Shirt Size Grid */}
-          <TShirtSizeGrid
-            key={`tshirt-grid-${Date.now()}`} // Force re-render
+          <TShirtSizeGridStable
             supabase={supabase}
             isAdmin={isAdmin}
             eventId={currentEventId}

@@ -79,7 +79,7 @@ export function createTShirtService({
       if (sizeObj) {
         console.log(`Toggle preference for volunteer ${volunteerId}, size ${sizeObj.size_name}, isAdding: ${isAdding}`);
 
-        // Update preference counts by size
+        // Update preference counts by size immediately for better UX
         setPreferenceCountsBySize(prev => {
           const newCounts = { ...prev };
           if (!newCounts[volunteerId]) {
@@ -163,6 +163,58 @@ export function createTShirtService({
 
             if (error) throw error;
           }
+        }
+
+        // Fetch the latest preferences to ensure UI is up-to-date
+        try {
+          const { data: latestPrefs, error: fetchError } = await supabase
+            .from('volunteer_tshirt_preferences')
+            .select(`
+              id,
+              volunteer_id,
+              tshirt_size_id,
+              tshirt_sizes (
+                id,
+                size_name
+              )
+            `)
+            .eq('volunteer_id', volunteerId)
+            .eq('event_id', eventId);
+
+          if (fetchError) {
+            console.error("Error fetching latest preferences:", fetchError);
+          } else {
+            // Update preferences state with the latest data
+            const updatedPreferences = { ...preferences };
+            updatedPreferences[volunteerId] = {};
+
+            // Create new preference counts object
+            const updatedCounts = {};
+            updatedCounts[volunteerId] = {};
+
+            // Process the latest preferences
+            latestPrefs.forEach(pref => {
+              // Set preference active
+              updatedPreferences[volunteerId][pref.tshirt_size_id.toString()] = true;
+
+              // Get size name from the joined tshirt_sizes table
+              const sizeName = pref.tshirt_sizes?.size_name;
+
+              if (sizeName) {
+                // Increment count for this size
+                if (!updatedCounts[volunteerId][sizeName]) {
+                  updatedCounts[volunteerId][sizeName] = 0;
+                }
+                updatedCounts[volunteerId][sizeName]++;
+              }
+            });
+
+            // Update state with the latest data
+            setPreferences(updatedPreferences);
+            setPreferenceCountsBySize(updatedCounts);
+          }
+        } catch (error) {
+          console.error("Error updating preference data:", error);
         }
 
         toast({

@@ -35,7 +35,7 @@ export interface Volunteer {
   email: string;
   first_name: string;
   last_name: string;
-  phone: string | null;
+  phone?: string | null;
 }
 
 export interface Assignment {
@@ -82,6 +82,7 @@ export function AssignmentsDashboard({
   const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [assignments, setAssignments] = React.useState<Assignment[]>([]);
+  const [familyMemberIds, setFamilyMemberIds] = React.useState<string[]>([]);
 
   // Loading and error states
   const [loading, setLoading] = React.useState(true);
@@ -110,6 +111,58 @@ export function AssignmentsDashboard({
       window.removeEventListener("eventChange", handleEventChange as EventListener);
     };
   }, []);
+
+  // Fetch volunteer data for volunteer role
+  React.useEffect(() => {
+    const fetchVolunteerData = async () => {
+      // Only fetch volunteer data if user is a volunteer
+      if (userRole !== "volunteer" || !profileId) return;
+
+      try {
+        setLoading(true);
+
+        // Get the impersonated email from localStorage
+        const impersonatedEmail = localStorage.getItem("impersonatedEmail");
+
+        if (!impersonatedEmail) {
+          console.error("No impersonated email found in localStorage");
+          throw new Error("No user email found. Please log in again.");
+        }
+
+        console.log("Fetching volunteers with email:", impersonatedEmail);
+
+        // Fetch all volunteers with this email
+        const { data: familyMembers, error: familyError } = await supabase
+          .from("volunteers")
+          .select("id, email")
+          .eq("email", impersonatedEmail);
+
+        if (familyError) {
+          console.error("Error fetching family members:", familyError);
+          throw new Error(`Error fetching family members: ${familyError.message}`);
+        }
+
+        if (!familyMembers || familyMembers.length === 0) {
+          console.warn("No volunteers found with email:", impersonatedEmail);
+          // Don't throw an error, just set empty family members
+          setFamilyMemberIds([]);
+        } else {
+          console.log(`Found ${familyMembers.length} family members with email: ${impersonatedEmail}`);
+          // Extract volunteer IDs
+          const familyIds = familyMembers.map(member => member.id);
+          setFamilyMemberIds(familyIds);
+          console.log("Family member IDs:", familyIds);
+        }
+      } catch (err: any) {
+        console.error("Error in volunteer data fetching:", err);
+        setError(err.message || "An error occurred while loading volunteer data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVolunteerData();
+  }, [supabase, profileId, userRole]);
 
   // Fetch initial data
   React.useEffect(() => {
@@ -211,14 +264,31 @@ export function AssignmentsDashboard({
           query = query.eq("seva_category_id", parseInt(selectedTask, 10)); // Convert string to number
         }
 
+        // For volunteer role, filter by family member IDs (volunteers with same email)
+        if (userRole === "volunteer") {
+          if (familyMemberIds.length > 0) {
+            // If we have family members, filter by their IDs
+            query = query.in("volunteer_id", familyMemberIds);
+          } else {
+            // If no family members found, we'll handle this after the query
+            // Just continue with the query without additional filters
+            // We'll set an empty array for assignments later
+          }
+        }
+
         // Execute the query
         const { data: assignmentsData, error: assignmentsError } = await query;
 
         if (assignmentsError) throw new Error(`Error fetching assignments: ${assignmentsError.message}`);
 
-        // Filter by search query if provided
+        // For volunteer role with no family members, return empty array
         let filteredAssignments = assignmentsData || [];
-        if (searchQuery) {
+        if (userRole === "volunteer" && familyMemberIds.length === 0) {
+          // If volunteer has no family members, show no assignments
+          filteredAssignments = [];
+        }
+        // Filter by search query if provided
+        else if (searchQuery) {
           const lowerQuery = searchQuery.toLowerCase();
           filteredAssignments = filteredAssignments.filter(assignment =>
             assignment.volunteer.first_name.toLowerCase().includes(lowerQuery) ||
@@ -293,7 +363,7 @@ export function AssignmentsDashboard({
     };
 
     fetchAssignments();
-  }, [supabase, selectedEvent, selectedTimeSlot, selectedTask, searchQuery, timeSlots]);
+  }, [supabase, selectedEvent, selectedTimeSlot, selectedTask, searchQuery, timeSlots, userRole, familyMemberIds]);
 
   // Handle filter changes
   const handleTimeSlotChange = (value: string) => {
@@ -327,6 +397,13 @@ export function AssignmentsDashboard({
     );
   }
 
+  // Show a message when no assignments are found for a volunteer
+  const showNoAssignmentsMessage = userRole === "volunteer" &&
+                                  assignments.length === 0 &&
+                                  !loading &&
+                                  !error &&
+                                  selectedEvent;
+
   return (
     <div className="space-y-2 p-2 sm:p-4 overflow-hidden">
       <div className="flex flex-nowrap items-center gap-2 mb-2 overflow-x-auto">
@@ -347,16 +424,26 @@ export function AssignmentsDashboard({
         </div>
       </div>
 
-      <div className="overflow-hidden">
-        <AssignmentsTable
-          assignments={assignments}
-          timeSlots={timeSlots}
-          userRole={userRole}
-          profileId={profileId}
-          supabase={supabase}
-          selectedEvent={selectedEvent}
-        />
-      </div>
+      {showNoAssignmentsMessage ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Assignments Found</AlertTitle>
+          <AlertDescription>
+            No assignments were found for you or your family members. If you believe this is an error, please contact an administrator.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="overflow-hidden">
+          <AssignmentsTable
+            assignments={assignments}
+            timeSlots={timeSlots}
+            userRole={userRole}
+            profileId={profileId}
+            supabase={supabase}
+            selectedEvent={selectedEvent}
+          />
+        </div>
+      )}
     </div>
   );
 }

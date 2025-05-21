@@ -40,6 +40,12 @@ export function createTShirtReturnService({
     console.log(`Starting returnTShirt for volunteer ${volunteerId}, size ${size}`);
     setSaving(volunteerId, true);
 
+    // Update allocation immediately for better UX
+    setAllocations(prev => ({
+      ...prev,
+      [volunteerId]: (prev[volunteerId] || 0) + 1
+    }));
+
     try {
       // Check if volunteer has any T-shirts of this size
       const issuedCount = issuances[volunteerId]?.filter(s => s === size).length || 0;
@@ -112,37 +118,70 @@ export function createTShirtReturnService({
         throw new Error(`Failed to delete issuance: ${deleteError.message}`);
       }
 
-      // Fetch the latest issuances for this volunteer
-      const { data: latestIssuances, error: fetchError } = await supabase
-        .from('tshirt_issuances')
-        .select('id, size')
-        .eq('volunteer_id', volunteerId);
+      // Update local state directly first for immediate feedback
+      setIssuances(prev => {
+        const newIssuances = { ...prev };
+        if (newIssuances[volunteerId]) {
+          // Find the index of the first occurrence of the size
+          const index = newIssuances[volunteerId].findIndex(s => s === size);
+          if (index !== -1) {
+            // Remove one occurrence of the size
+            newIssuances[volunteerId] = [
+              ...newIssuances[volunteerId].slice(0, index),
+              ...newIssuances[volunteerId].slice(index + 1)
+            ];
+          }
+        }
+        return newIssuances;
+      });
 
-      if (fetchError) {
-        console.error("Error fetching latest issuances:", fetchError);
-      } else {
-        // Update local state with the latest data from the database
-        setIssuances(prev => {
-          const newIssuances = { ...prev };
-          newIssuances[volunteerId] = latestIssuances.map(i => i.size);
-          return newIssuances;
-        });
+      // Update issuance counts
+      setIssuanceCountsBySize(prev => {
+        const newCounts = { ...prev };
+        if (newCounts[volunteerId] && newCounts[volunteerId][size] > 0) {
+          newCounts[volunteerId][size]--;
+          if (newCounts[volunteerId][size] === 0) {
+            delete newCounts[volunteerId][size];
+          }
+        }
+        return newCounts;
+      });
 
-        // Recalculate issuance counts
-        setIssuanceCountsBySize(prev => {
-          const newCounts = { ...prev };
-          newCounts[volunteerId] = {};
+      // Then fetch the latest data from the database to ensure consistency
+      try {
+        const { data: latestIssuances, error: fetchError } = await supabase
+          .from('tshirt_issuances')
+          .select('id, size')
+          .eq('volunteer_id', volunteerId);
 
-          // Count by size
-          latestIssuances.forEach(issuance => {
-            if (!newCounts[volunteerId][issuance.size]) {
-              newCounts[volunteerId][issuance.size] = 0;
-            }
-            newCounts[volunteerId][issuance.size]++;
+        if (fetchError) {
+          console.error("Error fetching latest issuances:", fetchError);
+        } else {
+          // Update local state with the latest data from the database
+          setIssuances(prev => {
+            const newIssuances = { ...prev };
+            newIssuances[volunteerId] = latestIssuances.map(i => i.size);
+            return newIssuances;
           });
 
-          return newCounts;
-        });
+          // Recalculate issuance counts
+          setIssuanceCountsBySize(prev => {
+            const newCounts = { ...prev };
+            newCounts[volunteerId] = {};
+
+            // Count by size
+            latestIssuances.forEach(issuance => {
+              if (!newCounts[volunteerId][issuance.size]) {
+                newCounts[volunteerId][issuance.size] = 0;
+              }
+              newCounts[volunteerId][issuance.size]++;
+            });
+
+            return newCounts;
+          });
+        }
+      } catch (error) {
+        console.error("Error updating issuance data:", error);
       }
 
       // Update allocation (increment)

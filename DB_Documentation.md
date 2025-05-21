@@ -393,4 +393,56 @@ This function returns a summary of T-shirt size preferences across all volunteer
 - T-shirt size
 - Count of volunteers who prefer that size
 
+### 7.4. `set_volunteer_tshirt_preference_with_quantity`
+
+```sql
+CREATE OR REPLACE FUNCTION public.set_volunteer_tshirt_preference_with_quantity(
+  p_volunteer_id UUID,
+  p_event_id BIGINT,
+  p_tshirt_size_id BIGINT,
+  p_quantity INTEGER
+) RETURNS VOID
+```
+
+This function sets a volunteer's preference for a specific T-shirt size with a quantity. It:
+
+- Checks if the total quantity across all preferences exceeds the volunteer's allocation
+- If quantity is 0, removes the preference
+- If the preference already exists, updates the quantity
+- If the preference doesn't exist, creates a new one
+
+### 7.5. `get_volunteer_tshirt_preference_total`
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_volunteer_tshirt_preference_total(
+  p_volunteer_id UUID,
+  p_event_id BIGINT
+) RETURNS INTEGER
+```
+
+This function returns the total number of T-shirts preferred by a volunteer across all sizes for a specific event.
+
+## 8. T-Shirt Preferences
+
+### 8.1. `public.volunteer_tshirt_preferences`
+
+Stores T-shirt size preferences for volunteers.
+
+| Column                     | Type        | Constraints                                                  | Description                                                 |
+| -------------------------- | ----------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| `id`                       | BIGINT      | PK, Generated Always as Identity                             | Unique identifier for the preference.                       |
+| `volunteer_id`             | UUID        | NOT NULL, FK to `public.volunteers(id)` ON DELETE CASCADE    | Links to the volunteer who has this preference.             |
+| `event_id`                 | BIGINT      | NOT NULL, FK to `public.events(id)` ON DELETE CASCADE        | Links to the event for which this preference applies.       |
+| `tshirt_size_id`           | BIGINT      | NOT NULL, FK to `public.tshirt_sizes(id)` ON DELETE RESTRICT | References the standardized T-shirt size.                   |
+| `quantity`                 | INTEGER     | NOT NULL, DEFAULT 1                                          | Number of T-shirts of this size preferred by the volunteer. |
+| `preference_order`         | INTEGER     | NOT NULL, DEFAULT 1                                          | Order of preference (1 = first choice, etc.).               |
+| `is_fulfilled`             | BOOLEAN     | NOT NULL, DEFAULT FALSE                                      | Whether this preference has been fulfilled.                 |
+| `fulfilled_by_issuance_id` | BIGINT      | FK to `public.tshirt_issuances(id)` ON DELETE SET NULL       | Links to the issuance that fulfilled this preference.       |
+| `created_at`               | TIMESTAMPTZ | DEFAULT NOW()                                                | Timestamp of creation.                                      |
+| `updated_at`               | TIMESTAMPTZ | DEFAULT NOW()                                                | Timestamp of last update.                                   |
+
+_Constraint: `unique_volunteer_size_preference UNIQUE (volunteer_id, event_id, tshirt_size_id)`._
+_Comment: Stores T-shirt size preferences for volunteers._
+_Indexes: `idx_volunteer_tshirt_preferences_volunteer_id(volunteer_id)`, `idx_volunteer_tshirt_preferences_event_id(event_id)`, `idx_volunteer_tshirt_preferences_tshirt_size_id(tshirt_size_id)`._
+
 This documentation should provide a solid foundation for UI development. Please refer to the Supabase documentation for details on querying, RLS policy creation, and using the Supabase client libraries.

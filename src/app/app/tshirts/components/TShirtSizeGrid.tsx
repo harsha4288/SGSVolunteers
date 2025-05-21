@@ -55,7 +55,7 @@ export function TShirtSizeGrid({
 }: TShirtSizeGridProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  
+
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = React.useState(false);
   const [pendingIssuance, setPendingIssuance] = React.useState<{
@@ -85,10 +85,19 @@ export function TShirtSizeGrid({
     isAdmin
   });
 
+  // Store the tshirtSizes in a ref to prevent unnecessary re-renders
+  const tshirtSizesRef = React.useRef(tshirtSizes);
+
+  // Only update the ref if the tshirtSizes have changed
+  React.useEffect(() => {
+    console.log("tshirtSizes changed:", tshirtSizes);
+    tshirtSizesRef.current = tshirtSizes;
+  }, [tshirtSizes]);
+
   const { displaySizes } = useTShirtInventory({
     supabase,
     eventId,
-    tshirtSizes
+    tshirtSizes: tshirtSizesRef.current
   });
 
   // Create service instances
@@ -192,7 +201,7 @@ export function TShirtSizeGrid({
       />
 
       <TShirtHeader tshirtSizesCount={tshirtSizes.length} />
-      
+
       <Table className="border-collapse">
         <TableHeader>
           <TableRow className="bg-muted/50">

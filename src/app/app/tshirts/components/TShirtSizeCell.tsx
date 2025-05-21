@@ -37,8 +37,15 @@ export function TShirtSizeCell({
   onReturnTShirt,
 }: TShirtSizeCellProps) {
   const { toast } = useToast();
-  const issuedCount = issuances[volunteerId]?.filter(s => s === size.size_name).length || 0;
-  const hasPreference = preferences[volunteerId]?.[size.id.toString()];
+
+  // Memoize these values to prevent unnecessary re-renders
+  const issuedCount = React.useMemo(() => {
+    return issuances[volunteerId]?.filter(s => s === size.size_name).length || 0;
+  }, [issuances, volunteerId, size.size_name]);
+
+  const hasPreference = React.useMemo(() => {
+    return preferences[volunteerId]?.[size.id.toString()] || false;
+  }, [preferences, volunteerId, size.id]);
 
   return (
     <TableCell className="text-center border-b">

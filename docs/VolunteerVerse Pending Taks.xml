@@ -63,6 +63,7 @@
             - Ensure the search button is accessible via keyboard navigation
             - Optimize data fetching to minimize unnecessary database calls
         </important_guidelines>
+        <status>Completed</status>
     </task>
     <task>
         <order>5</order>
@@ -72,13 +73,14 @@
         <type>Bug</type>
         <priority>High</priority>
         <description>Fix Volunteer role login to show only family members (same email ID) on Assignments screen. **Current Issue**: Shows all volunteers or none. **Expected Behavior**: Displays only family members tied to the email, using volunteer IDs not profile IDs. **Context**: Profile ID mismatch affects Volunteer usability.</description>
-        <notes>Root cause likely profile ID vs. volunteer ID; critical for demo.</notes>
+        <notes>Root cause: Assignments, Commitments, check-ins, t-shirt preferences, and issuance are stored at volunteer_id level, not profile_id level.</notes>
         <blocker_task_id>None</blocker_task_id>
         <important_guidelines>
             - Investigate and fix the bug without deleting unrelated code
             - Reuse existing components or functions to avoid redundancy
             - Ensure the fix aligns with SOLID principles, particularly Single Responsibility
         </important_guidelines>
+        <status>Completed</status>
     </task>
     <task>
         <order>6</order>
