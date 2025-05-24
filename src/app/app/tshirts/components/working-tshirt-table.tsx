@@ -39,56 +39,78 @@ export function WorkingTShirtTable({
   const [preferences, setPreferences] = React.useState<TShirtData>({});
   const [issuances, setIssuances] = React.useState<TShirtData>({});
 
-  // Load data on mount
+  // Load T-shirt sizes
   React.useEffect(() => {
-    const loadData = async () => {
-      console.log("Loading data for volunteers:", volunteers.map(v => `${v.first_name} ${v.last_name} (${v.id})`));
-
+    const loadSizes = async () => {
       try {
-        // Load T-shirt sizes
-        const { data: sizesData, error: sizesError } = await supabase.rpc('get_tshirt_sizes', {
-          p_event_id: eventId,
-        });
+        const { data: sizesData, error: sizesError } = await supabase
+          .from('tshirt_inventory')
+          .select('size_cd')
+          .eq('event_id', eventId)
+          .order('size_cd');
+
         if (sizesError) throw sizesError;
         console.log("Loaded sizes:", sizesData);
         setSizes(sizesData?.map((s: any) => s.size_cd) || []);
+      } catch (error) {
+        console.error("Error loading sizes:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load T-shirt sizes.",
+          variant: "destructive",
+        });
+      }
+    };
 
-        // Load T-shirt data for volunteers
+    loadSizes();
+  }, [supabase, eventId, toast]);
+
+  // Load T-shirt data when volunteers change
+  React.useEffect(() => {
+    const loadTShirtData = async () => {
+      if (volunteers.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      console.log("Loading T-shirt data for volunteers:", volunteers.map(v => `${v.first_name} ${v.last_name} (${v.id})`));
+
+      try {
+        setLoading(true);
+
         const volunteerIds = volunteers.map(v => v.id);
         console.log("Loading T-shirt data for volunteer IDs:", volunteerIds);
 
-        if (volunteerIds.length > 0) {
-          const { data: tshirtData, error: tshirtError } = await supabase
-            .from('volunteer_tshirts')
-            .select('*')
-            .in('volunteer_id', volunteerIds)
-            .eq('event_id', eventId);
+        const { data: tshirtData, error: tshirtError } = await supabase
+          .from('volunteer_tshirts')
+          .select('*')
+          .in('volunteer_id', volunteerIds)
+          .eq('event_id', eventId);
 
-          if (tshirtError) throw tshirtError;
-          console.log("Raw T-shirt data:", tshirtData);
+        if (tshirtError) throw tshirtError;
+        console.log("Raw T-shirt data:", tshirtData);
 
-          // Separate preferences and issuances
-          const prefs: TShirtData = {};
-          const issues: TShirtData = {};
+        // Separate preferences and issuances
+        const prefs: TShirtData = {};
+        const issues: TShirtData = {};
 
-          tshirtData?.forEach((record: any) => {
-            console.log("Processing record:", record);
-            const target = record.status === 'preferred' ? prefs : issues;
-            if (!target[record.volunteer_id]) {
-              target[record.volunteer_id] = {};
-              console.log("Created new volunteer entry for:", record.volunteer_id);
-            }
-            target[record.volunteer_id][record.size] = (target[record.volunteer_id][record.size] || 0) + record.quantity;
-            console.log(`Set ${record.volunteer_id}[${record.size}] = ${target[record.volunteer_id][record.size]}`);
-          });
+        tshirtData?.forEach((record: any) => {
+          console.log("Processing record:", record);
+          const target = record.status === 'preferred' ? prefs : issues;
+          if (!target[record.volunteer_id]) {
+            target[record.volunteer_id] = {};
+            console.log("Created new volunteer entry for:", record.volunteer_id);
+          }
+          target[record.volunteer_id][record.size] = (target[record.volunteer_id][record.size] || 0) + record.quantity;
+          console.log(`Set ${record.volunteer_id}[${record.size}] = ${target[record.volunteer_id][record.size]}`);
+        });
 
-          console.log("Processed preferences:", prefs);
-          console.log("Processed issuances:", issues);
-          setPreferences(prefs);
-          setIssuances(issues);
-        }
+        console.log("Final processed preferences:", prefs);
+        console.log("Final processed issuances:", issues);
+        setPreferences(prefs);
+        setIssuances(issues);
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Error loading T-shirt data:", error);
         toast({
           title: "Error",
           description: "Failed to load T-shirt data.",
@@ -99,11 +121,7 @@ export function WorkingTShirtTable({
       }
     };
 
-    if (volunteers.length > 0) {
-      loadData();
-    } else {
-      setLoading(false);
-    }
+    loadTShirtData();
   }, [supabase, eventId, volunteers, toast]);
 
   const getCount = (volunteerId: string, size: string): number => {

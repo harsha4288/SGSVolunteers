@@ -1,4 +1,4 @@
-"use client";
+A"use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
@@ -256,12 +256,25 @@ export function createUnifiedTShirtService({
     if (!supabase) return [];
 
     try {
-      const { data, error } = await supabase.rpc('get_tshirt_sizes', {
-        p_event_id: eventId,
-      });
+      // Use direct table query instead of RPC for now to avoid TypeScript issues
+      const { data, error } = await supabase
+        .from('tshirt_inventory')
+        .select('size_cd, quantity, quantity_on_hand, sort_order')
+        .eq('event_id', eventId)
+        .order('sort_order');
 
       if (error) throw error;
-      return data || [];
+
+      // Transform the data to match expected format
+      const transformedData = (data || []).map(item => ({
+        size_cd: item.size_cd,
+        size_name: item.size_cd, // Use size_cd as size_name for now
+        sort_order: item.sort_order || 0,
+        quantity: item.quantity || 0,
+        quantity_on_hand: item.quantity_on_hand || 0,
+      }));
+
+      return transformedData;
     } catch (error) {
       console.error("Error fetching T-shirt sizes:", error);
       return [];

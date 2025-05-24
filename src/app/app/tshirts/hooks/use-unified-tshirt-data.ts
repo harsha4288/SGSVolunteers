@@ -31,7 +31,7 @@ export function useUnifiedTShirtData({
   eventId,
   volunteersToDisplay,
   isAdmin,
-  currentVolunteerId,
+  currentVolunteerId: _currentVolunteerId,
 }: UseUnifiedTShirtDataProps) {
   const [state, setState] = React.useState<UnifiedTShirtState>({
     volunteers: [],
@@ -55,7 +55,7 @@ export function useUnifiedTShirtData({
       setState(prev => ({ ...prev, loading: true }));
 
       try {
-        // Load sizes
+        // Load sizes using client-side service
         const sizes = await tshirtService.fetchTShirtSizes();
 
         // Load volunteers and their allocations
@@ -65,7 +65,7 @@ export function useUnifiedTShirtData({
           allocations[v.id] = v.requested_tshirt_quantity || 0;
         });
 
-        // Load T-shirt data (preferences and issuances)
+        // Load T-shirt data (preferences and issuances) using client-side service
         const { preferences, issuances } = await tshirtService.fetchTShirtData(volunteerIds);
 
         setState(prev => ({
@@ -89,8 +89,10 @@ export function useUnifiedTShirtData({
     };
 
     if (volunteersToDisplay.length > 0) {
+      console.log("useUnifiedTShirtData: Starting data load...");
       loadData();
     } else {
+      console.log("useUnifiedTShirtData: No volunteers to display, setting loading to false");
       setState(prev => ({ ...prev, loading: false }));
     }
   }, [eventId, volunteersToDisplay, tshirtService, toast]);
