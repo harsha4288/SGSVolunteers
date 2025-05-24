@@ -333,116 +333,213 @@ The roles follow this general hierarchy of permissions:
 2. **Team Lead** - Can manage volunteers, check-ins, and T-shirt issuances for their assigned areas
 3. **Volunteer** - Basic access to view their own schedule and information
 
-## 7. T-Shirt Management Functions
+## 7. T-Shirt Management
+
+### 7.1. T-Shirt Tables
+
+#### 7.1.1. `tshirt_inventory` (Consolidated Table)
+
+This table stores the available T-shirt sizes and inventory for each event.
+
+| Column           | Type        | Description                                        |
+| ---------------- | ----------- | -------------------------------------------------- |
+| event_id         | BIGINT      | Reference to events table (PK part 1)              |
+| size_cd          | VARCHAR(5)  | T-shirt size code (e.g., '2XL', '3XL') (PK part 2) |
+| quantity         | INTEGER     | Current total quantity                             |
+| quantity_on_hand | INTEGER     | Current on-hand quantity                           |
+| sort_order       | INTEGER     | Order for display purposes                         |
+| created_at       | TIMESTAMPTZ | Creation timestamp                                 |
+| updated_at       | TIMESTAMPTZ | Last update timestamp                              |
+
+Primary Key: `(event_id, size_cd)`
+
+#### 7.1.2. `volunteer_tshirts` (Consolidated Table)
+
+This unified table stores both T-shirt preferences and issuances using a status field.
+
+| Column               | Type        | Description                                 |
+| -------------------- | ----------- | ------------------------------------------- |
+| id                   | UUID        | Primary key                                 |
+| volunteer_id         | UUID        | Reference to volunteers table               |
+| event_id             | BIGINT      | Reference to events table                   |
+| size                 | VARCHAR(10) | T-shirt size code (e.g., '2XL', '3XL')      |
+| status               | TEXT        | 'preferred', 'issued', or 'returned'        |
+| quantity             | INTEGER     | Number of T-shirts                          |
+| issued_by_profile_id | UUID        | Reference to profiles table (for issuances) |
+| issued_at            | TIMESTAMPTZ | When the T-shirt was issued                 |
+| created_at           | TIMESTAMPTZ | Creation timestamp                          |
+| updated_at           | TIMESTAMPTZ | Last update timestamp                       |
+
+Foreign Key: `(event_id, size)` references `tshirt_inventory(event_id, size_cd)`
+
+#### 7.1.3. Backward Compatibility Views
+
+The following views provide backward compatibility for code that still expects the old schema structure:
+
+##### `tshirt_sizes` View
+
+Maps to the `tshirt_inventory` table.
+
+| Column     | Type       | Description                                   |
+| ---------- | ---------- | --------------------------------------------- |
+| id         | BIGINT     | Generated ID based on event_id and sort_order |
+| event_id   | BIGINT     | Reference to events table                     |
+| size_name  | VARCHAR(5) | Name of the size (e.g., '2XL', '3XL')         |
+| sort_order | INTEGER    | Order for display purposes                    |
+
+##### `volunteer_tshirt_preferences` View
+
+Maps to the `volunteer_tshirts` table with status = 'preferred'.
+
+| Column         | Type        | Description                        |
+| -------------- | ----------- | ---------------------------------- |
+| id             | UUID        | Primary key from volunteer_tshirts |
+| volunteer_id   | UUID        | Reference to volunteers table      |
+| event_id       | BIGINT      | Reference to events table          |
+| tshirt_size_id | BIGINT      | NULL for backward compatibility    |
+| size           | VARCHAR(10) | Size code (e.g., 'XS', 'S', 'M')   |
+| quantity       | INTEGER     | Number of T-shirts                 |
+| is_fulfilled   | BOOLEAN     | Always FALSE for compatibility     |
+| created_at     | TIMESTAMPTZ | Creation timestamp                 |
+| updated_at     | TIMESTAMPTZ | Last update timestamp              |
+
+##### `tshirt_issuances` View
+
+Maps to the `volunteer_tshirts` table with status = 'issued'.
+
+| Column               | Type        | Description                        |
+| -------------------- | ----------- | ---------------------------------- |
+| id                   | UUID        | Primary key from volunteer_tshirts |
+| volunteer_id         | UUID        | Reference to volunteers table      |
+| event_id             | BIGINT      | Reference to events table          |
+| tshirt_inventory_id  | BIGINT      | NULL for backward compatibility    |
+| size                 | VARCHAR(10) | Size code (e.g., 'XS', 'S', 'M')   |
+| quantity             | INTEGER     | Number of T-shirts                 |
+| issued_by_profile_id | UUID        | Reference to profiles table        |
+| issued_at            | TIMESTAMPTZ | When the T-shirt was issued        |
+| created_at           | TIMESTAMPTZ | Creation timestamp                 |
+| updated_at           | TIMESTAMPTZ | Last update timestamp              |
+
+#### 7.1.4. Volunteer T-Shirt Fields
+
+The `volunteers` table includes the following T-shirt related fields:
+
+| Column                    | Type       | Description                                             |
+| ------------------------- | ---------- | ------------------------------------------------------- |
+| requested_tshirt_quantity | INTEGER    | Number of T-shirts the volunteer is eligible to receive |
+| tshirt_size_preference    | VARCHAR(5) | Legacy field for single size preference                 |
+
+### 7.2. T-Shirt Management Functions
 
 The following database functions are available for T-shirt management:
 
-### 7.1. `issue_tshirt`
+#### 7.2.1. `add_tshirt_preference`
+
+```sql
+CREATE OR REPLACE FUNCTION public.add_tshirt_preference(
+  p_volunteer_id UUID,
+  p_event_id BIGINT,
+  p_size_cd VARCHAR,
+  p_quantity INTEGER DEFAULT 1
+) RETURNS BOOLEAN
+```
+
+This function adds a T-shirt preference for a volunteer:
+
+- Inserts a record into the `volunteer_tshirts` table with status = 'preferred'
+- Returns TRUE if successful, FALSE otherwise
+
+#### 7.2.2. `issue_tshirt`
 
 ```sql
 CREATE OR REPLACE FUNCTION public.issue_tshirt(
   p_volunteer_id UUID,
   p_event_id BIGINT,
-  p_size TEXT,
-  p_issued_by_profile_id UUID
-) RETURNS VOID
+  p_size_cd VARCHAR,
+  p_issued_by_profile_id UUID,
+  p_quantity INTEGER DEFAULT 1
+) RETURNS BOOLEAN
 ```
 
-This function issues a T-shirt to a volunteer and updates the inventory. It:
+This function issues a T-shirt to a volunteer:
 
-- Checks if the volunteer already has a T-shirt for this event
-- Verifies that inventory exists for the requested size
+- Checks inventory availability
 - Decreases the inventory quantity
-- Records the issuance in the `tshirt_issuances` table
+- Inserts a record into the `volunteer_tshirts` table with status = 'issued'
+- Returns TRUE if successful, FALSE otherwise
 
-### 7.2. `get_tshirt_issuance_report`
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_tshirt_issuance_report(
-  p_event_id BIGINT
-) RETURNS TABLE (
-  id BIGINT,
-  volunteer_id UUID,
-  volunteer_name TEXT,
-  volunteer_email TEXT,
-  size TEXT,
-  issued_at TIMESTAMPTZ,
-  issued_by TEXT
-)
-```
-
-This function returns a detailed report of all T-shirts issued for a specific event, including:
-
-- Volunteer information (ID, name, email)
-- T-shirt size
-- Issuance date and time
-- Name of the person who issued the T-shirt
-
-### 7.3. `get_tshirt_preference_summary`
+#### 7.2.3. `return_tshirt`
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_tshirt_preference_summary()
-RETURNS TABLE (
-  size TEXT,
-  count BIGINT
-)
-```
-
-This function returns a summary of T-shirt size preferences across all volunteers, showing:
-
-- T-shirt size
-- Count of volunteers who prefer that size
-
-### 7.4. `set_volunteer_tshirt_preference_with_quantity`
-
-```sql
-CREATE OR REPLACE FUNCTION public.set_volunteer_tshirt_preference_with_quantity(
+CREATE OR REPLACE FUNCTION public.return_tshirt(
   p_volunteer_id UUID,
   p_event_id BIGINT,
-  p_tshirt_size_id BIGINT,
-  p_quantity INTEGER
-) RETURNS VOID
+  p_size_cd VARCHAR
+) RETURNS BOOLEAN
 ```
 
-This function sets a volunteer's preference for a specific T-shirt size with a quantity. It:
+This function records a T-shirt return:
 
-- Checks if the total quantity across all preferences exceeds the volunteer's allocation
-- If quantity is 0, removes the preference
-- If the preference already exists, updates the quantity
-- If the preference doesn't exist, creates a new one
+- Updates the status of the issued T-shirt to 'returned'
+- Increases the inventory quantity
+- Returns TRUE if successful, FALSE otherwise
 
-### 7.5. `get_volunteer_tshirt_preference_total`
+#### 7.2.4. `get_tshirt_counts_by_volunteer_and_size`
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_volunteer_tshirt_preference_total(
-  p_volunteer_id UUID,
+CREATE OR REPLACE FUNCTION public.get_tshirt_counts_by_volunteer_and_size(
   p_event_id BIGINT
-) RETURNS INTEGER
+) RETURNS TABLE (
+  volunteer_id UUID,
+  volunteer_name TEXT,
+  allocation INTEGER,
+  status TEXT,
+  size_cd VARCHAR(5),
+  quantity INTEGER
+)
 ```
 
-This function returns the total number of T-shirts preferred by a volunteer across all sizes for a specific event.
+This function returns T-shirt counts by volunteer and size:
 
-## 8. T-Shirt Preferences
+- Returns data in a flexible format that doesn't hardcode T-shirt sizes
+- Includes volunteer information, allocation, status, size, and quantity
+- Recommended for use from the frontend
 
-### 8.1. `public.volunteer_tshirt_preferences`
+#### 7.2.5. `get_tshirt_sizes`
 
-Stores T-shirt size preferences for volunteers.
+```sql
+CREATE OR REPLACE FUNCTION public.get_tshirt_sizes(
+  p_event_id BIGINT
+) RETURNS TABLE (
+  size_cd VARCHAR(5),
+  size_name VARCHAR(5),
+  sort_order INTEGER,
+  quantity INTEGER,
+  quantity_on_hand INTEGER
+)
+```
 
-| Column                     | Type        | Constraints                                                  | Description                                                 |
-| -------------------------- | ----------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
-| `id`                       | BIGINT      | PK, Generated Always as Identity                             | Unique identifier for the preference.                       |
-| `volunteer_id`             | UUID        | NOT NULL, FK to `public.volunteers(id)` ON DELETE CASCADE    | Links to the volunteer who has this preference.             |
-| `event_id`                 | BIGINT      | NOT NULL, FK to `public.events(id)` ON DELETE CASCADE        | Links to the event for which this preference applies.       |
-| `tshirt_size_id`           | BIGINT      | NOT NULL, FK to `public.tshirt_sizes(id)` ON DELETE RESTRICT | References the standardized T-shirt size.                   |
-| `quantity`                 | INTEGER     | NOT NULL, DEFAULT 1                                          | Number of T-shirts of this size preferred by the volunteer. |
-| `preference_order`         | INTEGER     | NOT NULL, DEFAULT 1                                          | Order of preference (1 = first choice, etc.).               |
-| `is_fulfilled`             | BOOLEAN     | NOT NULL, DEFAULT FALSE                                      | Whether this preference has been fulfilled.                 |
-| `fulfilled_by_issuance_id` | BIGINT      | FK to `public.tshirt_issuances(id)` ON DELETE SET NULL       | Links to the issuance that fulfilled this preference.       |
-| `created_at`               | TIMESTAMPTZ | DEFAULT NOW()                                                | Timestamp of creation.                                      |
-| `updated_at`               | TIMESTAMPTZ | DEFAULT NOW()                                                | Timestamp of last update.                                   |
+This function returns all available T-shirt sizes for an event:
 
-_Constraint: `unique_volunteer_size_preference UNIQUE (volunteer_id, event_id, tshirt_size_id)`._
-_Comment: Stores T-shirt size preferences for volunteers._
-_Indexes: `idx_volunteer_tshirt_preferences_volunteer_id(volunteer_id)`, `idx_volunteer_tshirt_preferences_event_id(event_id)`, `idx_volunteer_tshirt_preferences_tshirt_size_id(tshirt_size_id)`._
+- Provides a clean way for the frontend to get size information without hardcoding
+- Returns size code, name, sort order, and inventory quantities
+
+#### 7.2.6. `get_tshirt_counts_by_volunteer`
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_tshirt_counts_by_volunteer(
+  p_event_id BIGINT,
+  OUT volunteer_name TEXT,
+  OUT allocation INTEGER,
+  OUT status TEXT,
+  OUT total_count INTEGER
+) RETURNS SETOF RECORD
+```
+
+This function uses dynamic SQL to generate a report of T-shirt counts by volunteer:
+
+- Dynamically adapts to whatever T-shirt sizes are available in the database
+- No hardcoded sizes - queries the `tshirt_inventory` table to get current sizes
+- Maintained for backward compatibility
 
 This documentation should provide a solid foundation for UI development. Please refer to the Supabase documentation for details on querying, RLS policy creation, and using the Supabase client libraries.

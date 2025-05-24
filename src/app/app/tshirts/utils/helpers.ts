@@ -30,7 +30,7 @@ export function getVolunteersToDisplay(
  */
 export function calculateAllocations(volunteers: Volunteer[]): Record<string, number> {
   const allocations: Record<string, number> = {};
-  
+
   volunteers.forEach(vol => {
     // Use requested_tshirt_quantity from the Volunteers table
     // Default to 1 if requested_tshirt_quantity is not set
@@ -39,42 +39,83 @@ export function calculateAllocations(volunteers: Volunteer[]): Record<string, nu
 
     allocations[vol.id] = isNaN(requestedQuantity) ? 1 : requestedQuantity;
   });
-  
+
   return allocations;
 }
 
 /**
- * Initialize empty issuances record for volunteers
+ * Initialize empty T-shirts record for volunteers
  */
-export function initializeIssuances(volunteerIds: string[]): Record<string, string[]> {
-  const issuances: Record<string, string[]> = {};
+export function initializeTShirts(volunteerIds: string[]): Record<string, any[]> {
+  const tshirts: Record<string, any[]> = {};
   volunteerIds.forEach(id => {
-    issuances[id] = [];
+    tshirts[id] = [];
   });
-  return issuances;
+  return tshirts;
 }
 
 /**
- * Calculate counts by size from issuances
+ * Initialize empty counts by size for volunteers
  */
-export function calculateCountsBySize(
-  volunteerIds: string[],
-  issuances: Record<string, string[]>
-): Record<string, Record<string, number>> {
+export function initializeCountsBySize(volunteerIds: string[]): Record<string, Record<string, number>> {
   const countsBySize: Record<string, Record<string, number>> = {};
-  
+
   volunteerIds.forEach(id => {
     countsBySize[id] = {};
-    if (issuances[id]) {
-      issuances[id].forEach(size => {
-        if (!countsBySize[id][size]) {
-          countsBySize[id][size] = 0;
-        }
-        countsBySize[id][size]++;
-      });
+  });
+
+  return countsBySize;
+}
+
+/**
+ * Calculate preference counts by size from T-shirts
+ */
+export function calculatePreferenceCountsBySize(
+  volunteerIds: string[],
+  tshirts: Record<string, any[]>
+): Record<string, Record<string, number>> {
+  const countsBySize: Record<string, Record<string, number>> = {};
+
+  volunteerIds.forEach(id => {
+    countsBySize[id] = {};
+    if (tshirts[id]) {
+      tshirts[id]
+        .filter(t => t.status === 'preferred')
+        .forEach(t => {
+          if (!countsBySize[id][t.size]) {
+            countsBySize[id][t.size] = 0;
+          }
+          countsBySize[id][t.size] += (t.quantity || 1);
+        });
     }
   });
-  
+
+  return countsBySize;
+}
+
+/**
+ * Calculate issuance counts by size from T-shirts
+ */
+export function calculateIssuanceCountsBySize(
+  volunteerIds: string[],
+  tshirts: Record<string, any[]>
+): Record<string, Record<string, number>> {
+  const countsBySize: Record<string, Record<string, number>> = {};
+
+  volunteerIds.forEach(id => {
+    countsBySize[id] = {};
+    if (tshirts[id]) {
+      tshirts[id]
+        .filter(t => t.status === 'issued')
+        .forEach(t => {
+          if (!countsBySize[id][t.size]) {
+            countsBySize[id][t.size] = 0;
+          }
+          countsBySize[id][t.size] += (t.quantity || 1);
+        });
+    }
+  });
+
   return countsBySize;
 }
 
@@ -82,14 +123,16 @@ export function calculateCountsBySize(
  * Get default T-shirt sizes if none are available
  */
 export function getDefaultSizes(eventId: number): TShirtSize[] {
+  // IMPORTANT: These sizes must match exactly what's in the tshirt_inventory table
+  // The size_cd values are used as foreign keys
   return [
-    { id: 1, event_id: eventId, size_name: 'XS', sort_order: 1 },
-    { id: 2, event_id: eventId, size_name: 'S', sort_order: 2 },
-    { id: 3, event_id: eventId, size_name: 'M', sort_order: 3 },
-    { id: 4, event_id: eventId, size_name: 'L', sort_order: 4 },
-    { id: 5, event_id: eventId, size_name: 'XL', sort_order: 5 },
-    { id: 6, event_id: eventId, size_name: '2XL', sort_order: 6 },
-    { id: 7, event_id: eventId, size_name: '3XL', sort_order: 7 },
+    { event_id: eventId, size_cd: 'XS', size_name: 'XS', sort_order: 1 },
+    { event_id: eventId, size_cd: 'S', size_name: 'S', sort_order: 2 },
+    { event_id: eventId, size_cd: 'M', size_name: 'M', sort_order: 3 },
+    { event_id: eventId, size_cd: 'L', size_name: 'L', sort_order: 4 },
+    { event_id: eventId, size_cd: 'XL', size_name: 'XL', sort_order: 5 },
+    { event_id: eventId, size_cd: '2XL', size_name: '2XL', sort_order: 6 },
+    { event_id: eventId, size_cd: '3XL', size_name: '3XL', sort_order: 7 },
   ];
 }
 

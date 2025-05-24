@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 // Assume a default event ID for now
-const CURRENT_EVENT_ID = 1; 
+const CURRENT_EVENT_ID = 1;
 
 type TShirtInventoryWithDetails = TShirtInventory & {
   tshirt_sizes: Pick<TShirtSize, 'size_name'> | null;
@@ -28,7 +28,7 @@ async function getTShirtInventoryData() {
       id,
       quantity_initial,
       quantity_on_hand,
-      tshirt_sizes (size_name) 
+      tshirt_sizes (size_name)
     `)
     .eq('event_id', CURRENT_EVENT_ID)
     .order('tshirt_sizes(sort_order)', { ascending: true }); // Assuming tshirt_sizes has a sort_order
@@ -76,7 +76,7 @@ export default async function InventoryPage() {
               <TableBody>
                 {inventory.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.tshirt_sizes?.size_name || 'Unknown Size'}</TableCell>
+                    <TableCell className="font-medium">{item.size_cd || 'Unknown Size'}</TableCell>
                     <TableCell className="text-right">{item.quantity_initial}</TableCell>
                     <TableCell className="text-right">{item.quantity_on_hand}</TableCell>
                   </TableRow>
@@ -90,7 +90,7 @@ export default async function InventoryPage() {
       </Card>
 
       <QrScannerSection />
-      
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-xl font-semibold">Manual T-Shirt Logging</CardTitle>

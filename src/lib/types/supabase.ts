@@ -8,6 +8,25 @@ export type Json =
 
 export type Database = {
   public: {
+    Functions: {
+      add_tshirt_preference: {
+        Args: {
+          p_volunteer_id: string;
+          p_event_id: number;
+          p_size_cd: string;
+          p_quantity?: number;
+        };
+        Returns: string;
+      };
+      remove_tshirt_preference: {
+        Args: {
+          p_volunteer_id: string;
+          p_event_id: number;
+          p_size_cd: string;
+        };
+        Returns: boolean;
+      };
+    };
     Tables: {
       events: {
         Row: {
@@ -88,6 +107,8 @@ export type Database = {
           // Fields from old Volunteer type that might be relevant here
           // sevaDates: string (will be derived from commitments)
           location: string | null // Primary location for this volunteer, if general
+          tshirt_size_preference: string | null // T-shirt size preference
+          requested_tshirt_quantity: number | null // Number of T-shirts requested
           // otherLocation?: string (can be in additional_notes)
           // mahayajnaStudentName?: string (can be in additional_notes or a separate related table if complex)
           // batch?: string (can be in additional_notes)
@@ -112,6 +133,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           location?: string | null
+          tshirt_size_preference?: string | null
+          requested_tshirt_quantity?: number | null
         }
         Update: {
           id?: string // UUID
@@ -128,6 +151,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           location?: string | null
+          tshirt_size_preference?: string | null
+          requested_tshirt_quantity?: number | null
         }
         Relationships: [
           {
@@ -309,77 +334,71 @@ export type Database = {
       }
       tshirt_inventory: {
         Row: {
-          id: number
           event_id: number // FK to events
-          tshirt_size_id: number // FK to tshirt_sizes
-          quantity_initial: number
+          size_cd: string
+          quantity: number
           quantity_on_hand: number
+          sort_order: number
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: number
           event_id: number
-          tshirt_size_id: number
-          quantity_initial: number
+          size_cd: string
+          quantity: number
           quantity_on_hand: number
+          sort_order: number
           created_at?: string
           updated_at?: string
         }
         Update: {
-          id?: number
           event_id?: number
-          tshirt_size_id?: number
-          quantity_initial?: number
+          size_cd?: string
+          quantity?: number
           quantity_on_hand?: number
+          sort_order?: number
           created_at?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "tshirt_inventory_event_id_fkey"
+            foreignKeyName: "fk_tshirt_inventory_event_id"
             columns: ["event_id"]
             referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tshirt_inventory_tshirt_size_id_fkey"
-            columns: ["tshirt_size_id"]
-            referencedRelation: "tshirt_sizes"
             referencedColumns: ["id"]
           }
         ]
       }
       tshirt_issuances: {
         Row: {
-          id: number
+          id: string // UUID
           event_id: number // FK to events
           volunteer_id: string // FK to volunteers
-          tshirt_inventory_id: number // FK to tshirt_inventory (identifies the specific size record)
+          size: string // T-shirt size code
           issued_at: string // TIMESTAMPTZ
           issued_by_profile_id: string | null // FK to profiles (who scanned/logged it)
-          notes: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
-          id?: number
+          id?: string // UUID
           event_id: number
           volunteer_id: string
-          tshirt_inventory_id: number
+          size: string
           issued_at?: string // Defaults to now()
           issued_by_profile_id?: string | null
-          notes?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
-          id?: number
+          id?: string // UUID
           event_id?: number
           volunteer_id?: string
-          tshirt_inventory_id?: number
+          size?: string
           issued_at?: string
           issued_by_profile_id?: string | null
-          notes?: string | null
           created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -395,16 +414,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tshirt_issuances_tshirt_inventory_id_fkey"
-            columns: ["tshirt_inventory_id"]
-            referencedRelation: "tshirt_inventory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "tshirt_issuances_issued_by_profile_id_fkey"
             columns: ["issued_by_profile_id"]
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          }
+        ]
+      },
+      volunteer_tshirts: {
+        Row: {
+          id: string // UUID
+          volunteer_id: string // FK to volunteers
+          event_id: number // FK to events
+          size: string // T-shirt size code
+          status: string // 'preferred', 'issued', or 'returned'
+          quantity: number
+          issued_by_profile_id: string | null // FK to profiles (who scanned/logged it)
+          issued_at: string | null // TIMESTAMPTZ
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string // UUID
+          volunteer_id: string
+          event_id: number
+          size: string
+          status: string
+          quantity?: number
+          issued_by_profile_id?: string | null
+          issued_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string // UUID
+          volunteer_id?: string
+          event_id?: number
+          size?: string
+          status?: string
+          quantity?: number
+          issued_by_profile_id?: string | null
+          issued_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_volunteer_tshirts_volunteer_id"
+            columns: ["volunteer_id"]
+            referencedRelation: "volunteers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_volunteer_tshirts_event_id"
+            columns: ["event_id"]
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_volunteer_tshirts_issued_by_profile_id"
+            columns: ["issued_by_profile_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_volunteer_tshirts_size_event"
+            columns: ["event_id", "size"]
+            referencedRelation: "tshirt_inventory"
+            referencedColumns: ["event_id", "size_cd"]
           }
         ]
       }

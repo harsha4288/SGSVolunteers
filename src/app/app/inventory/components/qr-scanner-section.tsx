@@ -49,13 +49,10 @@ export function QrScannerSection() {
     const fetchTShirtInventory = async () => {
       const { data, error } = await supabase
         .from('tshirt_inventory')
-        .select(`
-          *,
-          tshirt_sizes (size_name)
-        `)
+        .select('*')
         .eq('event_id', CURRENT_EVENT_ID)
         .gt('quantity_on_hand', 0) // Only show sizes with stock
-        .order('tshirt_sizes(sort_order)', { ascending: true });
+        .order('sort_order', { ascending: true });
 
       if (error) {
         console.error("Error fetching T-shirt inventory:", error);
@@ -359,10 +356,10 @@ export function QrScannerSection() {
       // Re-fetch inventory to update counts
        const { data: updatedInv, error: refetchError } = await supabase
         .from('tshirt_inventory')
-        .select(`*, tshirt_sizes (size_name)`)
+        .select('*')
         .eq('event_id', CURRENT_EVENT_ID)
         .gt('quantity_on_hand', 0)
-        .order('tshirt_sizes(sort_order)', { ascending: true });
+        .order('sort_order', { ascending: true });
       if (!refetchError) setAvailableTShirts(updatedInv as any[] || []);
 
 
@@ -429,7 +426,7 @@ export function QrScannerSection() {
                 <SelectContent>
                   {availableTShirts.length > 0 ? availableTShirts.map(item => (
                     <SelectItem key={item.id} value={String(item.id)}>
-                      {item.tshirt_sizes?.size_name} (Available: {item.quantity_on_hand})
+                      {item.size_cd} (Available: {item.quantity_on_hand})
                     </SelectItem>
                   )) : <SelectItem value="none" disabled>No sizes available</SelectItem>}
                 </SelectContent>

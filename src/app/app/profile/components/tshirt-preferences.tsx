@@ -25,7 +25,7 @@ interface TShirtPreferencesProps {
 
 export function TShirtPreferences({ volunteerId, currentPreference, eventId = 1 }: TShirtPreferencesProps) {
   const [selectedSize, setSelectedSize] = React.useState<string>(currentPreference || "");
-  const [availableSizes, setAvailableSizes] = React.useState<TShirtSize[]>([]);
+  const [availableSizes, setAvailableSizes] = React.useState<any[]>([]); // Use any[] to avoid type issues
   const [inventoryStatus, setInventoryStatus] = React.useState<Record<string, number>>({});
   const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
@@ -39,28 +39,31 @@ export function TShirtPreferences({ volunteerId, currentPreference, eventId = 1 
       setLoading(true);
       setError(null);
       try {
-        // Fetch T-shirt sizes
-        const { data: sizesData, error: sizesError } = await supabase
-          .from('tshirt_sizes')
-          .select('*')
+        // Fetch T-shirt inventory which includes sizes
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('tshirt_inventory')
+          .select('event_id, size_cd, quantity_on_hand, sort_order')
           .eq('event_id', eventId)
           .order('sort_order', { ascending: true });
 
-        if (sizesError) throw sizesError;
-        setAvailableSizes(sizesData || []);
-
-        // Fetch inventory status
-        const { data: inventoryData, error: inventoryError } = await supabase
-          .from('tshirt_inventory')
-          .select('tshirt_size_id, quantity_on_hand')
-          .eq('event_id', eventId);
-
         if (inventoryError) throw inventoryError;
 
-        // Create a map of size_id to quantity
+        // Map inventory data to sizes format
+        const sizesData = inventoryData?.map(item => ({
+          id: item.size_cd, // Use size_cd as the ID
+          event_id: item.event_id,
+          size_name: item.size_cd, // Use size_cd as size_name
+          size_cd: item.size_cd, // Add size_cd field explicitly
+          sort_order: item.sort_order,
+          created_at: new Date().toISOString() // Add required field
+        }));
+
+        setAvailableSizes(sizesData || []);
+
+        // Create a map of size_cd to quantity
         const inventoryMap: Record<string, number> = {};
         inventoryData?.forEach(item => {
-          inventoryMap[item.tshirt_size_id] = item.quantity_on_hand;
+          inventoryMap[item.size_cd] = item.quantity_on_hand;
         });
         setInventoryStatus(inventoryMap);
       } catch (err) {
@@ -136,11 +139,11 @@ export function TShirtPreferences({ volunteerId, currentPreference, eventId = 1 
                 </SelectTrigger>
                 <SelectContent>
                   {availableSizes.length > 0 ? availableSizes.map(size => {
-                    const inventory = inventoryStatus[size.id] || 0;
+                    const inventory = inventoryStatus[size.size_cd] || 0;
                     const isAvailable = inventory > 0;
                     return (
-                      <SelectItem 
-                        key={size.id} 
+                      <SelectItem
+                        key={size.size_cd}
                         value={size.size_name}
                         disabled={!isAvailable}
                       >
@@ -154,9 +157,9 @@ export function TShirtPreferences({ volunteerId, currentPreference, eventId = 1 
                 Note: Only sizes currently in stock are available for selection.
               </p>
             </div>
-            <Button 
-              onClick={handleSavePreference} 
-              disabled={saving || !selectedSize} 
+            <Button
+              onClick={handleSavePreference}
+              disabled={saving || !selectedSize}
               className="w-full sm:w-auto"
             >
               {saving ? "Saving..." : "Save Preference"}

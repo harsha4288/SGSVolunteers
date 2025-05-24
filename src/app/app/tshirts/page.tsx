@@ -43,11 +43,9 @@ export default function TShirtsPage() {
 
     async function fetchTshirtSizes() {
       try {
+        // Use the get_tshirt_sizes function to get all available sizes
         const { data, error } = await supabase
-          .from('tshirt_sizes')
-          .select('*')
-          .eq('event_id', currentEventId)
-          .order('sort_order');
+          .rpc('get_tshirt_sizes', { p_event_id: currentEventId });
 
         if (error) throw error;
 
@@ -162,6 +160,7 @@ export default function TShirtsPage() {
         } else {
           // Admin role has ID 1
           const isUserAdmin = userRoles?.some(role => role.role_id === 1) || false;
+          console.log("Is user admin:", isUserAdmin, "User roles:", userRoles);
           setIsAdmin(isUserAdmin);
         }
 
