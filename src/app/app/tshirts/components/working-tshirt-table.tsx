@@ -38,6 +38,7 @@ export function WorkingTShirtTable({
   const [sizes, setSizes] = React.useState<string[]>([]);
   const [preferences, setPreferences] = React.useState<TShirtData>({});
   const [issuances, setIssuances] = React.useState<TShirtData>({});
+  const dataLoadedRef = React.useRef(false);
 
 
   // Load T-shirt sizes
@@ -48,7 +49,7 @@ export function WorkingTShirtTable({
           .from('tshirt_inventory')
           .select('size_cd')
           .eq('event_id', eventId)
-          .order('size_cd');
+          .order('sort_order');
 
         if (sizesError) throw sizesError;
         setSizes(sizesData?.map((s: any) => s.size_cd) || []);
@@ -66,8 +67,8 @@ export function WorkingTShirtTable({
   }, [supabase, eventId, toast]);
 
   // Extract loadTShirtData function for reuse
-  const loadTShirtData = React.useCallback(async () => {
-    if (volunteers.length === 0) {
+  const loadTShirtData = React.useCallback(async (volunteersToLoad = volunteers) => {
+    if (volunteersToLoad.length === 0) {
       setLoading(false);
       return;
     }
@@ -75,7 +76,7 @@ export function WorkingTShirtTable({
     try {
       setLoading(true);
 
-      const volunteerIds = volunteers.map(v => v.id);
+      const volunteerIds = volunteersToLoad.map(v => v.id);
 
       const { data: tshirtData, error: tshirtError } = await supabase
         .from('volunteer_tshirts')
@@ -108,12 +109,15 @@ export function WorkingTShirtTable({
     } finally {
       setLoading(false);
     }
-  }, [supabase, eventId, volunteers, toast]);
+  }, [supabase, eventId, toast]);
 
-  // Load T-shirt data when volunteers change
+  // Load T-shirt data only once when component mounts
   React.useEffect(() => {
-    loadTShirtData();
-  }, [loadTShirtData]);
+    if (!dataLoadedRef.current && volunteers.length > 0) {
+      dataLoadedRef.current = true;
+      loadTShirtData(volunteers);
+    }
+  }, [loadTShirtData, volunteers]);
 
   const getCount = (volunteerId: string, size: string): number => {
     const data = isAdmin ? issuances : preferences;

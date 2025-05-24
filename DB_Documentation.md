@@ -341,17 +341,19 @@ The roles follow this general hierarchy of permissions:
 
 This table stores the available T-shirt sizes and inventory for each event.
 
-| Column           | Type        | Description                                        |
-| ---------------- | ----------- | -------------------------------------------------- |
-| event_id         | BIGINT      | Reference to events table (PK part 1)              |
-| size_cd          | VARCHAR(5)  | T-shirt size code (e.g., '2XL', '3XL') (PK part 2) |
-| quantity         | INTEGER     | Current total quantity                             |
-| quantity_on_hand | INTEGER     | Current on-hand quantity                           |
-| sort_order       | INTEGER     | Order for display purposes                         |
-| created_at       | TIMESTAMPTZ | Creation timestamp                                 |
-| updated_at       | TIMESTAMPTZ | Last update timestamp                              |
+| Column           | Type        | Description                                                                   |
+| ---------------- | ----------- | ----------------------------------------------------------------------------- |
+| event_id         | BIGINT      | Reference to events table (PK part 1)                                         |
+| size_cd          | VARCHAR(5)  | T-shirt size code (e.g., 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL') (PK part 2) |
+| quantity         | INTEGER     | Current total quantity                                                        |
+| quantity_on_hand | INTEGER     | Current on-hand quantity                                                      |
+| sort_order       | INTEGER     | Order for display purposes (1=XS, 2=S, 3=M, 4=L, 5=XL, 6=2XL, 7=3XL)          |
+| created_at       | TIMESTAMPTZ | Creation timestamp                                                            |
+| updated_at       | TIMESTAMPTZ | Last update timestamp                                                         |
 
 Primary Key: `(event_id, size_cd)`
+
+**Important:** Always use `ORDER BY sort_order` when querying T-shirt sizes to ensure proper display order (XS, S, M, L, XL, 2XL, 3XL) instead of alphabetical order.
 
 #### 7.1.2. `volunteer_tshirts` (Consolidated Table)
 
