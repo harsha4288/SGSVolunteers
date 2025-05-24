@@ -34,32 +34,19 @@ export function TShirtTable({
 }: TShirtTableProps) {
   // Determine which volunteers to display
   const volunteersToDisplay = React.useMemo(() => {
-    console.log("TShirtTable - Determining volunteers to display:", {
-      isAdmin,
-      searchResultsLength: searchResults.length,
-      volunteer: volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : null,
-      familyMembersLength: familyMembers.length
-    });
-
     if (isAdmin) {
       return searchResults.length > 0 ? searchResults : [];
     } else {
       const volunteers = [];
       if (volunteer) volunteers.push(volunteer);
       volunteers.push(...familyMembers);
-      console.log("Non-admin volunteers to display:", volunteers.map(v => `${v.first_name} ${v.last_name}`));
       return volunteers;
     }
   }, [isAdmin, searchResults, volunteer, familyMembers]);
 
-  console.log("TShirtTable - Final volunteersToDisplay:", volunteersToDisplay.length);
-
   if (volunteersToDisplay.length === 0) {
-    console.log("TShirtTable - Showing NoVolunteersAlert");
     return <NoVolunteersAlert isAdmin={isAdmin} />;
   }
-
-  console.log("TShirtTable - Rendering UnifiedTShirtTable");
 
   return (
     <WorkingTShirtTable

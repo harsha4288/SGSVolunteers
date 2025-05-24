@@ -39,6 +39,7 @@ export function WorkingTShirtTable({
   const [preferences, setPreferences] = React.useState<TShirtData>({});
   const [issuances, setIssuances] = React.useState<TShirtData>({});
 
+
   // Load T-shirt sizes
   React.useEffect(() => {
     const loadSizes = async () => {
@@ -50,7 +51,6 @@ export function WorkingTShirtTable({
           .order('size_cd');
 
         if (sizesError) throw sizesError;
-        console.log("Loaded sizes:", sizesData);
         setSizes(sizesData?.map((s: any) => s.size_cd) || []);
       } catch (error) {
         console.error("Error loading sizes:", error);
@@ -65,64 +65,55 @@ export function WorkingTShirtTable({
     loadSizes();
   }, [supabase, eventId, toast]);
 
+  // Extract loadTShirtData function for reuse
+  const loadTShirtData = React.useCallback(async () => {
+    if (volunteers.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const volunteerIds = volunteers.map(v => v.id);
+
+      const { data: tshirtData, error: tshirtError } = await supabase
+        .from('volunteer_tshirts')
+        .select('*')
+        .in('volunteer_id', volunteerIds)
+        .eq('event_id', eventId);
+
+      if (tshirtError) throw tshirtError;
+
+      // Separate preferences and issuances
+      const prefs: TShirtData = {};
+      const issues: TShirtData = {};
+
+      tshirtData?.forEach((record: any) => {
+        const target = record.status === 'preferred' ? prefs : issues;
+        if (!target[record.volunteer_id]) {
+          target[record.volunteer_id] = {};
+        }
+        target[record.volunteer_id][record.size] = (target[record.volunteer_id][record.size] || 0) + record.quantity;
+      });
+      setPreferences(prefs);
+      setIssuances(issues);
+    } catch (error) {
+      console.error("Error loading T-shirt data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load T-shirt data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase, eventId, volunteers, toast]);
+
   // Load T-shirt data when volunteers change
   React.useEffect(() => {
-    const loadTShirtData = async () => {
-      if (volunteers.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      console.log("Loading T-shirt data for volunteers:", volunteers.map(v => `${v.first_name} ${v.last_name} (${v.id})`));
-
-      try {
-        setLoading(true);
-
-        const volunteerIds = volunteers.map(v => v.id);
-        console.log("Loading T-shirt data for volunteer IDs:", volunteerIds);
-
-        const { data: tshirtData, error: tshirtError } = await supabase
-          .from('volunteer_tshirts')
-          .select('*')
-          .in('volunteer_id', volunteerIds)
-          .eq('event_id', eventId);
-
-        if (tshirtError) throw tshirtError;
-        console.log("Raw T-shirt data:", tshirtData);
-
-        // Separate preferences and issuances
-        const prefs: TShirtData = {};
-        const issues: TShirtData = {};
-
-        tshirtData?.forEach((record: any) => {
-          console.log("Processing record:", record);
-          const target = record.status === 'preferred' ? prefs : issues;
-          if (!target[record.volunteer_id]) {
-            target[record.volunteer_id] = {};
-            console.log("Created new volunteer entry for:", record.volunteer_id);
-          }
-          target[record.volunteer_id][record.size] = (target[record.volunteer_id][record.size] || 0) + record.quantity;
-          console.log(`Set ${record.volunteer_id}[${record.size}] = ${target[record.volunteer_id][record.size]}`);
-        });
-
-        console.log("Final processed preferences:", prefs);
-        console.log("Final processed issuances:", issues);
-        setPreferences(prefs);
-        setIssuances(issues);
-      } catch (error) {
-        console.error("Error loading T-shirt data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load T-shirt data.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadTShirtData();
-  }, [supabase, eventId, volunteers, toast]);
+  }, [loadTShirtData]);
 
   const getCount = (volunteerId: string, size: string): number => {
     const data = isAdmin ? issuances : preferences;
@@ -142,7 +133,10 @@ export function WorkingTShirtTable({
     return currentTotal < allocation;
   };
 
+
+
   const handleAdd = async (volunteerId: string, size: string) => {
+
     // Validation for volunteers (hard stop)
     if (!isAdmin && !canAddMore(volunteerId)) {
       toast({
@@ -167,7 +161,7 @@ export function WorkingTShirtTable({
     try {
       if (isAdmin && currentProfileId) {
         // Issue T-shirt
-        const { error } = await supabase.rpc('issue_tshirt', {
+        const { error } = await (supabase as any).rpc('issue_tshirt', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: size,
@@ -176,7 +170,7 @@ export function WorkingTShirtTable({
         });
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately for smooth UI
         setIssuances(prev => ({
           ...prev,
           [volunteerId]: {
@@ -186,7 +180,7 @@ export function WorkingTShirtTable({
         }));
       } else {
         // Add preference
-        const { error } = await supabase.rpc('add_tshirt_preference', {
+        const { error } = await (supabase as any).rpc('add_tshirt_preference', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: size,
@@ -194,7 +188,7 @@ export function WorkingTShirtTable({
         });
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately for smooth UI
         setPreferences(prev => ({
           ...prev,
           [volunteerId]: {
@@ -229,7 +223,7 @@ export function WorkingTShirtTable({
     try {
       if (isAdmin) {
         // Return T-shirt
-        const { error } = await supabase.rpc('return_tshirt', {
+        const { error } = await (supabase as any).rpc('return_tshirt', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: size,
@@ -237,7 +231,7 @@ export function WorkingTShirtTable({
         });
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately for smooth UI
         setIssuances(prev => {
           const newState = { ...prev };
           if (newState[volunteerId]) {
@@ -252,7 +246,7 @@ export function WorkingTShirtTable({
         });
       } else {
         // Remove preference
-        const { error } = await supabase.rpc('remove_tshirt_preference', {
+        const { error } = await (supabase as any).rpc('remove_tshirt_preference', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: size,
@@ -260,7 +254,7 @@ export function WorkingTShirtTable({
         });
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately for smooth UI
         setPreferences(prev => {
           const newState = { ...prev };
           if (newState[volunteerId]) {
@@ -291,15 +285,7 @@ export function WorkingTShirtTable({
     }
   };
 
-  // Debug current state (only when data changes)
-  React.useEffect(() => {
-    if (Object.keys(preferences).length > 0 || Object.keys(issuances).length > 0) {
-      console.log("T-shirt data loaded:", {
-        preferencesCount: Object.keys(preferences).length,
-        issuancesCount: Object.keys(issuances).length,
-      });
-    }
-  }, [preferences, issuances]);
+
 
   if (loading) {
     return (
@@ -312,68 +298,10 @@ export function WorkingTShirtTable({
     );
   }
 
-  // Add a test button to manually check data
-  const testDataFetch = async () => {
-    console.log("=== MANUAL TEST ===");
-    console.log("Event ID:", eventId);
-    console.log("Volunteer ID:", volunteers[0]?.id);
 
-    try {
-      // Test 1: Check all volunteer_tshirts records
-      const { data: allData, error: allError } = await supabase
-        .from('volunteer_tshirts')
-        .select('*');
-      console.log("All volunteer_tshirts records:", allData?.length || 0);
-
-      // Test 2: Check for specific volunteer
-      const { data: volunteerData, error: volunteerError } = await supabase
-        .from('volunteer_tshirts')
-        .select('*')
-        .eq('volunteer_id', volunteers[0]?.id);
-      console.log("Records for this volunteer:", volunteerData?.length || 0, volunteerData);
-
-      // Test 3: Check for event_id = 1
-      const { data: eventData, error: eventError } = await supabase
-        .from('volunteer_tshirts')
-        .select('*')
-        .eq('event_id', 1);
-      console.log("Records for event_id=1:", eventData?.length || 0);
-
-      // Test 4: Original query
-      const { data, error } = await supabase
-        .from('volunteer_tshirts')
-        .select('*')
-        .eq('event_id', eventId);
-
-      console.log("Manual fetch result:", { data, error });
-
-      if (data) {
-        console.log("Found records:", data.length);
-        data.forEach(record => {
-          console.log(`${record.volunteer_id}: ${record.size} = ${record.quantity} (${record.status})`);
-        });
-      }
-    } catch (err) {
-      console.error("Manual test error:", err);
-    }
-  };
 
   return (
     <div className="rounded-md border">
-      {/* Debug section */}
-      <div className="p-2 bg-yellow-100 dark:bg-yellow-900 border-b text-xs text-black dark:text-white">
-        <strong>Debug Info:</strong>
-        Volunteers: {volunteers.length} ({volunteers.map(v => `${v.first_name} (${v.id.slice(0,8)})`).join(', ')}),
-        Sizes: {sizes.length},
-        Preferences: {Object.keys(preferences).length},
-        Loading: {loading ? 'Yes' : 'No'}
-        <button
-          onClick={testDataFetch}
-          className="ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-        >
-          Test DB
-        </button>
-      </div>
 
       <Table className="border-collapse">
         <TableHeader>
@@ -397,7 +325,6 @@ export function WorkingTShirtTable({
         <TableBody>
           {volunteers.map((volunteer) => {
             const isSaving = saving[volunteer.id];
-            const count = getCount(volunteer.id, sizes[0] || '');
 
             return (
               <TableRow key={volunteer.id} className="hover:bg-muted/30">
@@ -418,18 +345,18 @@ export function WorkingTShirtTable({
 
                 {sizes.map((size) => {
                   const count = getCount(volunteer.id, size);
-                  const hasItems = count > 0;
+                  const showControls = count > 0;
 
                   return (
                     <TableCell key={size} className="text-center border-b p-2">
-                      {hasItems ? (
-                        // Show +/- controls when items exist
+                      {showControls ? (
+                        // Show +/- controls when items exist or T-shirt is activated
                         <div className="flex items-center justify-center gap-1 bg-muted/30 rounded-md px-1 py-0.5">
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-5 w-5 p-0 text-destructive hover:text-destructive hover:bg-destructive/20 rounded-sm"
-                            disabled={isSaving}
+                            disabled={isSaving || count === 0}
                             onClick={() => handleRemove(volunteer.id, size)}
                             title="Remove one"
                           >
@@ -452,7 +379,7 @@ export function WorkingTShirtTable({
                           </Button>
                         </div>
                       ) : (
-                        // Show T-shirt icon when no items
+                        // Show T-shirt icon when no items and not activated
                         <Button
                           variant="ghost"
                           size="sm"

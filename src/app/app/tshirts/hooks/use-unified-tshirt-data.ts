@@ -89,10 +89,8 @@ export function useUnifiedTShirtData({
     };
 
     if (volunteersToDisplay.length > 0) {
-      console.log("useUnifiedTShirtData: Starting data load...");
       loadData();
     } else {
-      console.log("useUnifiedTShirtData: No volunteers to display, setting loading to false");
       setState(prev => ({ ...prev, loading: false }));
     }
   }, [eventId, volunteersToDisplay, tshirtService, toast]);
