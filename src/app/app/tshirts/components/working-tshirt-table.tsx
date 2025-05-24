@@ -117,11 +117,16 @@ export function WorkingTShirtTable({
       dataLoadedRef.current = true;
       loadTShirtData(volunteers);
     }
-  }, [loadTShirtData, volunteers]);
+  }, [loadTShirtData]); // Removed volunteers from dependencies to prevent reloading
 
   const getCount = (volunteerId: string, size: string): number => {
     const data = isAdmin ? issuances : preferences;
-    return data[volunteerId]?.[size] || 0;
+    const count = data[volunteerId]?.[size] || 0;
+    // Only log during user interactions, not during normal renders
+    if (saving[volunteerId]) {
+      console.log(`[DEBUG] getCount called during save: volunteerId=${volunteerId}, size=${size}, count=${count}, isAdmin=${isAdmin}`);
+    }
+    return count;
   };
 
   const getTotalCount = (volunteerId: string): number => {
@@ -135,6 +140,14 @@ export function WorkingTShirtTable({
     const allocation = volunteer?.requested_tshirt_quantity || 0;
     const currentTotal = getTotalCount(volunteerId);
     return currentTotal < allocation;
+  };
+
+  const getPreferencesDisplay = (volunteerId: string): string => {
+    const volunteerPrefs = preferences[volunteerId] || {};
+    const prefEntries = Object.entries(volunteerPrefs)
+      .filter(([_, count]) => count > 0)
+      .map(([size, count]) => `${size}[${count}]`);
+    return prefEntries.length > 0 ? prefEntries.join(' ') : '-';
   };
 
 
@@ -151,13 +164,26 @@ export function WorkingTShirtTable({
       return;
     }
 
-    // Warning for admins (but allow)
+    // Warning for admins with confirmation dialog
     if (isAdmin && !canAddMore(volunteerId)) {
-      toast({
-        title: "Allocation Exceeded",
-        description: "This volunteer has exceeded their allocation limit.",
-        variant: "default",
-      });
+      const volunteer = volunteers.find(v => v.id === volunteerId);
+      const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
+      const allocation = volunteer?.requested_tshirt_quantity || 0;
+      const currentTotal = getTotalCount(volunteerId);
+
+      const confirmed = window.confirm(
+        `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
+        `Volunteer: ${volunteerName}\n` +
+        `Allocation Limit: ${allocation}\n` +
+        `Current Total: ${currentTotal}\n` +
+        `Attempting to add: ${size} T-shirt\n\n` +
+        `This will exceed the volunteer's allocation limit.\n\n` +
+        `Do you want to proceed anyway?`
+      );
+
+      if (!confirmed) {
+        return; // Admin chose not to override
+      }
     }
 
     setSaving(prev => ({ ...prev, [volunteerId]: true }));
@@ -219,7 +245,15 @@ export function WorkingTShirtTable({
   };
 
   const handleRemove = async (volunteerId: string, size: string) => {
+    // Prevent double clicks by checking if already saving
+    if (saving[volunteerId]) {
+      console.log(`[DEBUG] handleRemove blocked - already saving for ${volunteerId}`);
+      return;
+    }
+
     const currentCount = getCount(volunteerId, size);
+    console.log(`[DEBUG] handleRemove called: volunteerId=${volunteerId}, size=${size}, currentCount=${currentCount}`);
+
     if (currentCount === 0) return;
 
     setSaving(prev => ({ ...prev, [volunteerId]: true }));
@@ -238,14 +272,25 @@ export function WorkingTShirtTable({
         // Update local state immediately for smooth UI
         setIssuances(prev => {
           const newState = { ...prev };
-          if (newState[volunteerId]) {
-            const newCount = (newState[volunteerId][size] || 0) - 1;
-            if (newCount <= 0) {
-              delete newState[volunteerId][size];
-            } else {
-              newState[volunteerId][size] = newCount;
-            }
+          // Ensure volunteer object exists
+          if (!newState[volunteerId]) {
+            newState[volunteerId] = {};
           }
+
+          // Use the captured currentCount instead of reading from state again
+          const newCount = Math.max(0, currentCount - 1);
+
+          console.log(`[DEBUG] Issuances update: volunteerId=${volunteerId}, size=${size}, capturedCount=${currentCount}, newCount=${newCount}`);
+
+          // If count becomes 0, remove the property to match requirement
+          if (newCount === 0) {
+            delete newState[volunteerId][size];
+            console.log(`[DEBUG] Deleted issuance property for ${volunteerId}[${size}]`);
+          } else {
+            newState[volunteerId][size] = newCount;
+            console.log(`[DEBUG] Updated issuance for ${volunteerId}[${size}] = ${newCount}`);
+          }
+
           return newState;
         });
       } else {
@@ -261,14 +306,25 @@ export function WorkingTShirtTable({
         // Update local state immediately for smooth UI
         setPreferences(prev => {
           const newState = { ...prev };
-          if (newState[volunteerId]) {
-            const newCount = (newState[volunteerId][size] || 0) - 1;
-            if (newCount <= 0) {
-              delete newState[volunteerId][size];
-            } else {
-              newState[volunteerId][size] = newCount;
-            }
+          // Ensure volunteer object exists
+          if (!newState[volunteerId]) {
+            newState[volunteerId] = {};
           }
+
+          // Use the captured currentCount instead of reading from state again
+          const newCount = Math.max(0, currentCount - 1);
+
+          console.log(`[DEBUG] Preferences update: volunteerId=${volunteerId}, size=${size}, capturedCount=${currentCount}, newCount=${newCount}`);
+
+          // If count becomes 0, remove the property to match requirement
+          if (newCount === 0) {
+            delete newState[volunteerId][size];
+            console.log(`[DEBUG] Deleted preference property for ${volunteerId}[${size}]`);
+          } else {
+            newState[volunteerId][size] = newCount;
+            console.log(`[DEBUG] Updated preference for ${volunteerId}[${size}] = ${newCount}`);
+          }
+
           return newState;
         });
       }
@@ -312,6 +368,9 @@ export function WorkingTShirtTable({
           <TableRow className="bg-muted/50">
             <TableHead className="w-[180px] font-semibold">Volunteer</TableHead>
             <TableHead className="w-[60px] font-semibold text-center">Max</TableHead>
+            {isAdmin && (
+              <TableHead className="w-[120px] font-semibold text-center">Preferences</TableHead>
+            )}
             <TableHead colSpan={sizes.length} className="text-center font-semibold bg-accent/10 border-b border-accent/20">
               {isAdmin ? "Issued" : "Preferences"}
             </TableHead>
@@ -319,6 +378,9 @@ export function WorkingTShirtTable({
           <TableRow className="bg-muted/50">
             <TableHead className="w-[180px] font-semibold"></TableHead>
             <TableHead className="w-[60px] font-semibold text-center"></TableHead>
+            {isAdmin && (
+              <TableHead className="w-[120px] font-semibold text-center"></TableHead>
+            )}
             {sizes.map((size) => (
               <TableHead key={size} className="text-center font-semibold">
                 <span className="text-sm">{size}</span>
@@ -346,6 +408,14 @@ export function WorkingTShirtTable({
                 <TableCell className="text-center border-b">
                   {volunteer.requested_tshirt_quantity || 0}
                 </TableCell>
+
+                {isAdmin && (
+                  <TableCell className="text-center border-b">
+                    <span className="text-xs text-muted-foreground">
+                      {getPreferencesDisplay(volunteer.id)}
+                    </span>
+                  </TableCell>
+                )}
 
                 {sizes.map((size) => {
                   const count = getCount(volunteer.id, size);
