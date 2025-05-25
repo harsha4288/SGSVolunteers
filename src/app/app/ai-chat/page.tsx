@@ -12,7 +12,7 @@ interface Message {
   sender: "user" | "bot";
 }
 
-export default function AiTaggingPage() { // Renamed from AiChatPage
+export default function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,10 +71,10 @@ export default function AiTaggingPage() { // Renamed from AiChatPage
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`mb-4 p-4 rounded-lg max-w-[80%] shadow-md ${
+                className={`mb-3 p-3 rounded-lg max-w-[80%] ${
                   msg.sender === 'user'
-                    ? 'bg-blue-600 text-white self-end ml-auto'
-                    : 'bg-slate-100 text-slate-900 self-start mr-auto'
+                    ? 'bg-blue-500 text-white self-end ml-auto'
+                    : 'bg-gray-200 text-gray-800 self-start mr-auto'
                 }`}
               >
                 {msg.text}

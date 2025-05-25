@@ -50,7 +50,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: UserCog,
   },
   {
-    title: "AI Tagging",
+    title: "AI Chatbot", // Renamed from AI Tagging
     href: "/app/ai-tagging",
     icon: Sparkles,
   },
