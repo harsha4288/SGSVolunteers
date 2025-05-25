@@ -9,10 +9,7 @@ interface InlineQuantityEditorProps {
   onSave: (newValue: number) => Promise<void>;
   disabled?: boolean;
   className?: string;
-  maxValue?: number;
   minValue?: number;
-  allowOverride?: boolean;
-  onOverrideWarning?: (newValue: number, currentValue: number) => Promise<boolean>;
 }
 
 /**
@@ -24,10 +21,7 @@ export function InlineQuantityEditor({
   onSave,
   disabled = false,
   className,
-  maxValue,
   minValue = 0,
-  allowOverride = false,
-  onOverrideWarning,
 }: InlineQuantityEditorProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editValue, setEditValue] = React.useState(value.toString());
@@ -64,7 +58,7 @@ export function InlineQuantityEditor({
     if (isSaving) return;
 
     const newValue = parseInt(editValue, 10);
-    
+
     // Validate input
     if (isNaN(newValue) || newValue < minValue) {
       handleCancel();
@@ -75,23 +69,6 @@ export function InlineQuantityEditor({
     if (newValue === value) {
       setIsEditing(false);
       return;
-    }
-
-    // Check for max value override
-    if (maxValue !== undefined && newValue > maxValue) {
-      if (!allowOverride) {
-        handleCancel();
-        return;
-      }
-
-      // Ask for override confirmation if handler provided
-      if (onOverrideWarning) {
-        const confirmed = await onOverrideWarning(newValue, value);
-        if (!confirmed) {
-          handleCancel();
-          return;
-        }
-      }
     }
 
     setIsSaving(true);

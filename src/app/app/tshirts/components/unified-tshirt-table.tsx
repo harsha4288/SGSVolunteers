@@ -37,9 +37,6 @@ export function UnifiedTShirtTable({
     saving,
     getPreferenceCount,
     getIssuanceCount,
-    getTotalPreferences,
-    getTotalIssuances,
-    canAddMore,
     handleAddPreference,
     handleRemovePreference,
     handleIssueTShirt,
@@ -72,37 +69,13 @@ export function UnifiedTShirtTable({
   };
 
   const handleAdd = async (volunteerId: string, sizeCode: string) => {
-    if (!canAddMore(volunteerId) && !isAdmin) {
-      return; // Validation handled in hook
-    }
-
-    let allowOverride = false;
-
-    // Admin override confirmation
-    if (isAdmin && !canAddMore(volunteerId)) {
-      const volunteer = volunteers.find(v => v.id === volunteerId);
-      const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
-      const allocation = volunteer?.requested_tshirt_quantity || 0;
-      const currentTotal = isAdmin ? getTotalIssuances(volunteerId) : getTotalPreferences(volunteerId);
-
-      const confirmed = window.confirm(
-        `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
-        `Volunteer: ${volunteerName}\n` +
-        `Allocation Limit: ${allocation}\n` +
-        `Current Total: ${currentTotal}\n` +
-        `Attempting to add: ${sizeCode} T-shirt\n\n` +
-        `This will exceed the volunteer's allocation limit.\n\n` +
-        `Do you want to proceed anyway?`
-      );
-
-      if (!confirmed) return;
-      allowOverride = true;
-    }
+    // Remove redundant validation - let the hook handle all validation consistently
+    // This ensures volunteers get proper toast messages and admins get confirmation dialogs
 
     if (isAdmin && currentProfileId) {
-      await handleIssueTShirt(volunteerId, sizeCode, currentProfileId, 1, allowOverride);
+      await handleIssueTShirt(volunteerId, sizeCode, currentProfileId, 1, false);
     } else {
-      await handleAddPreference(volunteerId, sizeCode, 1, allowOverride);
+      await handleAddPreference(volunteerId, sizeCode, 1, false);
     }
   };
 
@@ -115,31 +88,9 @@ export function UnifiedTShirtTable({
   };
 
   const handleQuantityChange = async (volunteerId: string, sizeCode: string, newQuantity: number, allowOverride: boolean = false) => {
-    // Validation is now handled by the database and service layer
-    // This eliminates duplicate validation code
+    // All validation is handled consistently in the hook layer
+    // This ensures uniform behavior across all interaction types
     await handleSetQuantity(volunteerId, sizeCode, newQuantity, currentProfileId, allowOverride);
-  };
-
-  const handleOverrideWarning = async (newValue: number, currentValue: number, volunteerId: string): Promise<boolean> => {
-    if (!isAdmin) return false; // Only admins can override
-
-    const volunteer = volunteers.find(v => v.id === volunteerId);
-    const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
-    const allocation = volunteer?.requested_tshirt_quantity || 0;
-    const currentTotal = isAdmin ? getTotalIssuances(volunteerId) : getTotalPreferences(volunteerId);
-    const newTotal = currentTotal - currentValue + newValue;
-
-    if (newTotal <= allocation) return true; // No override needed
-
-    return window.confirm(
-      `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
-      `Volunteer: ${volunteerName}\n` +
-      `Allocation Limit: ${allocation}\n` +
-      `Current Total: ${currentTotal}\n` +
-      `New Total: ${newTotal}\n\n` +
-      `This will exceed the volunteer's allocation limit.\n\n` +
-      `Do you want to proceed anyway?`
-    );
   };
 
   if (loading) {
@@ -242,11 +193,6 @@ export function UnifiedTShirtTable({
                             value={count}
                             onSave={(newValue) => handleQuantityChange(volunteer.id, size.size_cd, newValue)}
                             disabled={isSaving}
-                            maxValue={volunteer.requested_tshirt_quantity}
-                            allowOverride={isAdmin}
-                            onOverrideWarning={(newValue, currentValue) =>
-                              handleOverrideWarning(newValue, currentValue, volunteer.id)
-                            }
                           />
 
                           <Button

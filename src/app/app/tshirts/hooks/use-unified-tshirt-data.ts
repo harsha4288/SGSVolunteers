@@ -49,49 +49,60 @@ export function useUnifiedTShirtData({
     createUnifiedTShirtService({ supabase, eventId })
   );
 
-  // Load initial data
+  // Load initial data - use ref to prevent unnecessary reloads
+  const volunteersRef = React.useRef<string>('');
+  const loadDataRef = React.useRef(false);
+
   React.useEffect(() => {
-    const loadData = async () => {
-      setState(prev => ({ ...prev, loading: true }));
+    const volunteerKey = volunteersToDisplay.map(v => v.id).sort().join(',');
 
-      try {
-        // Load sizes using client-side service
-        const sizes = await tshirtService.fetchTShirtSizes();
+    // Only reload if volunteers actually changed or first load
+    if (volunteerKey !== volunteersRef.current || !loadDataRef.current) {
+      volunteersRef.current = volunteerKey;
+      loadDataRef.current = true;
 
-        // Load volunteers and their allocations
-        const volunteerIds = volunteersToDisplay.map(v => v.id);
-        const allocations: Record<string, number> = {};
-        volunteersToDisplay.forEach(v => {
-          allocations[v.id] = v.requested_tshirt_quantity || 0;
-        });
+      const loadData = async () => {
+        setState(prev => ({ ...prev, loading: true }));
 
-        // Load T-shirt data (preferences and issuances) using client-side service
-        const { preferences, issuances } = await tshirtService.fetchTShirtData(volunteerIds);
+        try {
+          // Load sizes using client-side service
+          const sizes = await tshirtService.fetchTShirtSizes();
 
-        setState(prev => ({
-          ...prev,
-          volunteers: volunteersToDisplay,
-          sizes,
-          preferences,
-          issuances,
-          allocations,
-          loading: false,
-        }));
-      } catch (error) {
-        console.error("Error loading T-shirt data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load T-shirt data.",
-          variant: "destructive",
-        });
+          // Load volunteers and their allocations
+          const volunteerIds = volunteersToDisplay.map(v => v.id);
+          const allocations: Record<string, number> = {};
+          volunteersToDisplay.forEach(v => {
+            allocations[v.id] = v.requested_tshirt_quantity || 0;
+          });
+
+          // Load T-shirt data (preferences and issuances) using client-side service
+          const { preferences, issuances } = await tshirtService.fetchTShirtData(volunteerIds);
+
+          setState(prev => ({
+            ...prev,
+            volunteers: volunteersToDisplay,
+            sizes,
+            preferences,
+            issuances,
+            allocations,
+            loading: false,
+          }));
+        } catch (error) {
+          console.error("Error loading T-shirt data:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load T-shirt data.",
+            variant: "destructive",
+          });
+          setState(prev => ({ ...prev, loading: false }));
+        }
+      };
+
+      if (volunteersToDisplay.length > 0) {
+        loadData();
+      } else {
         setState(prev => ({ ...prev, loading: false }));
       }
-    };
-
-    if (volunteersToDisplay.length > 0) {
-      loadData();
-    } else {
-      setState(prev => ({ ...prev, loading: false }));
     }
   }, [eventId, volunteersToDisplay, tshirtService, toast]);
 
@@ -121,11 +132,54 @@ export function useUnifiedTShirtData({
 
   // Action handlers
   const handleAddPreference = async (volunteerId: string, sizeCode: string, quantity: number = 1, allowOverride: boolean = false) => {
+    // Frontend validation first - check allocation limits before DB call
+    if (!allowOverride) {
+      const volunteer = state.volunteers.find(v => v.id === volunteerId);
+      const allocation = volunteer?.requested_tshirt_quantity || 0;
+      const currentTotal = getTotalPreferences(volunteerId);
+      const newTotal = currentTotal + quantity;
+
+      if (newTotal > allocation) {
+        if (isAdmin) {
+          // Show admin override dialog
+          const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
+
+          const confirmed = window.confirm(
+            `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
+            `Volunteer: ${volunteerName}\n` +
+            `Allocation Limit: ${allocation}\n` +
+            `Current Total: ${currentTotal}\n` +
+            `Attempting to add: ${quantity} ${sizeCode} T-shirt(s)\n` +
+            `New Total: ${newTotal}\n\n` +
+            `This will exceed the volunteer's allocation limit.\n\n` +
+            `Do you want to proceed anyway?`
+          );
+
+          if (!confirmed) {
+            return; // Admin chose not to override
+          }
+          allowOverride = true; // Set override for DB call
+        } else {
+          // Hard stop for volunteers - show toast and return
+          toast({
+            title: "Allocation Limit Exceeded",
+            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${allocation}).`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     try {
       await tshirtService.addPreference(volunteerId, sizeCode, quantity, toast, setSaving, allowOverride);
       await refreshData();
-    } catch (error) {
-      // Error already handled in service
+    } catch (error: any) {
+      // Since we validate frontend first, only show non-allocation errors
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      if (!errorMessage.includes('Allocation limit exceeded')) {
+        // Error already handled in service for non-allocation errors
+      }
     }
   };
 
@@ -145,12 +199,55 @@ export function useUnifiedTShirtData({
     quantity: number = 1,
     allowOverride: boolean = false
   ) => {
+    // Frontend validation first - check allocation limits before DB call
+    if (!allowOverride) {
+      const volunteer = state.volunteers.find(v => v.id === volunteerId);
+      const allocation = volunteer?.requested_tshirt_quantity || 0;
+      const currentTotal = getTotalIssuances(volunteerId);
+      const newTotal = currentTotal + quantity;
+
+      if (newTotal > allocation) {
+        if (isAdmin) {
+          // Show admin override dialog
+          const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
+
+          const confirmed = window.confirm(
+            `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
+            `Volunteer: ${volunteerName}\n` +
+            `Allocation Limit: ${allocation}\n` +
+            `Current Total: ${currentTotal}\n` +
+            `Attempting to issue: ${quantity} ${sizeCode} T-shirt(s)\n` +
+            `New Total: ${newTotal}\n\n` +
+            `This will exceed the volunteer's allocation limit.\n\n` +
+            `Do you want to proceed anyway?`
+          );
+
+          if (!confirmed) {
+            return; // Admin chose not to override
+          }
+          allowOverride = true; // Set override for DB call
+        } else {
+          // This shouldn't happen for issuances since only admins can issue
+          toast({
+            title: "Allocation Limit Exceeded",
+            description: `Cannot issue ${quantity} T-shirt(s). This would exceed allocation limit (${allocation}).`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     try {
       await tshirtService.issueTShirt(volunteerId, sizeCode, issuedByProfileId, quantity, toast, setSaving, allowOverride);
       // Refresh both data and inventory since issuances affect inventory counts
       await Promise.all([refreshData(), refreshInventory()]);
-    } catch (error) {
-      // Error already handled in service
+    } catch (error: any) {
+      // Since we validate frontend first, only show non-allocation errors
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      if (!errorMessage.includes('Allocation limit exceeded')) {
+        // Error already handled in service for non-allocation errors
+      }
     }
   };
 
@@ -175,6 +272,46 @@ export function useUnifiedTShirtData({
 
     if (newQuantity === currentQuantity) {
       return; // No change needed
+    }
+
+    // Frontend validation first - check allocation limits before DB call
+    if (!allowOverride && newQuantity > currentQuantity) {
+      const volunteer = state.volunteers.find(v => v.id === volunteerId);
+      const allocation = volunteer?.requested_tshirt_quantity || 0;
+      const currentTotal = isAdmin ? getTotalIssuances(volunteerId) : getTotalPreferences(volunteerId);
+      const currentSizeQuantity = isAdmin ? getIssuanceCount(volunteerId, sizeCode) : getPreferenceCount(volunteerId, sizeCode);
+      const newTotal = currentTotal - currentSizeQuantity + newQuantity;
+
+      if (newTotal > allocation) {
+        if (isAdmin) {
+          // Show admin override dialog
+          const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
+
+          const confirmed = window.confirm(
+            `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
+            `Volunteer: ${volunteerName}\n` +
+            `Allocation Limit: ${allocation}\n` +
+            `Current Total: ${currentTotal}\n` +
+            `Attempting to set ${sizeCode} to: ${newQuantity}\n` +
+            `New Total: ${newTotal}\n\n` +
+            `This will exceed the volunteer's allocation limit.\n\n` +
+            `Do you want to proceed anyway?`
+          );
+
+          if (!confirmed) {
+            return; // Admin chose not to override
+          }
+          allowOverride = true; // Set override for DB call
+        } else {
+          // Hard stop for volunteers - show toast and return
+          toast({
+            title: "Allocation Limit Exceeded",
+            description: `Cannot set quantity to ${newQuantity}. This would exceed your T-shirt allocation limit (${allocation}).`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     setSaving(volunteerId, true);
@@ -208,9 +345,22 @@ export function useUnifiedTShirtData({
 
       // Refresh data and inventory
       await Promise.all([refreshData(), refreshInventory()]);
-    } catch (error) {
-      console.error("Error setting quantity:", error);
-      // Error already handled in service
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error("Error setting quantity:", errorMessage);
+
+      // Since we handle allocation validation in frontend, DB allocation errors should be rare
+      // Only show toast for non-allocation errors since allocation is handled above
+      if (!errorMessage.includes('Allocation limit exceeded')) {
+        toast({
+          title: "Error",
+          description: `Failed to update quantity: ${errorMessage}`,
+          variant: "destructive",
+        });
+      } else {
+        // This should rarely happen since we validate frontend first
+        console.warn("DB allocation error despite frontend validation:", errorMessage);
+      }
     } finally {
       setSaving(volunteerId, false);
     }
