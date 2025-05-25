@@ -26,20 +26,20 @@ export function AdminNav({ items, className }: AdminNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className={cn("flex items-center space-x-1 bg-muted/30 rounded-lg p-1", className)}>
+    <nav className={cn("flex items-center space-x-1 bg-muted/20 rounded-lg p-1 border border-accent/20", className)}>
       {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-        
+
         return (
           <Link key={item.href} href={item.href} passHref>
             <Button
               variant={isActive ? "default" : "ghost"}
               size="sm"
               className={cn(
-                "flex items-center gap-2 transition-colors",
-                isActive 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                "flex items-center gap-2 transition-all duration-200",
+                isActive
+                  ? "bg-accent text-accent-foreground shadow-sm border border-accent/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/10 hover:border hover:border-accent/20"
               )}
             >
               {item.icon && <item.icon className="h-4 w-4" />}

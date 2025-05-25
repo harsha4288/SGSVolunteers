@@ -4,25 +4,30 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-interface InlineQuantityEditorProps {
-  value: number;
-  onSave: (newValue: number) => Promise<void>;
+interface InlineEditorProps {
+  value: string | number;
+  onSave: (newValue: string | number) => Promise<void>;
   disabled?: boolean;
   className?: string;
   minValue?: number;
+  isText?: boolean;
+  maxLength?: number;
 }
 
 /**
- * Inline quantity editor component that behaves like Excel cells
+ * Flexible inline editor component that behaves like Excel cells
+ * Supports both text and numeric editing
  * Click to edit, Enter/blur to save, Escape to cancel
  */
-export function InlineQuantityEditor({
+export function InlineEditor({
   value,
   onSave,
   disabled = false,
   className,
   minValue = 0,
-}: InlineQuantityEditorProps) {
+  isText = false,
+  maxLength,
+}: InlineEditorProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editValue, setEditValue] = React.useState(value.toString());
   const [isSaving, setIsSaving] = React.useState(false);
@@ -57,18 +62,38 @@ export function InlineQuantityEditor({
   const handleSave = async () => {
     if (isSaving) return;
 
-    const newValue = parseInt(editValue, 10);
+    let newValue: string | number;
 
-    // Validate input
-    if (isNaN(newValue) || newValue < minValue) {
-      handleCancel();
-      return;
-    }
+    if (isText) {
+      newValue = editValue.trim();
+      
+      // Validate text input
+      if (!newValue) {
+        handleCancel();
+        return;
+      }
 
-    // Check if value actually changed
-    if (newValue === value) {
-      setIsEditing(false);
-      return;
+      // Check if value actually changed
+      if (newValue === value.toString()) {
+        setIsEditing(false);
+        return;
+      }
+    } else {
+      const numericValue = parseInt(editValue, 10);
+
+      // Validate numeric input
+      if (isNaN(numericValue) || numericValue < minValue) {
+        handleCancel();
+        return;
+      }
+
+      // Check if value actually changed
+      if (numericValue === value) {
+        setIsEditing(false);
+        return;
+      }
+
+      newValue = numericValue;
     }
 
     setIsSaving(true);
@@ -76,7 +101,7 @@ export function InlineQuantityEditor({
       await onSave(newValue);
       setIsEditing(false);
     } catch (error) {
-      console.error("Error saving quantity:", error);
+      console.error("Error saving value:", error);
       handleCancel();
     } finally {
       setIsSaving(false);
@@ -104,9 +129,17 @@ export function InlineQuantityEditor({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    // Allow empty string for easier editing
-    if (inputValue === "" || /^\d+$/.test(inputValue)) {
-      setEditValue(inputValue);
+    
+    if (isText) {
+      // For text, allow any characters but respect maxLength
+      if (!maxLength || inputValue.length <= maxLength) {
+        setEditValue(inputValue);
+      }
+    } else {
+      // For numbers, only allow digits and empty string
+      if (inputValue === "" || /^\d+$/.test(inputValue)) {
+        setEditValue(inputValue);
+      }
     }
   };
 
@@ -120,12 +153,15 @@ export function InlineQuantityEditor({
         onBlur={handleBlur}
         disabled={isSaving}
         className={cn(
-          "h-4 w-8 text-center text-xs font-semibold border-primary/50 focus:border-primary p-0",
+          isText 
+            ? "h-6 w-16 text-center text-xs font-semibold border-primary/50 focus:border-primary px-1"
+            : "h-4 w-8 text-center text-xs font-semibold border-primary/50 focus:border-primary p-0",
           isSaving && "opacity-50",
           className
         )}
         type="text"
-        inputMode="numeric"
+        inputMode={isText ? "text" : "numeric"}
+        maxLength={maxLength}
       />
     );
   }
@@ -140,7 +176,7 @@ export function InlineQuantityEditor({
         isSaving && "opacity-50",
         className
       )}
-      title="Click to edit quantity"
+      title={`Click to edit ${isText ? 'text' : 'quantity'}`}
     >
       {value}
     </span>

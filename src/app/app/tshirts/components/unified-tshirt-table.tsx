@@ -1,14 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+// Using native HTML table elements for better column alignment control
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, Shirt } from "lucide-react";
 
 import { useUnifiedTShirtData } from "../hooks/use-unified-tshirt-data";
 import { InventoryBadge } from "./common/inventory-badge";
 import { InlineQuantityEditor } from "./common/inline-quantity-editor";
+import {
+  DataTable,
+  DataTableHeader,
+  DataTableBody,
+  DataTableRow,
+  DataTableHead,
+  DataTableCell,
+  DataTableColGroup,
+  DataTableCol
+} from "@/components/ui/data-table";
 import type { Volunteer } from "../types";
 
 interface UnifiedTShirtTableProps {
@@ -30,7 +39,6 @@ export function UnifiedTShirtTable({
   currentVolunteerId,
   currentProfileId,
 }: UnifiedTShirtTableProps) {
-  const router = useRouter();
   const {
     displaySizes,
     loading,
@@ -48,10 +56,6 @@ export function UnifiedTShirtTable({
     isAdmin,
     currentVolunteerId,
   });
-
-  const handleInventoryClick = () => {
-    router.push('/app/inventory');
-  };
 
   const getCount = (volunteerId: string, sizeCode: string): number => {
     return isAdmin ? getIssuanceCount(volunteerId, sizeCode) : getPreferenceCount(volunteerId, sizeCode);
@@ -105,127 +109,144 @@ export function UnifiedTShirtTable({
   }
 
   return (
-    <div className="rounded-md border">
-      <Table className="border-collapse">
-        <TableHeader>
-          <TableRow className="bg-muted/50">
-            <TableHead className="w-[180px] font-semibold">Volunteer</TableHead>
-            <TableHead className="w-[60px] font-semibold text-center">Max</TableHead>
-            {isAdmin && (
-              <TableHead className="w-[120px] font-semibold text-center">Preferences</TableHead>
-            )}
-            <TableHead colSpan={displaySizes.length} className="text-center font-semibold bg-accent/10 border-b border-accent/20">
-              {isAdmin ? "Issued" : "Preferences"}
-            </TableHead>
-          </TableRow>
-          <TableRow className="bg-muted/50">
-            <TableHead className="w-[180px] font-semibold"></TableHead>
-            <TableHead className="w-[60px] font-semibold text-center"></TableHead>
-            {isAdmin && (
-              <TableHead className="w-[120px] font-semibold text-center"></TableHead>
-            )}
-            {displaySizes.map((size) => (
-              <TableHead key={size.size_cd} className="text-center font-semibold">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm">{size.size_cd}</span>
-                  {isAdmin && (
-                    <InventoryBadge
-                      count={size.quantity_on_hand}
-                      initialQuantity={size.quantity}
-                      isClickable={isAdmin}
-                      onClick={handleInventoryClick}
-                    />
-                  )}
-                </div>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {volunteers.map((volunteer) => {
-            const isSaving = saving[volunteer.id];
+    <DataTable>
+      <DataTableColGroup>
+        <DataTableCol width="160px" />
+        <DataTableCol width="50px" />
+        {isAdmin && <DataTableCol width="80px" />}
+        {displaySizes.map((size) => (
+          <DataTableCol key={size.size_cd} width="60px" />
+        ))}
+      </DataTableColGroup>
 
-            return (
-              <TableRow key={volunteer.id} className="hover:bg-muted/30">
-                <TableCell className="font-medium">
-                  <div className="flex flex-col">
-                    <span className={volunteer.id === currentVolunteerId ? "font-bold text-primary" : ""}>
-                      {volunteer.first_name} {volunteer.last_name}
-                    </span>
-                    <span className="text-xs text-muted-foreground mt-1">
-                      {volunteer.email}
-                    </span>
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-center border-b">
-                  {volunteer.requested_tshirt_quantity || 0}
-                </TableCell>
-
+      <DataTableHeader>
+        <DataTableRow hover={false}>
+          {/* Merged header cells for Volunteer, Max, Prefs */}
+          <DataTableHead rowSpan={2} align="left" className="px-3">
+            Volunteer
+          </DataTableHead>
+          <DataTableHead rowSpan={2} align="center">
+            Max
+          </DataTableHead>
+          {isAdmin && (
+            <DataTableHead rowSpan={2} align="center">
+              Prefs
+            </DataTableHead>
+          )}
+          {/* Reduced height for Issued/Preferences header */}
+          <DataTableHead
+            colSpan={displaySizes.length}
+            align="center"
+            border={false}
+            className="bg-accent/10 border-b border-accent/20 py-0 h-4"
+          >
+            <span className="text-xs">{isAdmin ? "Issued" : "Preferences"}</span>
+          </DataTableHead>
+        </DataTableRow>
+        <DataTableRow hover={false}>
+          {/* Size columns with inventory badges */}
+          {displaySizes.map((size) => (
+            <DataTableHead key={size.size_cd} align="center" border={false} className="py-0 px-1">
+              <div className="flex flex-col items-center gap-0">
+                <span className="text-xs font-medium">{size.size_cd}</span>
                 {isAdmin && (
-                  <TableCell className="text-center border-b">
-                    <span className="text-xs text-muted-foreground">
-                      {getPreferencesDisplay(volunteer.id)}
-                    </span>
-                  </TableCell>
+                  <InventoryBadge
+                    count={size.quantity_on_hand}
+                    initialQuantity={size.quantity}
+                    isClickable={false}
+                    className="text-xs"
+                  />
                 )}
+              </div>
+            </DataTableHead>
+          ))}
+        </DataTableRow>
+      </DataTableHeader>
 
-                {displaySizes.map((size) => {
-                  const count = getCount(volunteer.id, size.size_cd);
-                  const showControls = count > 0;
+      <DataTableBody>
+        {volunteers.map((volunteer) => {
+          const isSaving = saving[volunteer.id];
 
-                  return (
-                    <TableCell key={size.size_cd} className="text-center border-b p-2">
-                      {showControls ? (
-                        <div className="flex items-center justify-center gap-1 bg-muted/30 rounded-md px-1 py-0.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 text-destructive hover:text-destructive hover:bg-destructive/20 rounded-sm"
-                            disabled={isSaving || count === 0}
-                            onClick={() => handleRemove(volunteer.id, size.size_cd)}
-                            title="Remove one"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
+          return (
+            <DataTableRow key={volunteer.id}>
+              <DataTableCell className="font-medium px-3">
+                <div className="flex flex-col">
+                  <span className={volunteer.id === currentVolunteerId ? "font-bold text-primary text-sm" : "text-sm"}>
+                    {volunteer.first_name} {volunteer.last_name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {volunteer.email}
+                  </span>
+                </div>
+              </DataTableCell>
 
-                          <InlineQuantityEditor
-                            value={count}
-                            onSave={(newValue) => handleQuantityChange(volunteer.id, size.size_cd, newValue)}
-                            disabled={isSaving}
-                          />
+              <DataTableCell align="center" className="text-sm font-medium">
+                {volunteer.requested_tshirt_quantity || 0}
+              </DataTableCell>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 text-primary hover:text-primary hover:bg-primary/20 rounded-sm"
-                            disabled={isSaving}
-                            onClick={() => handleAdd(volunteer.id, size.size_cd)}
-                            title="Add one"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
+              {isAdmin && (
+                <DataTableCell align="center">
+                  <span className="text-xs text-muted-foreground">
+                    {getPreferencesDisplay(volunteer.id)}
+                  </span>
+                </DataTableCell>
+              )}
+
+              {displaySizes.map((size) => {
+                const count = getCount(volunteer.id, size.size_cd);
+                const showControls = count > 0;
+
+                return (
+                  <DataTableCell key={size.size_cd} align="center" border={false} className="py-1 px-1">
+                    {showControls ? (
+                      <div className="flex items-center justify-center gap-0.5 bg-muted/30 rounded px-1 py-0.5 min-w-[50px]">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 hover:bg-accent/20 text-muted-foreground hover:text-primary transition-colors"
+                          className="h-4 w-4 p-0 text-destructive hover:text-destructive hover:bg-destructive/20 rounded-sm"
+                          disabled={isSaving || count === 0}
+                          onClick={() => handleRemove(volunteer.id, size.size_cd)}
+                          title="Remove one"
+                        >
+                          <Minus className="h-2.5 w-2.5" />
+                        </Button>
+
+                        <InlineQuantityEditor
+                          value={count}
+                          onSave={(newValue) => handleQuantityChange(volunteer.id, size.size_cd, newValue)}
+                          disabled={isSaving}
+                        />
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 text-primary hover:text-primary hover:bg-primary/20 rounded-sm"
                           disabled={isSaving}
                           onClick={() => handleAdd(volunteer.id, size.size_cd)}
-                          title={`Add ${size.size_cd} T-shirt ${isAdmin ? 'issuance' : 'preference'}`}
+                          title="Add one"
                         >
-                          <Shirt className="h-4 w-4" />
+                          <Plus className="h-2.5 w-2.5" />
                         </Button>
-                      )}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-accent/20 text-muted-foreground hover:text-primary transition-colors"
+                        disabled={isSaving}
+                        onClick={() => handleAdd(volunteer.id, size.size_cd)}
+                        title={`Add ${size.size_cd} T-shirt ${isAdmin ? 'issuance' : 'preference'}`}
+                      >
+                        <Shirt className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </DataTableCell>
+                );
+              })}
+            </DataTableRow>
+          );
+        })}
+      </DataTableBody>
+    </DataTable>
   );
 }

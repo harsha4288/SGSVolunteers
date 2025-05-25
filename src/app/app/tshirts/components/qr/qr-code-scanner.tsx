@@ -323,88 +323,69 @@ export function QRCodeScanner({
         )}
 
         {scanning ? (
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground text-center mb-2">
-              Point your camera at a QR code to scan
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground text-center">
+              Point camera at QR code
             </div>
             <div id="qr-reader" ref={scannerContainerRef} className="w-full"></div>
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full h-7 text-xs"
               onClick={stopScanner}
             >
-              <X className="mr-2 h-4 w-4" />
-              Cancel Scanning
+              <X className="mr-1 h-3 w-3" />
+              Cancel
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-
+          <div className="space-y-2">
             {/* Camera permission flow */}
             {permissionGranted === null && (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-7 text-xs"
                 onClick={requestCameraPermission}
                 disabled={!!error}
               >
-                <QrCode className="mr-2 h-4 w-4" />
-                Enable Camera for QR Scanning
+                <QrCode className="mr-1 h-3 w-3" />
+                Enable Camera
               </Button>
             )}
 
             {permissionGranted === true && (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-7 text-xs"
                 onClick={() => {
                   console.log("QR Scanner button clicked - onClick handler triggered");
                   startScanner();
                 }}
                 disabled={!!error}
               >
-                <QrCode className="mr-2 h-4 w-4" />
-                Start QR Scanner
+                <QrCode className="mr-1 h-3 w-3" />
+                Start Scanner
               </Button>
             )}
 
             {permissionGranted === false && (
-              <div className="space-y-3">
+              <div className="space-y-1">
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full h-7 text-xs"
                   onClick={requestCameraPermission}
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Try Camera Access Again
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Try Again
                 </Button>
-
-                {/* Troubleshooting guide */}
-                <div className="text-xs text-muted-foreground space-y-2">
-                  <div className="font-medium">Troubleshooting Camera Access:</div>
-                  <div className="space-y-1">
-                    <div>• Check if other apps are using the camera</div>
-                    <div>• Restart your browser</div>
-                    <div>• Check system camera permissions:</div>
-                    <div className="ml-4">
-                      - Windows: Settings → Privacy → Camera
-                    </div>
-                    <div className="ml-4">
-                      - Mac: System Preferences → Security & Privacy → Camera
-                    </div>
-                    <div className="ml-4">
-                      - iPhone: Settings → Privacy → Camera
-                    </div>
-                  </div>
+                <div className="text-xs text-muted-foreground">
+                  Check camera permissions in browser settings
                 </div>
               </div>
             )}
 
-
-
             {permissionGranted === null && (
               <div className="text-xs text-muted-foreground text-center">
-                Click above to request camera access for QR scanning
+                Camera access required for scanning
               </div>
             )}
           </div>

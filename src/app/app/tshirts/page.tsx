@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, Shirt, Search, RefreshCw, QrCode, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AdminNav } from "@/components/layout/admin-nav";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TShirtTable } from "./components/tshirt-table";
 import { QRCodeDisplay } from "./components/qr/qr-code-display";
+import { InventoryManagement } from "./components/inventory-management";
+import { CompactInteractiveCard } from "@/components/ui/interactive-card";
 import { QRCodeScanner } from "./components/qr/qr-code-scanner";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
@@ -359,119 +361,129 @@ export default function TShirtsPage() {
     );
   }
 
-  // Admin navigation items
-  const adminNavItems = [
-    {
-      title: "T-Shirts",
-      href: "/app/tshirts",
-      icon: Shirt,
-    },
-    {
-      title: "Inventory",
-      href: "/app/inventory",
-      icon: Package,
-    },
-  ];
-
   return (
-    <div className="container mx-auto py-2 px-2 space-y-3">
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl font-semibold flex items-center">
-            <Shirt className="mr-2 h-5 w-5 text-accent" />
-            T-Shirt Management
-          </CardTitle>
-          <CardDescription>
-            {isAdmin
-              ? "Manage T-shirt preferences, inventory, and issuance."
-              : "Manage your T-shirt preferences and view allocation."}
-          </CardDescription>
-
-          {/* Admin Navigation */}
-          {isAdmin && (
-            <div className="mt-4">
-              <AdminNav items={adminNavItems} />
+    <div className="container mx-auto py-1 px-2 space-y-2">
+      {/* Header */}
+      <div className="bg-card rounded-lg border shadow-sm">
+        <div className="p-3 pb-2">
+          <div className="flex items-center gap-2">
+            <Shirt className="h-5 w-5 text-accent flex-shrink-0" />
+            <div>
+              <h1 className="text-lg font-semibold">T-Shirt Management</h1>
+              <p className="text-sm text-muted-foreground">
+                {isAdmin
+                  ? "Manage preferences, inventory, and issuance"
+                  : "Manage your preferences and view allocation"}
+              </p>
             </div>
-          )}
-        </CardHeader>
+          </div>
+        </div>
 
-        {/* QR Code and Search Section */}
-        <CardContent className="pt-0">
-          <div className="mb-3">
-            {/* For volunteers: Show QR code */}
-            {!isAdmin && volunteerData && (
-              <div className="max-w-sm mx-auto">
-                <QRCodeDisplay
-                  volunteerId={volunteerData.id}
-                  eventId={currentEventId}
-                  supabase={supabase}
-                />
-              </div>
-            )}
+      </div>
 
-            {/* For admins: Combined QR scanner and search */}
-            {isAdmin && (
-              <Card className="shadow-sm border border-accent/30">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
-                    {/* QR Scanner Section */}
-                    <div className="w-full lg:w-1/3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <QrCode className="h-4 w-4 text-accent" />
-                          <h3 className="text-base font-medium">QR Scanner</h3>
-                        </div>
-                        <QRCodeScanner onScan={handleQRScan} />
-                      </div>
+      {/* Tabs for Admin, Single Content for Volunteers */}
+      {isAdmin ? (
+        <Tabs defaultValue="tshirts" className="space-y-2">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="tshirts" className="flex items-center gap-2">
+              <Shirt className="h-4 w-4" />
+              T-Shirts
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Inventory
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tshirts" className="space-y-2">
+            {/* QR Scanner and Search Section */}
+            <CompactInteractiveCard className="p-2">
+              <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
+                {/* QR Scanner Section - Compact */}
+                <div className="w-full lg:w-1/3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <QrCode className="h-3.5 w-3.5 text-accent" />
+                      <h3 className="text-sm font-medium">QR Scanner</h3>
+                    </div>
+                    <QRCodeScanner onScan={handleQRScan} />
+                  </div>
+                </div>
+
+                {/* Search Section - Compact */}
+                <div className="w-full lg:w-2/3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Search className="h-3.5 w-3.5 text-accent" />
+                      <h3 className="text-sm font-medium">Search Volunteers</h3>
                     </div>
 
-                    {/* Search Section */}
-                    <div className="w-full lg:w-2/3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Search className="h-4 w-4 text-accent" />
-                          <h3 className="text-base font-medium">Search Volunteers</h3>
-                        </div>
+                    <div className="flex flex-col sm:flex-row gap-1.5">
+                      <Input
+                        placeholder="Search by name, email, or phone..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1 h-8 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && searchQuery.trim()) {
+                            handleSearch();
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() => handleSearch()}
+                        disabled={loading || !searchQuery.trim()}
+                        className="w-full sm:w-auto h-8 px-3"
+                        size="sm"
+                      >
+                        {loading ? (
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Search
+                      </Button>
+                    </div>
 
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Input
-                            placeholder="Search by name, email, or phone..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-1"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && searchQuery.trim()) {
-                                handleSearch();
-                              }
-                            }}
-                          />
-                          <Button
-                            onClick={() => handleSearch()}
-                            disabled={loading || !searchQuery.trim()}
-                            className="w-full sm:w-auto"
-                            size="sm"
-                          >
-                            {loading ? (
-                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Search className="h-4 w-4 mr-2" />
-                            )}
-                            Search
-                          </Button>
-                        </div>
-
-                        <div className="text-xs text-muted-foreground">
-                          Scan a QR code or search manually to find volunteers.
-                        </div>
-                      </div>
+                    <div className="text-xs text-muted-foreground">
+                      Scan QR code or search manually to find volunteers
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                </div>
+              </div>
+            </CompactInteractiveCard>
 
-          {/* T-Shirt Table */}
+            {/* T-Shirt Table */}
+            <TShirtTable
+              supabase={supabase}
+              isAdmin={isAdmin}
+              eventId={currentEventId}
+              tshirtSizes={tshirtSizes}
+              volunteer={volunteerData}
+              familyMembers={familyMembers}
+              searchResults={searchResults}
+              profileId={profileId}
+            />
+          </TabsContent>
+
+          <TabsContent value="inventory">
+            <InventoryManagement eventId={currentEventId} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-2">
+          {/* For volunteers: Show QR code */}
+          {volunteerData && (
+            <div className="max-w-sm mx-auto">
+              <QRCodeDisplay
+                volunteerId={volunteerData.id}
+                eventId={currentEventId}
+                supabase={supabase}
+              />
+            </div>
+          )}
+
+          {/* T-Shirt Table for Volunteers */}
           <TShirtTable
             supabase={supabase}
             isAdmin={isAdmin}
@@ -479,11 +491,11 @@ export default function TShirtsPage() {
             tshirtSizes={tshirtSizes}
             volunteer={volunteerData}
             familyMembers={familyMembers}
-            searchResults={isAdmin ? searchResults : []}
+            searchResults={[]}
             profileId={profileId}
           />
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }
