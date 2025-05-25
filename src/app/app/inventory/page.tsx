@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { TShirtInventory, TShirtSize } from "@/lib/types/supabase";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { simpleAdminCheck } from "../simple-admin-check";
 
 export const metadata: Metadata = {
   title: "T-shirt Inventory & Issuance",
@@ -42,6 +43,25 @@ async function getTShirtInventoryData() {
 
 
 export default async function InventoryPage() {
+  // Check if user has admin access
+  const { isAdmin, error: adminError } = await simpleAdminCheck();
+
+  // If user is not an admin, show access denied
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto py-10">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>
+            You do not have permission to access this page. This page is restricted to administrators only.
+            {adminError && ` Error: ${adminError}`}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   const { inventory, error } = await getTShirtInventoryData();
 
   return (

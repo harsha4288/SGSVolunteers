@@ -25,7 +25,8 @@ CREATE OR REPLACE FUNCTION manage_tshirt(
   p_size_cd VARCHAR(5),
   p_status TEXT, -- 'preferred' or 'issued'
   p_quantity INTEGER DEFAULT 1,
-  p_issued_by_profile_id UUID DEFAULT NULL
+  p_issued_by_profile_id UUID DEFAULT NULL,
+  p_allow_override BOOLEAN DEFAULT FALSE
 )
 RETURNS UUID AS $$
 DECLARE
@@ -33,10 +34,39 @@ DECLARE
   v_existing_id UUID;
   v_existing_quantity INTEGER;
   v_available INTEGER;
+  v_allocation INTEGER;
+  v_current_total INTEGER;
+  v_new_total INTEGER;
 BEGIN
   -- Validate status
   IF p_status NOT IN ('preferred', 'issued') THEN
     RAISE EXCEPTION 'Invalid status: %. Must be preferred or issued', p_status;
+  END IF;
+
+  -- Get volunteer's allocation limit
+  SELECT requested_tshirt_quantity INTO v_allocation
+  FROM volunteers
+  WHERE id = p_volunteer_id;
+
+  IF v_allocation IS NULL THEN
+    v_allocation := 1; -- Default allocation
+  END IF;
+
+  -- Calculate current total for this volunteer by status (preferences OR issuances, not combined)
+  SELECT COALESCE(SUM(quantity), 0) INTO v_current_total
+  FROM volunteer_tshirts
+  WHERE volunteer_id = p_volunteer_id
+    AND event_id = p_event_id
+    AND status = p_status;
+
+  -- Calculate what the new total would be for this status
+  v_new_total := v_current_total + p_quantity;
+
+  -- Check allocation limit (allow override for admins)
+  -- This validates preferences OR issuances separately against volunteer's allocation
+  IF v_new_total > v_allocation AND NOT p_allow_override THEN
+    RAISE EXCEPTION 'Allocation limit exceeded. Current % total: %, Limit: %, Attempting to add: %',
+      p_status, v_current_total, v_allocation, p_quantity;
   END IF;
 
   -- For issuances, check inventory availability
@@ -99,11 +129,12 @@ CREATE OR REPLACE FUNCTION add_tshirt_preference(
   p_volunteer_id UUID,
   p_event_id BIGINT,
   p_size_cd VARCHAR(5),
-  p_quantity INTEGER DEFAULT 1
+  p_quantity INTEGER DEFAULT 1,
+  p_allow_override BOOLEAN DEFAULT FALSE
 )
 RETURNS UUID AS $$
 BEGIN
-  RETURN manage_tshirt(p_volunteer_id, p_event_id, p_size_cd, 'preferred', p_quantity);
+  RETURN manage_tshirt(p_volunteer_id, p_event_id, p_size_cd, 'preferred', p_quantity, NULL, p_allow_override);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,11 +144,12 @@ CREATE OR REPLACE FUNCTION issue_tshirt(
   p_event_id BIGINT,
   p_size_cd VARCHAR(5),
   p_issued_by_profile_id UUID,
-  p_quantity INTEGER DEFAULT 1
+  p_quantity INTEGER DEFAULT 1,
+  p_allow_override BOOLEAN DEFAULT FALSE
 )
 RETURNS UUID AS $$
 BEGIN
-  RETURN manage_tshirt(p_volunteer_id, p_event_id, p_size_cd, 'issued', p_quantity, p_issued_by_profile_id);
+  RETURN manage_tshirt(p_volunteer_id, p_event_id, p_size_cd, 'issued', p_quantity, p_issued_by_profile_id, p_allow_override);
 END;
 $$ LANGUAGE plpgsql;
 

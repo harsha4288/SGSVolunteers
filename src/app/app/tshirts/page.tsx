@@ -7,7 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Shirt, Search, RefreshCw } from "lucide-react";
+import { AlertCircle, Shirt, Search, RefreshCw, QrCode, Package } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { AdminNav } from "@/components/layout/admin-nav";
 import { TShirtTable } from "./components/tshirt-table";
 import { QRCodeDisplay } from "./components/qr/qr-code-display";
 import { QRCodeScanner } from "./components/qr/qr-code-scanner";
@@ -31,6 +33,9 @@ export default function TShirtsPage() {
   const [tshirtSizes, setTshirtSizes] = React.useState<TShirtSize[]>([]);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [searchResults, setSearchResults] = React.useState<Volunteer[]>([]);
+
+  // Toast hook for notifications
+  const { toast } = useToast();
 
   React.useEffect(() => {
     const supabaseInstance = createClient();
@@ -67,22 +72,51 @@ export default function TShirtsPage() {
   }, [supabase, currentEventId]);
 
   // Handle search for admin role
-  const handleSearch = async () => {
-    if (!isAdmin || !supabase || !searchQuery.trim()) return;
+  const handleSearch = async (queryOverride?: string) => {
+    const searchTerm = queryOverride || searchQuery;
+
+    if (!isAdmin || !supabase || !searchTerm.trim()) {
+      if (!searchTerm.trim()) {
+        toast({
+          title: "Search Required",
+          description: "Please enter a search term.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
 
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('volunteers')
         .select('*')
-        .or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
         .order('last_name', { ascending: true });
 
       if (error) throw error;
+
       setSearchResults(data || []);
+
+      // Show success notification
+      const searchToast = toast({
+        title: "Search Complete",
+        description: `Found ${data?.length || 0} volunteer(s) matching "${searchTerm}".`,
+      });
+
+      // Auto-dismiss the search toast after 3 seconds
+      setTimeout(() => {
+        searchToast.dismiss();
+      }, 3000);
     } catch (err) {
       console.error("Error searching volunteers:", err);
-      setError("Failed to search volunteers");
+      const errorMessage = err instanceof Error ? err.message : "Failed to search volunteers";
+      setError(errorMessage);
+      toast({
+        title: "Search Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -96,10 +130,30 @@ export default function TShirtsPage() {
       if (parts.length >= 1) {
         const email = parts[0];
         setSearchQuery(email);
-        handleSearch();
+
+        // Show success notification for QR scan
+        const scanToast = toast({
+          title: "QR Code Scanned",
+          description: `Searching for volunteer with email: ${email}`,
+        });
+
+        // Auto-dismiss the scan toast after 2 seconds to avoid stacking
+        setTimeout(() => {
+          scanToast.dismiss();
+        }, 2000);
+
+        // Trigger search automatically with the scanned email
+        handleSearch(email);
+      } else {
+        throw new Error("Invalid QR code format");
       }
     } catch (error) {
       console.error("Error processing QR code:", error);
+      toast({
+        title: "QR Code Error",
+        description: "Invalid QR code format. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -157,17 +211,18 @@ export default function TShirtsPage() {
           .select('role_id')
           .eq('profile_id', currentProfileId);
 
+        let isUserAdmin = false;
         if (rolesError) {
           console.error("Error fetching user roles:", rolesError);
         } else {
           // Admin role has ID 1
-          const isUserAdmin = userRoles?.some(role => role.role_id === 1) || false;
+          isUserAdmin = userRoles?.some(role => role.role_id === 1) || false;
           console.log("Is user admin:", isUserAdmin, "User roles:", userRoles);
-          setIsAdmin(isUserAdmin);
         }
+        setIsAdmin(isUserAdmin);
 
         // For admin users, we don't need to fetch volunteer data immediately
-        if (isAdmin) {
+        if (isUserAdmin) {
           // Just set empty data for admin users
           setVolunteerData(null);
           setFamilyMembers([]);
@@ -198,6 +253,11 @@ export default function TShirtsPage() {
               console.warn("No volunteers found with email:", impersonatedEmail);
               setVolunteerData(null);
               setFamilyMembers([]);
+              toast({
+                title: "No Volunteer Record",
+                description: "No volunteer record found for this email. Please contact an administrator.",
+                variant: "destructive",
+              });
             } else {
               console.log(`Found ${volunteers.length} volunteers with email: ${impersonatedEmail}`);
 
@@ -212,6 +272,12 @@ export default function TShirtsPage() {
                 const family = volunteers.filter(v => v.id !== currentVolunteer.id);
                 setFamilyMembers(family);
                 console.log("Family members:", family.length);
+
+                // Show success notification
+                toast({
+                  title: "Volunteer Data Loaded",
+                  description: `Welcome ${currentVolunteer.first_name}! ${family.length > 0 ? `Found ${family.length} family member(s).` : ''}`,
+                });
               } else {
                 // If no volunteer matches the profile ID, use the first one as the primary
                 console.log("No volunteer matches profile ID, using first volunteer:", volunteers[0]);
@@ -221,6 +287,12 @@ export default function TShirtsPage() {
                 const family = volunteers.slice(1);
                 setFamilyMembers(family);
                 console.log("Family members:", family.length);
+
+                // Show notification about fallback
+                toast({
+                  title: "Volunteer Data Loaded",
+                  description: `Using ${volunteers[0].first_name} as primary volunteer. ${family.length > 0 ? `Found ${family.length} family member(s).` : ''}`,
+                });
               }
             }
           } catch (error) {
@@ -287,10 +359,24 @@ export default function TShirtsPage() {
     );
   }
 
+  // Admin navigation items
+  const adminNavItems = [
+    {
+      title: "T-Shirts",
+      href: "/app/tshirts",
+      icon: Shirt,
+    },
+    {
+      title: "Inventory",
+      href: "/app/inventory",
+      icon: Package,
+    },
+  ];
+
   return (
-    <div className="container mx-auto py-4 px-2 space-y-4">
+    <div className="container mx-auto py-2 px-2 space-y-3">
       <Card className="shadow-sm">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <CardTitle className="text-xl font-semibold flex items-center">
             <Shirt className="mr-2 h-5 w-5 text-accent" />
             T-Shirt Management
@@ -300,14 +386,21 @@ export default function TShirtsPage() {
               ? "Manage T-shirt preferences, inventory, and issuance."
               : "Manage your T-shirt preferences and view allocation."}
           </CardDescription>
+
+          {/* Admin Navigation */}
+          {isAdmin && (
+            <div className="mt-4">
+              <AdminNav items={adminNavItems} />
+            </div>
+          )}
         </CardHeader>
 
-        {/* QR Code Section */}
+        {/* QR Code and Search Section */}
         <CardContent className="pt-0">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="mb-3">
             {/* For volunteers: Show QR code */}
             {!isAdmin && volunteerData && (
-              <div className="w-full md:w-1/3">
+              <div className="max-w-sm mx-auto">
                 <QRCodeDisplay
                   volunteerId={volunteerData.id}
                   eventId={currentEventId}
@@ -316,63 +409,65 @@ export default function TShirtsPage() {
               </div>
             )}
 
-            {/* For admins: Show QR scanner and search */}
+            {/* For admins: Combined QR scanner and search */}
             {isAdmin && (
-              <div className="w-full">
-                <div className="flex flex-col space-y-4">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="w-full md:w-1/3">
-                      <QRCodeScanner
-                        onScan={handleQRScan}
-                        onSearch={handleSearch}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                      />
+              <Card className="shadow-sm border border-accent/30">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
+                    {/* QR Scanner Section */}
+                    <div className="w-full lg:w-1/3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <QrCode className="h-4 w-4 text-accent" />
+                          <h3 className="text-base font-medium">QR Scanner</h3>
+                        </div>
+                        <QRCodeScanner onScan={handleQRScan} />
+                      </div>
                     </div>
 
-                    <div className="w-full md:w-2/3">
-                      <Card className="shadow-sm border border-accent/30">
-                        <CardContent className="p-6 space-y-6">
-                          <div className="flex items-center gap-2 mb-4">
-                            <Search className="h-6 w-6 text-accent" />
-                            <h3 className="text-xl font-medium">Search Volunteers</h3>
-                          </div>
+                    {/* Search Section */}
+                    <div className="w-full lg:w-2/3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Search className="h-4 w-4 text-accent" />
+                          <h3 className="text-base font-medium">Search Volunteers</h3>
+                        </div>
 
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              placeholder="Search by name, email, or phone..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="flex-1"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && searchQuery.trim()) {
-                                  handleSearch();
-                                }
-                              }}
-                            />
-                            <Button
-                              onClick={handleSearch}
-                              disabled={loading || !searchQuery.trim()}
-                              className="whitespace-nowrap"
-                            >
-                              {loading ? (
-                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <Search className="h-4 w-4 mr-2" />
-                              )}
-                              Search
-                            </Button>
-                          </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            placeholder="Search by name, email, or phone..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && searchQuery.trim()) {
+                                handleSearch();
+                              }
+                            }}
+                          />
+                          <Button
+                            onClick={() => handleSearch()}
+                            disabled={loading || !searchQuery.trim()}
+                            className="w-full sm:w-auto"
+                            size="sm"
+                          >
+                            {loading ? (
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Search className="h-4 w-4 mr-2" />
+                            )}
+                            Search
+                          </Button>
+                        </div>
 
-                          <div className="text-sm text-muted-foreground">
-                            Note: Results will only be shown after clicking the search button.
-                          </div>
-                        </CardContent>
-                      </Card>
+                        <div className="text-xs text-muted-foreground">
+                          Scan a QR code or search manually to find volunteers.
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
           </div>
 

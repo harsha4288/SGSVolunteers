@@ -15,10 +15,10 @@ export function NoVolunteersAlert({ isAdmin }: NoVolunteersAlertProps) {
   return (
     <Alert className="mt-4">
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>No Volunteers Found</AlertTitle>
+      <AlertTitle>Ready to Manage T-Shirts</AlertTitle>
       <AlertDescription>
         {isAdmin
-          ? "Use the search box above to find volunteers."
+          ? "Use the QR scanner or search box above to find volunteers and manage their T-shirt preferences and issuances."
           : "No volunteer records found for your account."}
       </AlertDescription>
     </Alert>

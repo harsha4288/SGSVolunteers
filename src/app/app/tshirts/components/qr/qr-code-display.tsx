@@ -25,8 +25,12 @@ export function QRCodeDisplay({ volunteerId, eventId, supabase }: QRCodeDisplayP
   // Fetch volunteer data
   React.useEffect(() => {
     async function fetchVolunteerData() {
-      if (!volunteerId || !supabase) return;
+      if (!volunteerId || !supabase) {
+        console.log("QRCodeDisplay: Missing volunteerId or supabase", { volunteerId, supabase: !!supabase });
+        return;
+      }
 
+      console.log("QRCodeDisplay: Fetching volunteer data for ID:", volunteerId);
       setLoading(true);
       try {
         const { data, error } = await supabase
@@ -36,9 +40,10 @@ export function QRCodeDisplay({ volunteerId, eventId, supabase }: QRCodeDisplayP
           .single();
 
         if (error) throw error;
+        console.log("QRCodeDisplay: Volunteer data fetched successfully:", data);
         setVolunteerData(data);
       } catch (error) {
-        console.error("Error fetching volunteer data:", error);
+        console.error("QRCodeDisplay: Error fetching volunteer data:", error);
       } finally {
         setLoading(false);
       }
@@ -49,10 +54,15 @@ export function QRCodeDisplay({ volunteerId, eventId, supabase }: QRCodeDisplayP
 
   // Generate QR code data
   const qrData = React.useMemo(() => {
-    if (!volunteerData) return "";
+    if (!volunteerData) {
+      console.log("QRCodeDisplay: No volunteer data available for QR generation");
+      return "";
+    }
 
     // Format: email|volunteer_id
-    return `${volunteerData.email}|${volunteerData.id}`;
+    const qrString = `${volunteerData.email}|${volunteerData.id}`;
+    console.log("QRCodeDisplay: Generated QR data:", qrString);
+    return qrString;
   }, [volunteerData]);
 
   // Download QR code as PNG

@@ -2,12 +2,10 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
-import type { ToastType } from "@/hooks/use-toast";
 
 interface UnifiedTShirtServiceProps {
   supabase: SupabaseClient<Database>;
   eventId: number;
-  isAdmin: boolean;
 }
 
 /**
@@ -17,7 +15,6 @@ interface UnifiedTShirtServiceProps {
 export function createUnifiedTShirtService({
   supabase,
   eventId,
-  isAdmin,
 }: UnifiedTShirtServiceProps) {
 
   /**
@@ -29,8 +26,9 @@ export function createUnifiedTShirtService({
     status: 'preferred' | 'issued',
     quantity: number = 1,
     issuedByProfileId?: string,
-    toast?: ToastType,
-    setSaving?: (volunteerId: string, isSaving: boolean) => void
+    toast?: any,
+    setSaving?: (volunteerId: string, isSaving: boolean) => void,
+    allowOverride: boolean = false
   ) => {
     if (!supabase) return null;
 
@@ -41,26 +39,31 @@ export function createUnifiedTShirtService({
       let data, error;
 
       if (status === 'preferred') {
-        ({ data, error } = await supabase.rpc('add_tshirt_preference', {
+        ({ data, error } = await (supabase as any).rpc('add_tshirt_preference', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: sizeCode,
           p_quantity: quantity,
+          p_allow_override: allowOverride,
         }));
       } else if (status === 'issued') {
-        ({ data, error } = await supabase.rpc('issue_tshirt', {
+        ({ data, error } = await (supabase as any).rpc('issue_tshirt', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: sizeCode,
           p_issued_by_profile_id: issuedByProfileId,
           p_quantity: quantity,
+          p_allow_override: allowOverride,
         }));
       } else {
         throw new Error(`Invalid status: ${status}`);
       }
 
       if (error) {
-        console.error(`Database error for ${status}:`, error);
+        // Improve error message for inventory issues
+        if (error.message?.includes('Not enough inventory')) {
+          throw new Error(`Insufficient inventory for size ${sizeCode}`);
+        }
         throw error;
       }
 
@@ -72,12 +75,18 @@ export function createUnifiedTShirtService({
 
       return data;
     } catch (error: any) {
-      console.error(`Error managing T-shirt ${status}:`, error);
-      toast?.({
-        title: "Error",
-        description: `Failed to add ${status === 'preferred' ? 'preference' : 'issuance'}: ${error.message}`,
-        variant: "destructive",
-      });
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error(`Error managing T-shirt ${status}:`, errorMessage);
+
+      // Don't show toast for allocation limit errors - let frontend handle them
+      if (!errorMessage.includes('Allocation limit exceeded')) {
+        toast?.({
+          title: "Error",
+          description: `Failed to add ${status === 'preferred' ? 'preference' : 'issuance'}: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
+
       throw error;
     } finally {
       setSaving?.(volunteerId, false);
@@ -92,7 +101,7 @@ export function createUnifiedTShirtService({
     sizeCode: string,
     status: 'preferred' | 'issued',
     quantity: number = 1,
-    toast?: ToastType,
+    toast?: any,
     setSaving?: (volunteerId: string, isSaving: boolean) => void
   ) => {
     if (!supabase) return false;
@@ -104,14 +113,14 @@ export function createUnifiedTShirtService({
       let data, error;
 
       if (status === 'preferred') {
-        ({ data, error } = await supabase.rpc('remove_tshirt_preference', {
+        ({ data, error } = await (supabase as any).rpc('remove_tshirt_preference', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: sizeCode,
           p_quantity: quantity,
         }));
       } else if (status === 'issued') {
-        ({ data, error } = await supabase.rpc('return_tshirt', {
+        ({ data, error } = await (supabase as any).rpc('return_tshirt', {
           p_volunteer_id: volunteerId,
           p_event_id: eventId,
           p_size_cd: sizeCode,
@@ -134,10 +143,11 @@ export function createUnifiedTShirtService({
 
       return data;
     } catch (error: any) {
-      console.error(`Error removing T-shirt ${status}:`, error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error(`Error removing T-shirt ${status}:`, errorMessage);
       toast?.({
         title: "Error",
-        description: `Failed to remove ${status === 'preferred' ? 'preference' : 'issuance'}: ${error.message}`,
+        description: `Failed to remove ${status === 'preferred' ? 'preference' : 'issuance'}: ${errorMessage}`,
         variant: "destructive",
       });
       throw error;
@@ -153,9 +163,10 @@ export function createUnifiedTShirtService({
     volunteerId: string,
     sizeCode: string,
     quantity: number = 1,
-    toast?: ToastType,
-    setSaving?: (volunteerId: string, isSaving: boolean) => void
-  ) => manageTShirt(volunteerId, sizeCode, 'preferred', quantity, undefined, toast, setSaving);
+    toast?: any,
+    setSaving?: (volunteerId: string, isSaving: boolean) => void,
+    allowOverride: boolean = false
+  ) => manageTShirt(volunteerId, sizeCode, 'preferred', quantity, undefined, toast, setSaving, allowOverride);
 
   /**
    * Convenience method for issuing T-shirts
@@ -165,9 +176,10 @@ export function createUnifiedTShirtService({
     sizeCode: string,
     issuedByProfileId: string,
     quantity: number = 1,
-    toast?: ToastType,
-    setSaving?: (volunteerId: string, isSaving: boolean) => void
-  ) => manageTShirt(volunteerId, sizeCode, 'issued', quantity, issuedByProfileId, toast, setSaving);
+    toast?: any,
+    setSaving?: (volunteerId: string, isSaving: boolean) => void,
+    allowOverride: boolean = false
+  ) => manageTShirt(volunteerId, sizeCode, 'issued', quantity, issuedByProfileId, toast, setSaving, allowOverride);
 
   /**
    * Convenience method for removing preferences
@@ -176,7 +188,7 @@ export function createUnifiedTShirtService({
     volunteerId: string,
     sizeCode: string,
     quantity: number = 1,
-    toast?: ToastType,
+    toast?: any,
     setSaving?: (volunteerId: string, isSaving: boolean) => void
   ) => removeTShirt(volunteerId, sizeCode, 'preferred', quantity, toast, setSaving);
 
@@ -187,7 +199,7 @@ export function createUnifiedTShirtService({
     volunteerId: string,
     sizeCode: string,
     quantity: number = 1,
-    toast?: ToastType,
+    toast?: any,
     setSaving?: (volunteerId: string, isSaving: boolean) => void
   ) => removeTShirt(volunteerId, sizeCode, 'issued', quantity, toast, setSaving);
 

@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/supabase";
-import { WorkingTShirtTable } from "./working-tshirt-table";
+import { UnifiedTShirtTable } from "./unified-tshirt-table";
 import { NoVolunteersAlert } from "./common/no-volunteers-alert";
 import type { Volunteer, TShirtSize } from "../types";
 
@@ -23,10 +23,10 @@ interface TShirtTableProps {
  * Now uses the unified approach for simplified code
  */
 export function TShirtTable({
-  supabase,
+  supabase: _supabase, // Unused but kept for interface compatibility
   isAdmin,
   eventId,
-  tshirtSizes,
+  tshirtSizes: _tshirtSizes, // Unused but kept for interface compatibility
   volunteer,
   familyMembers,
   searchResults,
@@ -49,8 +49,7 @@ export function TShirtTable({
   }
 
   return (
-    <WorkingTShirtTable
-      supabase={supabase}
+    <UnifiedTShirtTable
       eventId={eventId}
       volunteers={volunteersToDisplay}
       isAdmin={isAdmin}

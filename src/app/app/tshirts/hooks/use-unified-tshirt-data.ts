@@ -46,7 +46,7 @@ export function useUnifiedTShirtData({
   const { toast } = useToast();
   const [supabase] = React.useState(() => createClient());
   const [tshirtService] = React.useState(() =>
-    createUnifiedTShirtService({ supabase, eventId, isAdmin })
+    createUnifiedTShirtService({ supabase, eventId })
   );
 
   // Load initial data
@@ -103,6 +103,16 @@ export function useUnifiedTShirtData({
     }));
   };
 
+  // Refresh inventory only (lighter than full refresh)
+  const refreshInventory = async () => {
+    try {
+      const sizes = await tshirtService.fetchTShirtSizes();
+      setState(prev => ({ ...prev, sizes }));
+    } catch (error) {
+      console.error("Error refreshing inventory:", error);
+    }
+  };
+
   const refreshData = async () => {
     const volunteerIds = state.volunteers.map(v => v.id);
     const { preferences, issuances } = await tshirtService.fetchTShirtData(volunteerIds);
@@ -110,9 +120,9 @@ export function useUnifiedTShirtData({
   };
 
   // Action handlers
-  const handleAddPreference = async (volunteerId: string, sizeCode: string, quantity: number = 1) => {
+  const handleAddPreference = async (volunteerId: string, sizeCode: string, quantity: number = 1, allowOverride: boolean = false) => {
     try {
-      await tshirtService.addPreference(volunteerId, sizeCode, quantity, toast, setSaving);
+      await tshirtService.addPreference(volunteerId, sizeCode, quantity, toast, setSaving, allowOverride);
       await refreshData();
     } catch (error) {
       // Error already handled in service
@@ -132,11 +142,13 @@ export function useUnifiedTShirtData({
     volunteerId: string,
     sizeCode: string,
     issuedByProfileId: string,
-    quantity: number = 1
+    quantity: number = 1,
+    allowOverride: boolean = false
   ) => {
     try {
-      await tshirtService.issueTShirt(volunteerId, sizeCode, issuedByProfileId, quantity, toast, setSaving);
-      await refreshData();
+      await tshirtService.issueTShirt(volunteerId, sizeCode, issuedByProfileId, quantity, toast, setSaving, allowOverride);
+      // Refresh both data and inventory since issuances affect inventory counts
+      await Promise.all([refreshData(), refreshInventory()]);
     } catch (error) {
       // Error already handled in service
     }
@@ -145,9 +157,62 @@ export function useUnifiedTShirtData({
   const handleReturnTShirt = async (volunteerId: string, sizeCode: string, quantity: number = 1) => {
     try {
       await tshirtService.returnTShirt(volunteerId, sizeCode, quantity, toast, setSaving);
-      await refreshData();
+      // Refresh both data and inventory since returns affect inventory counts
+      await Promise.all([refreshData(), refreshInventory()]);
     } catch (error) {
       // Error already handled in service
+    }
+  };
+
+  const handleSetQuantity = async (
+    volunteerId: string,
+    sizeCode: string,
+    newQuantity: number,
+    issuedByProfileId?: string,
+    allowOverride: boolean = false
+  ) => {
+    const currentQuantity = isAdmin ? getIssuanceCount(volunteerId, sizeCode) : getPreferenceCount(volunteerId, sizeCode);
+
+    if (newQuantity === currentQuantity) {
+      return; // No change needed
+    }
+
+    setSaving(volunteerId, true);
+
+    try {
+      if (newQuantity === 0) {
+        // Remove all quantities
+        const removeQuantity = currentQuantity;
+        if (isAdmin) {
+          await tshirtService.returnTShirt(volunteerId, sizeCode, removeQuantity, toast, setSaving);
+        } else {
+          await tshirtService.removePreference(volunteerId, sizeCode, removeQuantity, toast, setSaving);
+        }
+      } else if (newQuantity > currentQuantity) {
+        // Add the difference
+        const addQuantity = newQuantity - currentQuantity;
+        if (isAdmin && issuedByProfileId) {
+          await tshirtService.issueTShirt(volunteerId, sizeCode, issuedByProfileId, addQuantity, toast, setSaving, allowOverride);
+        } else {
+          await tshirtService.addPreference(volunteerId, sizeCode, addQuantity, toast, setSaving, allowOverride);
+        }
+      } else {
+        // Remove the difference
+        const removeQuantity = currentQuantity - newQuantity;
+        if (isAdmin) {
+          await tshirtService.returnTShirt(volunteerId, sizeCode, removeQuantity, toast, setSaving);
+        } else {
+          await tshirtService.removePreference(volunteerId, sizeCode, removeQuantity, toast, setSaving);
+        }
+      }
+
+      // Refresh data and inventory
+      await Promise.all([refreshData(), refreshInventory()]);
+    } catch (error) {
+      console.error("Error setting quantity:", error);
+      // Error already handled in service
+    } finally {
+      setSaving(volunteerId, false);
     }
   };
 
@@ -193,7 +258,9 @@ export function useUnifiedTShirtData({
     handleRemovePreference,
     handleIssueTShirt,
     handleReturnTShirt,
+    handleSetQuantity,
     refreshData,
+    refreshInventory,
 
     // Computed values
     getPreferenceCount,
