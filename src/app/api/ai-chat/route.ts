@@ -105,25 +105,62 @@ export async function POST(req: NextRequest) {
           }
 
         } else { // General volunteer stats without specific seva
-          if (parsedResult.isGMFamily !== undefined) {
-            query = query.eq('gm_family', parsedResult.isGMFamily);
-          }
-          if (parsedResult.studentBatch) {
-            query = query.eq('student_batch', parsedResult.studentBatch);
-          }
+          // Check if this is a request for volunteer count by seva category
+          const isSevaBreakdownRequest = parsedResult.countOnly &&
+            !parsedResult.isGMFamily &&
+            !parsedResult.studentBatch;
 
-          if (parsedResult.countOnly) {
-            const { count, error } = await query;
-            if (error) throw error;
-            data = `There are ${count} volunteers matching your criteria.`;
-          } else {
-            const { data: volunteerData, error } = await query.limit(10); // Limit results for lists
-            if (error) throw error;
-            if (volunteerData && volunteerData.length > 0) {
-              const names = volunteerData.map(v => `${v.first_name} ${v.last_name}`).join(', ');
-              data = `Some volunteers matching: ${names}. (List limited to 10)`;
+          if (isSevaBreakdownRequest) {
+            // Get volunteer count by seva category
+            const { data: sevaData, error: sevaError } = await supabase
+              .from('volunteer_commitments')
+              .select(`
+                seva_category_id,
+                seva_categories!inner(category_name)
+              `);
+
+            if (sevaError) throw sevaError;
+
+            if (sevaData && sevaData.length > 0) {
+              // Count volunteers by seva category
+              const sevaCounts: { [key: string]: number } = {};
+              sevaData.forEach((commitment: any) => {
+                const sevaName = commitment.seva_categories?.category_name;
+                if (sevaName) {
+                  sevaCounts[sevaName] = (sevaCounts[sevaName] || 0) + 1;
+                }
+              });
+
+              const sevaBreakdown = Object.entries(sevaCounts)
+                .map(([seva, count]) => `${seva}: ${count}`)
+                .join('\n');
+
+              data = `Volunteer count by seva category:\n${sevaBreakdown}`;
             } else {
-              data = "No volunteers found matching your criteria.";
+              data = "No volunteer commitments found.";
+            }
+          } else {
+            // Regular volunteer stats
+            if (parsedResult.isGMFamily !== undefined) {
+              query = query.eq('gm_family', parsedResult.isGMFamily);
+            }
+            if (parsedResult.studentBatch) {
+              query = query.eq('student_batch', parsedResult.studentBatch);
+            }
+
+            if (parsedResult.countOnly) {
+              const { count, error } = await query;
+              if (error) throw error;
+              data = `There are ${count} volunteers matching your criteria.`;
+            } else {
+              const { data: volunteerData, error } = await query.limit(10); // Limit results for lists
+              if (error) throw error;
+              if (volunteerData && volunteerData.length > 0) {
+                const names = volunteerData.map((v: any) => `${v.first_name} ${v.last_name}`).join(', ');
+                data = `Some volunteers matching: ${names}. (List limited to 10)`;
+              } else {
+                data = "No volunteers found matching your criteria.";
+              }
             }
           }
         }

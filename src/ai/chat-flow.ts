@@ -54,7 +54,7 @@ export const chatQueryParserFlow = ai.defineFlow(
       - quantity: If a specific quantity is mentioned.
 
       If the question is about volunteer statistics, identify:
-      - sevaCategory: The specific seva or team (e.g., Registration, Food Service, Logistics).
+      - sevaCategory: The specific seva or team (e.g., Registration, Food Service, Logistics). Only include this field if a specific seva category is mentioned. Do not include this field or set it to null if asking for general statistics by seva category.
       - isGMFamily: If the user is asking specifically about GM family members (true/false).
       - studentBatch: If a specific student batch is mentioned.
       - countOnly: Determine if the user wants a count (e.g., "how many") or a list (e.g., "who are"). Default to true (count) if unsure.
@@ -80,6 +80,12 @@ export const chatQueryParserFlow = ai.defineFlow(
 
       User: "How many volunteers are from the GM family?"
       Output: {"intent": "VOLUNTEER_STATS", "isGMFamily": true, "countOnly": true}
+
+      User: "Give me volunteer count by seva category"
+      Output: {"intent": "VOLUNTEER_STATS", "countOnly": true}
+
+      User: "How many volunteers are in Registration seva?"
+      Output: {"intent": "VOLUNTEER_STATS", "sevaCategory": "Registration", "countOnly": true}
 
       User: "Who checked in yesterday?"
       Output: {"intent": "CHECK_IN_STATS", "date": "yesterday", "countOnly": false}
