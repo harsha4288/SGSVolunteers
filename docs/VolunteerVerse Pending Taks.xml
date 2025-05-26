@@ -7,6 +7,7 @@
         <module>Authentication</module>
         <type>Task</type>
         <priority>Low</priority>
+        <status>In Progress</status>
         <description>Replace impersonation with email + OTP login. Store OTP in cookies for persistent login on the same device. Include a fallback to Google SSO if feasible. **Current Issue**: Impersonation is insecure. **Expected Behavior**: Secure login with email + OTP, persistent via cookies, optional Google SSO. **Context**: Foundational security feature, not urgent for demo.</description>
         <notes>Low priority as demo can proceed without it.</notes>
         <blocker_task_id>None</blocker_task_id>
@@ -23,6 +24,7 @@
         <module>Assignments</module>
         <type>Bug</type>
         <priority>High</priority>
+        <status>Completed</status>
         <description>Fix inconsistent availability display in admin screen search. **Current Issue**: Availability (e.g., 8th morning) flips on refresh. **Expected Behavior**: Availability reflects commitments consistently. **Context**: Likely due to linking assignments/check-ins to profile IDs instead of volunteer IDs.</description>
         <notes>Investigate profile ID vs. volunteer ID mismatch.</notes>
         <blocker_task_id>None</blocker_task_id>
@@ -33,12 +35,13 @@
         </important_guidelines>
     </task>
     <task>
-        <order>3</order> 
+        <order>3</order>
         <title>Fix Attendance Icons for Volunteer Role</title>
         <epic>Bug Fixes</epic>
         <module>Assignments</module>
         <type>Bug</type>
         <priority>Medium</priority>
+        <status>Completed</status>
         <description>Update Volunteer role to see green tick/red cross for past/current attendance instead of clock icons. **Current Issue**: Volunteers see clock icons post-attendance. **Expected Behavior**: Green tick (attended) or red cross (not attended) for past/current slots; keep clock logic (red past, orange current, gray future) for unlogged slots. **Context**: Admin/Team Lead display correctly.</description>
         <notes>Specific to Volunteer role UI.</notes>
         <blocker_task_id>None</blocker_task_id>

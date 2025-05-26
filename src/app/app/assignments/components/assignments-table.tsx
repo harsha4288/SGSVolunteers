@@ -100,11 +100,13 @@ export function AssignmentsTable({
       setFilteredAssignments(updatedAssignments);
 
       // Then update the database
+      // Check for existing check-in for this specific volunteer, event, and time slot
       const { data: existingCheckIns, error: checkError } = await supabase
         .from("volunteer_check_ins")
         .select("id")
         .eq("volunteer_id", assignment.volunteer_id)
-        .eq("event_id", Number(selectedEvent));
+        .eq("event_id", Number(selectedEvent))
+        .eq("time_slot_id", assignment.time_slot_id);
 
       if (checkError) throw new Error(checkError.message);
 
@@ -112,7 +114,8 @@ export function AssignmentsTable({
       const commonPayload = {
         recorded_by_profile_id: profileId,
         updated_at: now.toISOString(),
-        location: assignment.seva_category?.category_name || ""
+        location: assignment.seva_category?.category_name || "",
+        time_slot_id: assignment.time_slot_id // Include time slot ID for specific tracking
       };
 
       // Add status-specific properties
@@ -183,7 +186,8 @@ export function AssignmentsTable({
         .from("volunteer_check_ins")
         .delete()
         .eq("volunteer_id", assignment.volunteer_id)
-        .eq("event_id", Number(selectedEvent));
+        .eq("event_id", Number(selectedEvent))
+        .eq("time_slot_id", assignment.time_slot_id);
 
       if (deleteError) throw new Error(deleteError.message);
 

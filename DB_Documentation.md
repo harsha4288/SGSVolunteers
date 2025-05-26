@@ -189,22 +189,32 @@ _Indexes: `idx_commitments_volunteer_id(volunteer_id)`, `idx_commitments_time_sl
 
 ### 3.9. `public.volunteer_check_ins`
 
-Tracks actual volunteer check-in and check-out times for events.
+Tracks actual volunteer check-in and check-out times for specific time slots within events.
 
-| Column                   | Type        | Constraints                                               | Description                                                             |
-| ------------------------ | ----------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `id`                     | BIGINT      | PK, Generated Always as Identity                          | Unique identifier for the check-in record.                              |
-| `volunteer_id`           | UUID        | NOT NULL, FK to `public.volunteers(id)` ON DELETE CASCADE | FK to `public.volunteers.id`.                                           |
-| `event_id`               | BIGINT      | NOT NULL, FK to `public.events(id)` ON DELETE CASCADE     | Links to the event for which the check-in occurred.                     |
-| `recorded_by_profile_id` | UUID        | FK to `public.profiles(id)` ON DELETE SET NULL            | Profile ID of the user (Admin/Team Lead) who recorded the check-in/out. |
-| `check_in_time`          | TIMESTAMPTZ | NOT NULL                                                  | Timestamp of when the volunteer checked in.                             |
-| `check_out_time`         | TIMESTAMPTZ |                                                           | Timestamp of check-out. `NULL` if currently checked in.                 |
-| `location`               | TEXT        |                                                           | Optional: Specific location of check-in/out if applicable.              |
-| `created_at`             | TIMESTAMPTZ | DEFAULT NOW()                                             | Timestamp of creation.                                                  |
-| `updated_at`             | TIMESTAMPTZ | DEFAULT NOW()                                             | Timestamp of last update.                                               |
+| Column                   | Type        | Constraints                                               | Description                                                                                   |
+| ------------------------ | ----------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`                     | BIGINT      | PK, Generated Always as Identity                          | Unique identifier for the check-in record.                                                    |
+| `volunteer_id`           | UUID        | NOT NULL, FK to `public.volunteers(id)` ON DELETE CASCADE | FK to `public.volunteers.id`.                                                                 |
+| `event_id`               | BIGINT      | NOT NULL, FK to `public.events(id)` ON DELETE CASCADE     | Links to the event for which the check-in occurred.                                           |
+| `time_slot_id`           | BIGINT      | FK to `public.time_slots(id)` ON DELETE SET NULL          | Links to the specific time slot for which attendance is being recorded. NULL for event-level. |
+| `recorded_by_profile_id` | UUID        | FK to `public.profiles(id)` ON DELETE SET NULL            | Profile ID of the user (Admin/Team Lead) who recorded the check-in/out.                       |
+| `check_in_time`          | TIMESTAMPTZ | NOT NULL                                                  | Timestamp of when the volunteer checked in.                                                   |
+| `check_out_time`         | TIMESTAMPTZ |                                                           | Timestamp when marked as absent. NULL means checked in and present.                           |
+| `location`               | TEXT        |                                                           | Location or task description for the check-in.                                                |
+| `created_at`             | TIMESTAMPTZ | DEFAULT NOW()                                             | Timestamp of creation.                                                                        |
+| `updated_at`             | TIMESTAMPTZ | DEFAULT NOW()                                             | Timestamp of last update.                                                                     |
 
-_Comment: Tracks actual volunteer check-in and check-out times for events._
-_Indexes: `idx_checkins_volunteer_id(volunteer_id)`, `idx_checkins_event_id(event_id)`, `idx_checkins_check_in_time(check_in_time)`, `idx_checkins_recorded_by_profile_id(recorded_by_profile_id)`._
+_Comment: Tracks actual volunteer check-in and check-out times for specific time slots within events._
+_Indexes: `idx_volunteer_check_ins_volunteer_id(volunteer_id)`, `idx_volunteer_check_ins_event_id(event_id)`, `idx_volunteer_check_ins_time_slot_id(time_slot_id)`, `idx_volunteer_check_ins_volunteer_timeslot(volunteer_id, time_slot_id)`, `idx_volunteer_check_ins_recorded_by(recorded_by_profile_id)`._
+
+**Important Note**: The addition of `time_slot_id` field resolves the issue where attendance taken for one time slot was incorrectly showing for all time slots. Each check-in record is now linked to a specific time slot, ensuring accurate attendance tracking.
+
+**Recent Updates (2024)**:
+
+- Added `time_slot_id` field to fix attendance tracking bug
+- Updated indexes for better performance with time slot queries
+- Cleaned up existing check-in records without time_slot_id to prevent data inconsistency
+- Updated application code to save and retrieve attendance per specific time slot
 
 ### 3.10. `public.tshirt_sizes`
 
@@ -292,7 +302,7 @@ _Indexes: `idx_tshirt_issuances_volunteer_id(volunteer_id)`, `idx_tshirt_issuanc
 
 - **Team Lead/Admin Actions:**
 
-  - **Recording Check-ins:** UI allows user with 'Team Lead' or 'Admin' role to select a volunteer and record `check_in_time` or `check_out_time` in `volunteer_check_ins`. The `recorded_by_profile_id` is set to the current user's `profiles.id`.
+  - **Recording Check-ins:** UI allows user with 'Team Lead' or 'Admin' role to select a volunteer and record attendance for specific time slots in `volunteer_check_ins`. The system records `check_in_time` for present volunteers or both `check_in_time` and `check_out_time` for absent volunteers. The `recorded_by_profile_id` is set to the current user's `profiles.id` and `time_slot_id` links the attendance to the specific time slot.
   - **Issuing T-shirts:** UI allows user with 'Team Lead' or 'Admin' role to select a volunteer, select a T-shirt from `tshirt_inventory`, and record an issuance in `tshirt_issuances`. The `issued_by_profile_id` is set.
   - **Managing Roles:** UI (likely Admin only) to assign/revoke roles in `profile_roles`.
 

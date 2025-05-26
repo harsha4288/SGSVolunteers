@@ -23,17 +23,17 @@ CREATE TABLE public.volunteers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     -- Link to a profile if the volunteer is also a system user (e.g., registered for QR code)
     user_profile_id UUID UNIQUE REFERENCES public.profiles(id) ON DELETE SET NULL,
-    
+
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE, -- Unique email for each volunteer, critical for identification
     phone TEXT,
     gender TEXT, -- e.g., 'Male', 'Female', 'Other', or free text as per form
-    
+
     -- Availability: Stored as JSONB for flexibility.
     -- Example: {"2024-07-08_morning": true, "2024-07-08_afternoon": false, "2024-07-09_all_day": true}
     availability JSONB,
-    
+
     -- Details from Google Forms (can be quite specific to the event)
     seva_dates TEXT, -- Free text as submitted, e.g., "July 8th, July 9th"
     preferred_location TEXT,
@@ -43,7 +43,7 @@ CREATE TABLE public.volunteers (
     mahayajna_student_name TEXT,
     student_batch TEXT, -- Batch of the student they are associated with
     hospitality_needed BOOLEAN, -- True if "Yes", False if "No" for accommodation/food
-    
+
     vol_category TEXT, -- Broad category of volunteering, e.g., 'Event Support', 'Food Service'
     seva_task TEXT, -- Specific task/seva they signed up for, e.g., 'Registration Desk'
 
@@ -114,27 +114,31 @@ CREATE INDEX idx_tshirt_issuances_tshirt_inventory_id ON public.tshirt_issuances
 -- Volunteer Check-ins table
 -- Records volunteer attendance as marked by team leaders.
 CREATE TABLE public.volunteer_check_ins (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     volunteer_id UUID NOT NULL REFERENCES public.volunteers(id) ON DELETE CASCADE,
-    event_day DATE NOT NULL, -- The specific date of the event for this check-in
-    shift_slot TEXT NOT NULL, -- Description of the shift, e.g., 'Morning Shift (9 AM - 1 PM)', 'Afternoon Shift (1 PM - 5PM)'
-    task_assigned TEXT, -- Specific task the volunteer is checking in for (if applicable)
-    checked_in_at TIMESTAMPTZ DEFAULT now(),
-    checked_in_by_profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Team leader who marked attendance
-    notes TEXT, -- Optional notes by the team leader
-    created_at TIMESTAMPTZ DEFAULT now()
-    -- No updated_at here as check-ins are typically point-in-time records.
+    event_id BIGINT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+    time_slot_id BIGINT REFERENCES public.time_slots(id) ON DELETE SET NULL, -- Links to specific time slot for attendance tracking
+    recorded_by_profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Team leader who marked attendance
+    check_in_time TIMESTAMPTZ NOT NULL, -- Timestamp of when the volunteer checked in
+    check_out_time TIMESTAMPTZ, -- Timestamp of check-out. NULL if currently checked in, or used to mark as absent
+    location TEXT, -- Location or task description for the check-in
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
-COMMENT ON TABLE public.volunteer_check_ins IS 'Records volunteer attendance for specific event days and shifts, marked by team leaders.';
+COMMENT ON TABLE public.volunteer_check_ins IS 'Records volunteer attendance for specific time slots within events, marked by team leaders.';
 COMMENT ON COLUMN public.volunteer_check_ins.volunteer_id IS 'ID of the volunteer being checked in.';
-COMMENT ON COLUMN public.volunteer_check_ins.event_day IS 'The date of the check-in.';
-COMMENT ON COLUMN public.volunteer_check_ins.shift_slot IS 'The shift or time slot the volunteer is checking in for (e.g., "Morning", "Afternoon", "Full Day").';
-COMMENT ON COLUMN public.volunteer_check_ins.task_assigned IS 'The task the volunteer was assigned for this shift.';
-COMMENT ON COLUMN public.volunteer_check_ins.checked_in_by_profile_id IS 'ID of the team leader (from public.profiles) who performed the check-in.';
+COMMENT ON COLUMN public.volunteer_check_ins.event_id IS 'ID of the event for which attendance is being recorded.';
+COMMENT ON COLUMN public.volunteer_check_ins.time_slot_id IS 'ID of the specific time slot for which attendance is being recorded. NULL for event-level check-ins.';
+COMMENT ON COLUMN public.volunteer_check_ins.recorded_by_profile_id IS 'ID of the team leader (from public.profiles) who performed the check-in.';
+COMMENT ON COLUMN public.volunteer_check_ins.check_in_time IS 'Timestamp when the volunteer checked in.';
+COMMENT ON COLUMN public.volunteer_check_ins.check_out_time IS 'Timestamp when marked as absent. NULL means checked in and present.';
+COMMENT ON COLUMN public.volunteer_check_ins.location IS 'Location or task description for the check-in.';
 
 CREATE INDEX idx_volunteer_check_ins_volunteer_id ON public.volunteer_check_ins(volunteer_id);
-CREATE INDEX idx_volunteer_check_ins_event_day ON public.volunteer_check_ins(event_day);
-CREATE INDEX idx_volunteer_check_ins_checked_in_by ON public.volunteer_check_ins(checked_in_by_profile_id);
+CREATE INDEX idx_volunteer_check_ins_event_id ON public.volunteer_check_ins(event_id);
+CREATE INDEX idx_volunteer_check_ins_time_slot_id ON public.volunteer_check_ins(time_slot_id);
+CREATE INDEX idx_volunteer_check_ins_volunteer_timeslot ON public.volunteer_check_ins(volunteer_id, time_slot_id);
+CREATE INDEX idx_volunteer_check_ins_recorded_by ON public.volunteer_check_ins(recorded_by_profile_id);
 
 
 -- Function to automatically update `updated_at` timestamp columns

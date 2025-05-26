@@ -545,6 +545,7 @@ export type Database = {
           id: number;
           volunteer_id: string;
           event_id: number;
+          time_slot_id: number | null;
           recorded_by_profile_id: string | null;
           check_in_time: string;
           check_out_time: string | null;
@@ -556,6 +557,7 @@ export type Database = {
           id?: number;
           volunteer_id: string;
           event_id: number;
+          time_slot_id?: number | null;
           recorded_by_profile_id?: string | null;
           check_in_time: string;
           check_out_time?: string | null;
@@ -567,6 +569,7 @@ export type Database = {
           id?: number;
           volunteer_id?: string;
           event_id?: number;
+          time_slot_id?: number | null;
           recorded_by_profile_id?: string | null;
           check_in_time?: string;
           check_out_time?: string | null;

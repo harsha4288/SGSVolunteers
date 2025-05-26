@@ -77,6 +77,8 @@ export function AssignmentsDashboard({
   const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<string>("all");
   const [selectedTask, setSelectedTask] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState<string>("");
+  const [submittedSearchQuery, setSubmittedSearchQuery] = React.useState<string>("");
 
   // State for data
   const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
@@ -114,6 +116,12 @@ export function AssignmentsDashboard({
       window.removeEventListener("eventChange", handleEventChange as EventListener);
     };
   }, []);
+
+  // Remove debounce logic since we're now using submit-based search
+  // Keep debouncedSearchQuery for backward compatibility but set it to submittedSearchQuery
+  React.useEffect(() => {
+    setDebouncedSearchQuery(submittedSearchQuery);
+  }, [submittedSearchQuery]);
 
   // Fetch volunteer data for volunteer role
   React.useEffect(() => {
@@ -299,8 +307,8 @@ export function AssignmentsDashboard({
           filteredAssignments = [];
         }
         // Filter by search query if provided
-        else if (searchQuery) {
-          const lowerQuery = searchQuery.toLowerCase();
+        else if (debouncedSearchQuery) {
+          const lowerQuery = debouncedSearchQuery.toLowerCase();
           filteredAssignments = filteredAssignments.filter(assignment =>
             assignment.volunteer.first_name.toLowerCase().includes(lowerQuery) ||
             assignment.volunteer.last_name.toLowerCase().includes(lowerQuery) ||
@@ -327,27 +335,14 @@ export function AssignmentsDashboard({
           const checkInStatusMap: Record<string, "checked_in" | "absent"> = {};
 
           if (checkIns && checkIns.length > 0) {
-            // First, get all time slots for the event to match with check-ins
-            const eventTimeSlots = timeSlots.map(slot => ({
-              id: slot.id,
-              date: new Date(slot.start_time).toISOString().split('T')[0] // Get just the date part
-            }));
-
             checkIns.forEach(checkIn => {
-              const checkInDate = new Date(checkIn.check_in_time).toISOString().split('T')[0];
-
-              // Find matching time slots for this check-in date
-              const matchingTimeSlots = eventTimeSlots.filter(slot =>
-                slot.date === checkInDate
-              );
-
-              // For each matching time slot, set the check-in status
-              matchingTimeSlots.forEach(slot => {
-                const key = `${checkIn.volunteer_id}-${slot.id}`;
+              // Match check-in to specific time slot using time_slot_id
+              if (checkIn.time_slot_id) {
+                const key = `${checkIn.volunteer_id}-${checkIn.time_slot_id}`;
                 // If check_out_time exists, it means the volunteer is marked as absent
                 // Otherwise, if check_in_time exists, they are checked in
                 checkInStatusMap[key] = checkIn.check_out_time ? "absent" : "checked_in";
-              });
+              }
             });
           }
 
@@ -374,7 +369,7 @@ export function AssignmentsDashboard({
     };
 
     fetchAssignments();
-  }, [supabase, selectedEvent, selectedTimeSlot, selectedTask, searchQuery, timeSlots, userRole, familyMemberIds]);
+  }, [supabase, selectedEvent, selectedTimeSlot, selectedTask, debouncedSearchQuery, timeSlots, userRole, familyMemberIds]);
 
   // Handle filter changes
   const handleTimeSlotChange = (value: string) => {
@@ -387,6 +382,10 @@ export function AssignmentsDashboard({
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+  };
+
+  const handleSearchSubmit = (value: string) => {
+    setSubmittedSearchQuery(value);
   };
 
   if (loading && assignments.length === 0) {
@@ -428,6 +427,7 @@ export function AssignmentsDashboard({
             onTimeSlotChange={handleTimeSlotChange}
             onTaskChange={handleTaskChange}
             onSearchChange={handleSearchChange}
+            onSearchSubmit={handleSearchSubmit}
           />
         </div>
         <div className="flex-shrink-0 ml-auto">
