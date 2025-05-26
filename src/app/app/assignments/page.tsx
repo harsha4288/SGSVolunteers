@@ -95,10 +95,10 @@ export default function AssignmentsPage() {
   }
 
   return (
-    <AssignmentsDashboard 
-      profileId={profileId} 
-      userRole={userRole} 
-      supabase={supabase} 
+    <AssignmentsDashboard
+      profileId={profileId}
+      userRole={userRole}
+      supabase={supabase}
     />
   );
 }

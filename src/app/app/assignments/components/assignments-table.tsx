@@ -158,6 +158,51 @@ export function AssignmentsTable({
     }
   };
 
+  // Undo attendance (Team Lead/Admin) - revert to pending state
+  const handleUndoAttendance = async (assignment: Assignment) => {
+    if (userRole === "volunteer") {
+      toast({ title: "Permission Denied", description: "You don't have permission to change check-in status.", variant: "destructive" });
+      return;
+    }
+    const loadingKey = `${assignment.volunteer_id}-${assignment.time_slot_id}`;
+    setCheckInLoading(prev => ({ ...prev, [loadingKey]: true }));
+    try {
+      // First, update the assignment's check-in status in the local state to remove status
+      // This provides immediate UI feedback
+      const updatedAssignments = filteredAssignments.map(a => {
+        if (a.id === assignment.id) {
+          const { check_in_status, ...assignmentWithoutStatus } = a;
+          return assignmentWithoutStatus;
+        }
+        return a;
+      });
+      setFilteredAssignments(updatedAssignments);
+
+      // Delete the check-in record from database to revert to original state
+      const { error: deleteError } = await supabase
+        .from("volunteer_check_ins")
+        .delete()
+        .eq("volunteer_id", assignment.volunteer_id)
+        .eq("event_id", Number(selectedEvent));
+
+      if (deleteError) throw new Error(deleteError.message);
+
+      toast({
+        title: "Attendance Reverted",
+        description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name}'s attendance has been reverted to pending.`
+      });
+    } catch (error: any) {
+      // Revert the local state change if there was an error
+      toast({
+        title: "Error",
+        description: error.message || "Failed to revert attendance",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckInLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
   // Get the current date (real or overridden)
   const { getCurrentDate, overrideDate } = useDateOverride();
 
@@ -232,11 +277,11 @@ export function AssignmentsTable({
             )}
           </div>
 
-          {/* Only show check-in status for past or today's slots */}
+          {/* Show check-in status for past or today's slots */}
           {(timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "checked_in" ? (
             // Checked in - green check
             <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
-              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Checked in" />
+              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Present" />
             </div>
           ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
             // Absent - red X
@@ -282,15 +327,27 @@ export function AssignmentsTable({
 
         {/* Show different controls based on time slot status and attendance */}
         {(timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "checked_in" ? (
-          // If marked present - green check
-          <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
-            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Present" />
-          </div>
+          // If marked present - clickable green check to toggle back to pending
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/50"
+            aria-label="Present (click to undo)"
+            onClick={() => handleUndoAttendance(assignment)}
+          >
+            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+          </Button>
         ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
-          // If marked absent - red X
-          <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
-            <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
-          </div>
+          // If marked absent - clickable red X to toggle back to pending
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-800/50"
+            aria-label="Absent (click to undo)"
+            onClick={() => handleUndoAttendance(assignment)}
+          >
+            <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+          </Button>
         ) : timeSlotStatus === "past" || timeSlotStatus === "today" ? (
           // Past/Today time slots without recorded attendance - just show check/x buttons for Admin/TL
           <div className="flex gap-1 justify-center">

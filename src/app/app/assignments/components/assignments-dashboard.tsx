@@ -104,6 +104,9 @@ export function AssignmentsDashboard({
     const storedEventId = localStorage.getItem("selectedEventId");
     if (storedEventId) {
       setSelectedEvent(storedEventId);
+    } else {
+      // Default to event ID 1 if no stored event
+      setSelectedEvent("1");
     }
 
     // Cleanup
@@ -115,6 +118,12 @@ export function AssignmentsDashboard({
   // Fetch volunteer data for volunteer role
   React.useEffect(() => {
     const fetchVolunteerData = async () => {
+      // For admin and team_lead roles, we don't need to fetch volunteer data
+      if (userRole === "admin" || userRole === "team_lead") {
+        setFamilyMemberIds([]); // Set empty array for admin/team_lead
+        return;
+      }
+
       // Only fetch volunteer data if user is a volunteer
       if (userRole !== "volunteer" || !profileId) return;
 
@@ -218,6 +227,8 @@ export function AssignmentsDashboard({
   React.useEffect(() => {
     const fetchAssignments = async () => {
       if (!selectedEvent) return;
+
+
 
       try {
         setLoading(true);
