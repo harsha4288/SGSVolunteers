@@ -101,8 +101,16 @@ export const chatQueryParserFlow = ai.defineFlow(
     const jsonOutput = result.text;
 
     try {
+      // Clean the JSON output - remove markdown code blocks if present
+      let cleanedOutput = jsonOutput.trim();
+      if (cleanedOutput.startsWith('```json')) {
+        cleanedOutput = cleanedOutput.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedOutput.startsWith('```')) {
+        cleanedOutput = cleanedOutput.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+
       // Attempt to parse the JSON output
-      const parsedJson = JSON.parse(jsonOutput);
+      const parsedJson = JSON.parse(cleanedOutput);
       // Validate against the schema (optional but good practice)
       // For simplicity, we'll assume the LLM produces valid JSON according to the prompt for now.
       // More robust error handling and validation can be added here.
