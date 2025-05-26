@@ -55,9 +55,9 @@ interface DataTableHeadProps {
   sticky?: boolean
 }
 
-// Main table container with standardized styling
+// Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh-300px)", minWidth = "max", ...props }, ref) => (
+  ({ children, className, maxHeight = "calc(100vh - 300px)", minWidth = "max", ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
@@ -66,10 +66,13 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
       )}
       {...props}
     >
-      <div className={cn(
-        "overflow-auto custom-scrollbar", // Custom scrollbar
-        maxHeight && `max-h-[${maxHeight}]`
-      )}>
+      <div
+        className={cn(
+          "overflow-auto custom-scrollbar", // Custom scrollbar with proper height
+          "relative" // For sticky positioning context
+        )}
+        style={{ maxHeight }}
+      >
         <table className={cn(
           "w-full border-collapse table-fixed", // Consistent table layout
           minWidth && `min-w-${minWidth}`
@@ -88,8 +91,9 @@ const DataTableHeader = React.forwardRef<HTMLTableSectionElement, DataTableHeade
     <thead
       ref={ref}
       className={cn(
-        "bg-card", // Consistent header background
+        "bg-card/95 backdrop-blur-sm", // Consistent header background with slight transparency
         sticky && "sticky top-0 z-40", // Excel-like frozen headers
+        "border-b border-accent/20", // Header bottom border
         className
       )}
       {...props}
@@ -136,12 +140,14 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
       rowSpan={rowSpan}
       colSpan={colSpan}
       className={cn(
-        "font-semibold py-1 px-2 relative bg-muted/50", // Consistent header styling
+        "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
+        "bg-muted/50 backdrop-blur-sm", // Header background
+        "text-xs uppercase tracking-wide", // Professional header text styling
         align === "left" && "text-left",
-        align === "center" && "text-center", 
+        align === "center" && "text-center",
         align === "right" && "text-right",
-        border && "border-r border-accent/20", // Consistent borders
-        sticky && "sticky top-0 bg-muted/50", // Individual cell stickiness
+        border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
+        sticky && "sticky top-0 z-50 bg-muted/90", // Individual cell stickiness with higher z-index
         className
       )}
       {...props}
@@ -164,8 +170,8 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps>
         "text-sm", // Consistent font size
         align === "left" && "text-left",
         align === "center" && "text-center",
-        align === "right" && "text-right", 
-        border && "border-r border-accent/20", // Consistent borders
+        align === "right" && "text-right",
+        border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
         className
       )}
       {...props}
@@ -188,7 +194,7 @@ DataTableColGroup.displayName = "DataTableColGroup"
 
 const DataTableCol = React.forwardRef<HTMLTableColElement, { width?: string; className?: string }>(
   ({ width, className }, ref) => (
-    <col 
+    <col
       ref={ref}
       className={className}
       style={width ? { width } : undefined}

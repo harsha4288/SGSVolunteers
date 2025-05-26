@@ -2,14 +2,10 @@
 import type { NavItem } from "@/lib/types";
 import {
   LayoutDashboard,
-  Users,
-  Sparkles,
   Handshake,
   Shirt,
-  ClipboardCheck,
   UserCog,
   CalendarClock,
-  Shield
 } from "lucide-react";
 
 export const SITE_CONFIG = {
@@ -30,29 +26,9 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Volunteers",
-    href: "/app/volunteers",
-    icon: Users,
-  },
-  {
     title: "Assignments",
     href: "/app/assignments",
     icon: CalendarClock,
-  },
-  {
-    title: "Volunteer Assignments",
-    href: "/app/volunteer-assignments",
-    icon: CalendarClock,
-  },
-  {
-    title: "User Management",
-    href: "/app/user-management",
-    icon: UserCog,
-  },
-  {
-    title: "AI Tagging",
-    href: "/app/ai-tagging",
-    icon: Sparkles,
   },
   {
     title: "T-Shirts",
@@ -60,14 +36,10 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: Shirt,
   },
   {
-    title: "Check-in System",
-    href: "/app/check-in",
-    icon: ClipboardCheck,
-  },
-  {
-    title: "My Profile",
-    href: "/app/profile",
+    title: "User Management",
+    href: "/app/user-management",
     icon: UserCog,
+    adminOnly: true,
   },
 ];
 

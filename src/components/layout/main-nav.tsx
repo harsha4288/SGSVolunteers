@@ -13,14 +13,31 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useUserRole } from "@/hooks/use-user-role";
 
 export function MainNav() {
   const pathname = usePathname();
+  const { isAdmin, loading } = useUserRole();
+
+  // Filter navigation items based on user role
+  const filteredNavItems = React.useMemo(() => {
+    if (loading) {
+      // While loading, show all items except admin-only ones
+      return APP_NAV_ITEMS.filter(item => !item.adminOnly);
+    }
+
+    return APP_NAV_ITEMS.filter(item => {
+      if (item.adminOnly && !isAdmin) {
+        return false;
+      }
+      return true;
+    });
+  }, [isAdmin, loading]);
 
   return (
     <ScrollArea className="flex-grow">
       <SidebarMenu>
-        {APP_NAV_ITEMS.map((item) => (
+        {filteredNavItems.map((item) => (
           <SidebarMenuItem key={item.href}>
             <Link href={item.href} passHref legacyBehavior>
               <SidebarMenuButton

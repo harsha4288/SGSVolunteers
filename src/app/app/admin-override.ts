@@ -7,7 +7,7 @@ import { createSupabaseServerActionClient } from '@/lib/supabase/server-actions'
 export async function hardcodedAdminCheck() {
   try {
     // Create a Supabase client
-    const supabase = createSupabaseServerActionClient();
+    const supabase = await createSupabaseServerActionClient();
 
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();

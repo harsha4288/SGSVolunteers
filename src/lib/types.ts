@@ -5,6 +5,7 @@ export interface NavItem {
   icon?: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
   external?: boolean;
+  adminOnly?: boolean;
 }
 
 // All Supabase-related types are now in src/lib/types/supabase.ts

@@ -1,12 +1,12 @@
 'use server';
 
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/supabase';
 
 export async function testServerConnection() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -15,29 +15,32 @@ export async function testServerConnection() {
     }
 
     // Create a server-side Supabase client
-    const supabase = createServerClient<Database>(
+    const supabase = createClient<Database>(
       supabaseUrl,
       supabaseAnonKey,
       {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              // Ignore errors when called from a Server Component
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+          storage: {
+            getItem: (key: string) => {
+              const cookie = cookieStore.get(key);
+              return cookie?.value || null;
+            },
+            setItem: (key: string, value: string) => {
+              cookieStore.set(key, value, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 7 // 7 days
+              });
+            },
+            removeItem: (key: string) => {
+              cookieStore.delete(key);
             }
-          },
-          remove(name: string, options: any) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch (error) {
-              // Ignore errors when called from a Server Component
-            }
-          },
-        },
+          }
+        }
       }
     );
 
@@ -68,7 +71,7 @@ export async function testServerConnection() {
 
 export async function testMultipleTablesServer() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -77,29 +80,32 @@ export async function testMultipleTablesServer() {
     }
 
     // Create a server-side Supabase client
-    const supabase = createServerClient<Database>(
+    const supabase = createClient<Database>(
       supabaseUrl,
       supabaseAnonKey,
       {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch (error) {
-              // Ignore errors when called from a Server Component
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+          storage: {
+            getItem: (key: string) => {
+              const cookie = cookieStore.get(key);
+              return cookie?.value || null;
+            },
+            setItem: (key: string, value: string) => {
+              cookieStore.set(key, value, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 7 // 7 days
+              });
+            },
+            removeItem: (key: string) => {
+              cookieStore.delete(key);
             }
-          },
-          remove(name: string, options: any) {
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch (error) {
-              // Ignore errors when called from a Server Component
-            }
-          },
-        },
+          }
+        }
       }
     );
 
@@ -111,7 +117,7 @@ export async function testMultipleTablesServer() {
       try {
         console.log(`Testing table: ${table}`);
         const { data, error } = await supabase.from(table).select("*").limit(1);
-        
+
         results.push({
           table,
           success: !error,
@@ -130,7 +136,7 @@ export async function testMultipleTablesServer() {
 
     // Check if any tables were successful
     const anySuccess = results.some(r => r.success);
-    
+
     return {
       success: anySuccess,
       results

@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, User, Mail, Phone, UserCog } from "lucide-react";
-import { TShirtPreferences } from "./components/tshirt-preferences";
-import { QRCodeGenerator } from "./components/qr-code-generator";
 import type { Database } from "@/lib/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -17,7 +15,6 @@ export default function ProfilePage() {
   const [error, setError] = React.useState<string | null>(null);
   const [profileId, setProfileId] = React.useState<string | null>(null);
   const [volunteerData, setVolunteerData] = React.useState<any | null>(null);
-  const [currentEventId, setCurrentEventId] = React.useState<number>(1); // Default to event ID 1
 
   React.useEffect(() => {
     const supabaseInstance = createClient();
@@ -84,20 +81,6 @@ export default function ProfilePage() {
           }
 
           setVolunteerData(volunteers || null);
-        }
-
-        // Fetch current event (for now, just use event ID 1)
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
-          .select('id')
-          .eq('id', 1)
-          .single();
-
-        if (eventError) {
-          console.warn("Error fetching event:", eventError);
-          // Continue with default event ID 1
-        } else if (eventData) {
-          setCurrentEventId(eventData.id);
         }
       } catch (err) {
         console.error("Error fetching user profile:", err);
@@ -192,21 +175,6 @@ export default function ProfilePage() {
           )}
         </CardContent>
       </Card>
-
-      {volunteerData && (
-        <>
-          <TShirtPreferences
-            volunteerId={volunteerData.id}
-            currentPreference={volunteerData.tshirt_size_preference}
-            eventId={currentEventId}
-          />
-
-          <QRCodeGenerator
-            volunteerId={volunteerData.id}
-            eventId={currentEventId}
-          />
-        </>
-      )}
     </div>
   );
 }

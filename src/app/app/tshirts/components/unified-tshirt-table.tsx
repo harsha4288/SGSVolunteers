@@ -109,7 +109,7 @@ export function UnifiedTShirtTable({
   }
 
   return (
-    <DataTable>
+    <DataTable maxHeight="calc(100vh - 300px)">
       <DataTableColGroup>
         <DataTableCol width="160px" />
         <DataTableCol width="50px" />

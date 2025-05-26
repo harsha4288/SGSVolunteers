@@ -14,7 +14,7 @@ import type {
  * Fetches user roles for a given profile ID
  */
 export async function fetchUserRoles(profileId: string) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   const { data, error } = await supabase
     .from('profile_roles')
@@ -42,7 +42,7 @@ export async function fetchUserRoles(profileId: string) {
  * Fetches volunteer tasks for a given volunteer ID and event ID
  */
 export async function fetchVolunteerTasks(volunteerId: string, eventId: number | null) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId) {
     return { data: [], error: 'No current event selected' };
@@ -87,7 +87,7 @@ export async function fetchVolunteerTasks(volunteerId: string, eventId: number |
  * Fetches volunteer information for a given profile ID and event ID
  */
 export async function fetchVolunteerByProfile(profileId: string, eventId: number | null) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId) {
     return { data: null, error: 'No current event selected' };
@@ -110,7 +110,7 @@ export async function fetchVolunteerByProfile(profileId: string, eventId: number
  * Fetches event information by ID
  */
 export async function fetchEvent(eventId: number | null) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId) {
     return { data: null, error: 'No event ID provided' };
@@ -133,7 +133,7 @@ export async function fetchEvent(eventId: number | null) {
  * Fetches all seva categories
  */
 export async function fetchSevaCategories() {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   const { data, error } = await supabase
     .from('seva_categories')
@@ -157,7 +157,7 @@ export async function fetchTeamMembers(
   pageSize: number = 10,
   searchQuery: string = ''
 ) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId || categoryIds.length === 0) {
     return { data: [], error: 'No event ID or categories provided' };
@@ -220,7 +220,7 @@ export async function fetchTeamMembers(
  * Fetches check-in status for volunteer commitments
  */
 export async function fetchCheckInStatus(commitmentIds: number[], eventId: number) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (commitmentIds.length === 0 || !eventId) {
     return { data: {}, error: null };
@@ -300,7 +300,7 @@ export async function fetchAdminData(
   categoryFilter: number | null = null,
   timeSlotFilter: number | null = null
 ) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId) {
     return { data: [], error: 'No event ID provided', count: 0 };
@@ -369,7 +369,7 @@ export async function fetchAdminData(
 }
 
 export async function fetchDashboardStats(eventId: number | null) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   if (!eventId) {
     return {

@@ -46,7 +46,7 @@ export async function fetchUsersWithRoles(page = 1, pageSize = 10, searchQuery =
       };
     }
 
-    const supabase = createSupabaseServerActionClient();
+    const supabase = await createSupabaseServerActionClient();
     let query = supabase.from('profiles').select('id, email, display_name');
 
     // Apply search filter if provided
@@ -148,7 +148,7 @@ export async function fetchRoles() {
     return { data: null, error: error || 'Unauthorized: Admin access required' };
   }
 
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   const { data: roles, error: rolesError } = await supabase
     .from('roles')
@@ -173,7 +173,7 @@ export async function addRoleToUser(profileId: string, roleId: number) {
       return { success: false, error: error || 'Unauthorized: Admin access required' };
     }
 
-    const supabase = createSupabaseServerActionClient();
+    const supabase = await createSupabaseServerActionClient();
 
     // Check if the role assignment already exists
     console.log('Checking if role assignment already exists...');
@@ -234,7 +234,7 @@ export async function removeRoleFromUser(profileId: string, roleId: number) {
     return { success: false, error: 'Cannot remove the Volunteer role' };
   }
 
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   // Remove the role
   const { error: deleteError } = await supabase

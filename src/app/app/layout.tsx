@@ -48,12 +48,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <SidebarFooter className="p-2 flex-col gap-2">
           {/* Sidebar footer links */}
           <div className="group-data-[collapsible=icon]:hidden flex flex-col gap-1">
-            <Link href="/app/profile">
-              <Button variant="ghost" className="w-full justify-start">
-                <UserCog className="mr-2 h-4 w-4" />
-                My Profile
-              </Button>
-            </Link>
             <Link href="/app/settings">
               <Button variant="ghost" className="w-full justify-start">
                 <Settings className="mr-2 h-4 w-4" />

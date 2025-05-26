@@ -1,5 +1,5 @@
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/supabase';
 
 export const createClient = () => {
@@ -33,14 +33,22 @@ export const createClient = () => {
     const errorMsg = "Supabase client creation failed: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing, a placeholder, empty, or not a string. Please check your .env.local file and ensure it's loaded correctly by restarting your Next.js server.";
     // Avoid logging the full key, even the anon key, in production logs if possible.
     // For debugging, logging the first few chars can be helpful.
-    console.error(errorMsg, "Received Key (length):", supabaseAnonKey?.length); 
+    console.error(errorMsg, "Received Key (length):", supabaseAnonKey?.length);
     throw new Error(errorMsg);
   }
 
-  // Explicitly pass the validated variables to the client creation function.
-  // This ensures that the library uses these specific values.
-  return createClientComponentClient<Database>({
-    supabaseUrl: supabaseUrl,
-    supabaseKey: supabaseAnonKey,
+  // Create client with Next.js 15 compatible configuration
+  return createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'nextjs-15-client'
+      }
+    }
   });
 };

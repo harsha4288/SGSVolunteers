@@ -1,9 +1,9 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/supabase';
 
-export const createSupabaseServerClient = () => {
-  const cookieStore = cookies();
+export const createSupabaseServerClient = async () => {
+  const cookieStore = await cookies();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -20,8 +20,29 @@ export const createSupabaseServerClient = () => {
     throw new Error(`Supabase server client creation failed: Invalid NEXT_PUBLIC_SUPABASE_URL: "${supabaseUrl}". It must be a valid URL string.`);
   }
 
-  // createServerComponentClient expects a cookies() function, not an object
-  return createServerComponentClient<Database>({
-    cookies,
+  // Create client with Next.js 15 compatible async cookie handling
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+      storage: {
+        getItem: (key: string) => {
+          const cookie = cookieStore.get(key);
+          return cookie?.value || null;
+        },
+        setItem: (key: string, value: string) => {
+          cookieStore.set(key, value, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7 // 7 days
+          });
+        },
+        removeItem: (key: string) => {
+          cookieStore.delete(key);
+        }
+      }
+    }
   });
 };

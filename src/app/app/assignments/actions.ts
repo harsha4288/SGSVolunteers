@@ -1,11 +1,11 @@
 "use server";
 
-import { createSupabaseServerActionClient } from "@/lib/supabase/server-action";
+import { createSupabaseServerActionClient } from "@/lib/supabase/server-actions";
 import { revalidatePath } from "next/cache";
 
 // Check if user has admin or team lead access
 export async function checkAccess(profileId: string) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   // Fetch user roles
   const { data: roles, error: rolesError } = await supabase
@@ -20,10 +20,10 @@ export async function checkAccess(profileId: string) {
     .eq("profile_id", profileId);
 
   if (rolesError) {
-    return { 
-      isAdmin: false, 
-      isTeamLead: false, 
-      error: `Error checking roles: ${rolesError.message}` 
+    return {
+      isAdmin: false,
+      isTeamLead: false,
+      error: `Error checking roles: ${rolesError.message}`
     };
   }
 
@@ -44,13 +44,13 @@ export async function assignVolunteerToTask(
   const { isAdmin, isTeamLead, error: accessError } = await checkAccess(profileId);
 
   if (!isAdmin && !isTeamLead) {
-    return { 
-      success: false, 
-      error: accessError || 'Unauthorized: Admin or Team Lead access required' 
+    return {
+      success: false,
+      error: accessError || 'Unauthorized: Admin or Team Lead access required'
     };
   }
 
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   // Check if the assignment already exists
   const { data: existingAssignment, error: checkError } = await supabase
@@ -62,9 +62,9 @@ export async function assignVolunteerToTask(
     .eq('seva_category_id', sevaCategoryId);
 
   if (checkError) {
-    return { 
-      success: false, 
-      error: `Error checking existing assignment: ${checkError.message}` 
+    return {
+      success: false,
+      error: `Error checking existing assignment: ${checkError.message}`
     };
   }
 
@@ -76,9 +76,9 @@ export async function assignVolunteerToTask(
       .eq('id', existingAssignment[0].id);
 
     if (updateError) {
-      return { 
-        success: false, 
-        error: `Error updating assignment: ${updateError.message}` 
+      return {
+        success: false,
+        error: `Error updating assignment: ${updateError.message}`
       };
     }
   } else {
@@ -97,9 +97,9 @@ export async function assignVolunteerToTask(
       ]);
 
     if (insertError) {
-      return { 
-        success: false, 
-        error: `Error creating assignment: ${insertError.message}` 
+      return {
+        success: false,
+        error: `Error creating assignment: ${insertError.message}`
       };
     }
   }
@@ -118,13 +118,13 @@ export async function removeVolunteerAssignment(
   const { isAdmin, isTeamLead, error: accessError } = await checkAccess(profileId);
 
   if (!isAdmin && !isTeamLead) {
-    return { 
-      success: false, 
-      error: accessError || 'Unauthorized: Admin or Team Lead access required' 
+    return {
+      success: false,
+      error: accessError || 'Unauthorized: Admin or Team Lead access required'
     };
   }
 
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   // Delete the assignment
   const { error: deleteError } = await supabase
@@ -133,9 +133,9 @@ export async function removeVolunteerAssignment(
     .eq('id', commitmentId);
 
   if (deleteError) {
-    return { 
-      success: false, 
-      error: `Error removing assignment: ${deleteError.message}` 
+    return {
+      success: false,
+      error: `Error removing assignment: ${deleteError.message}`
     };
   }
 
@@ -156,13 +156,13 @@ export async function updateCheckInStatus(
   const { isAdmin, isTeamLead, error: accessError } = await checkAccess(profileId);
 
   if (!isAdmin && !isTeamLead) {
-    return { 
-      success: false, 
-      error: accessError || 'Unauthorized: Admin or Team Lead access required' 
+    return {
+      success: false,
+      error: accessError || 'Unauthorized: Admin or Team Lead access required'
     };
   }
 
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   // Check if there's already a check-in record
   const { data: existingCheckIns, error: checkError } = await supabase
@@ -172,9 +172,9 @@ export async function updateCheckInStatus(
     .eq("event_id", eventId);
 
   if (checkError) {
-    return { 
-      success: false, 
-      error: `Error checking existing check-in: ${checkError.message}` 
+    return {
+      success: false,
+      error: `Error checking existing check-in: ${checkError.message}`
     };
   }
 
@@ -192,9 +192,9 @@ export async function updateCheckInStatus(
       .eq("id", existingCheckIns[0].id);
 
     if (updateError) {
-      return { 
-        success: false, 
-        error: `Error updating check-in: ${updateError.message}` 
+      return {
+        success: false,
+        error: `Error updating check-in: ${updateError.message}`
       };
     }
   } else {
@@ -212,9 +212,9 @@ export async function updateCheckInStatus(
       ]);
 
     if (insertError) {
-      return { 
-        success: false, 
-        error: `Error creating check-in: ${insertError.message}` 
+      return {
+        success: false,
+        error: `Error creating check-in: ${insertError.message}`
       };
     }
   }
@@ -227,7 +227,7 @@ export async function updateCheckInStatus(
 
 // Function to fetch volunteers
 export async function fetchVolunteers(searchQuery?: string) {
-  const supabase = createSupabaseServerActionClient();
+  const supabase = await createSupabaseServerActionClient();
 
   let query = supabase
     .from("volunteers")
