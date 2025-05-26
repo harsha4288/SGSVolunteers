@@ -5,153 +5,157 @@ import * as React from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createRequirementsService } from '../services/requirements-service';
-import type { Requirement, SevaCategoryRef, Location, Timeslot, RequirementRow } from '../types';
+import type { 
+  Requirement, 
+  SevaCategoryRef, 
+  Location, 
+  Timeslot,
+  RequirementCellData, // For the grid
+} from '../types';
 
+// Assuming userRole and userSevaCategoryIds are provided, possibly via a context or props to the page component
 interface UseRequirementsDataProps {
-  initialSevaCategoryId?: number; // Renamed from initialTaskId
+  userRole: 'admin' | 'coordinator' | 'volunteer'; // Example roles
+  userSevaCategoryIds?: number[]; // Relevant for coordinators
 }
 
-export function useRequirementsData({ initialSevaCategoryId }: UseRequirementsDataProps) {
+export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseRequirementsDataProps) {
   const [supabase] = React.useState(() => createClient());
   const [requirementsService] = React.useState(() => createRequirementsService({ supabase }));
   const { toast } = useToast();
 
-  const [sevaCategories, setSevaCategories] = React.useState<SevaCategoryRef[]>([]); // Renamed from tasks
-  const [locations, setLocations] = React.useState<Location[]>([]);
-  const [timeslots, setTimeslots] = React.useState<Timeslot[]>([]);
-  const [requirements, setRequirements] = React.useState<Requirement[]>([]);
+  // Static data - fetched once
+  const [allSevaCategories, setAllSevaCategories] = React.useState<SevaCategoryRef[]>([]);
+  const [allLocations, setAllLocations] = React.useState<Location[]>([]);
+  const [allTimeslots, setAllTimeslots] = React.useState<Timeslot[]>([]);
   
-  const [loadingInitial, setLoadingInitial] = React.useState(true);
-  const [loadingRequirements, setLoadingRequirements] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [currentSevaCategoryId, setCurrentSevaCategoryId] = React.useState<number | undefined>(initialSevaCategoryId); // Renamed from currentTaskId
+  // Dynamic data - requirements
+  const [allRequirements, setAllRequirements] = React.useState<Requirement[]>([]);
 
-  const loadInitialStaticData = React.useCallback(async () => {
+  // Derived/Filtered data for display
+  const [displaySevaCategories, setDisplaySevaCategories] = React.useState<SevaCategoryRef[]>([]);
+  const [gridData, setGridData] = React.useState<RequirementCellData[][]>([]); // Matrix for the grid
+
+  // Loading and error states
+  const [loadingInitial, setLoadingInitial] = React.useState(true);
+  const [loadingRequirements, setLoadingRequirements] = React.useState(false); // For updates or specific fetches
+  const [error, setError] = React.useState<string | null>(null);
+  
+  // Active filters (example, can be expanded)
+  // const [activeFilters, setActiveFilters] = React.useState<object>({}); // To be used by FiltersBar
+
+  // Initial data load
+  const loadInitialData = React.useCallback(async () => {
     setLoadingInitial(true);
     setError(null);
     try {
-      const [sevaCategoryData, locationData, timeslotData] = await Promise.all([ // Renamed taskData
-        requirementsService.fetchSevaCategories(), // Renamed from fetchTasks
+      const [sevaCategoriesData, locationsData, timeslotsData, requirementsData] = await Promise.all([
+        requirementsService.fetchSevaCategories(),
         requirementsService.fetchLocations(),
         requirementsService.fetchTimeslots(),
+        requirementsService.fetchAllRequirements(),
       ]);
-      setSevaCategories(sevaCategoryData); // Renamed from setTasks
-      setLocations(locationData);
-      setTimeslots(timeslotData);
+      
+      setAllSevaCategories(sevaCategoriesData);
+      setAllLocations(locationsData);
+      setAllTimeslots(timeslotsData);
+      setAllRequirements(requirementsData);
 
-      if (!initialSevaCategoryId && sevaCategoryData.length > 0) { // Renamed initialTaskId and taskData
-        setCurrentSevaCategoryId(sevaCategoryData[0].id); // Renamed setCurrentTaskId and taskData
-      } else if (initialSevaCategoryId && !sevaCategoryData.some(sc => sc.id === initialSevaCategoryId)){ // Renamed initialTaskId and taskData
-        setCurrentSevaCategoryId(sevaCategoryData.length > 0 ? sevaCategoryData[0].id : undefined); // Renamed setCurrentTaskId and taskData
-         if (sevaCategoryData.length > 0) { // Renamed taskData
-           toast({ title: "Notice", description: `Initial Seva Category ID ${initialSevaCategoryId} not found. Displaying first available.`, variant: "default" }); // Renamed initialTaskId
-        }
-      }
     } catch (e: any) {
-      const errorMessage = e instanceof Error ? e.message : "Failed to load initial data";
+      const errorMessage = e instanceof Error ? e.message : "Failed to load initial data for requirements module.";
       setError(errorMessage);
-      toast({ title: "Error Loading Static Data", description: errorMessage, variant: "destructive" });
+      toast({ title: "Error Loading Data", description: errorMessage, variant: "destructive" });
     } finally {
       setLoadingInitial(false);
     }
-  }, [requirementsService, toast, initialSevaCategoryId]); // Renamed initialTaskId
+  }, [requirementsService, toast]);
 
-  const loadSevaCategoryRequirements = React.useCallback(async () => { // Renamed from loadTaskRequirements
-    if (!currentSevaCategoryId) { // Renamed from currentTaskId
-      setRequirements([]);
-      return;
+  React.useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Process and filter data for the grid
+  React.useEffect(() => {
+    let filteredCategories = allSevaCategories;
+    if (userRole === 'coordinator' && userSevaCategoryIds.length > 0) {
+      filteredCategories = allSevaCategories.filter(sc => userSevaCategoryIds.includes(sc.id));
     }
+    // TODO: Add other filters from activeFilters if implemented (e.g., search text)
+    setDisplaySevaCategories(filteredCategories);
+
+    // Prepare grid data
+    const newGridData: RequirementCellData[][] = filteredCategories.map(sevaCategory => {
+      return allTimeslots.map(timeslot => {
+        const requirementsForCell = allRequirements.filter(
+          r => r.seva_category_id === sevaCategory.id && r.timeslot_id === timeslot.id
+        );
+        const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
+        
+        return {
+          sevaCategory,
+          timeslot,
+          total_required_count,
+          requirements_for_cell: requirementsForCell, // Full details for the modal
+        };
+      });
+    });
+    setGridData(newGridData);
+
+  }, [allSevaCategories, allTimeslots, allRequirements, userRole, userSevaCategoryIds /*, activeFilters */]);
+
+
+  // Function to update requirements for a specific cell (SevaCategory/Timeslot combination)
+  const updateRequirementsForCell = async (
+    sevaCategoryId: number, 
+    timeslotId: number, 
+    // This array comes from the modal, representing desired state for each location for that cell
+    requirementsToUpsertForCell: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>>
+  ) => {
     setLoadingRequirements(true);
-    setError(null); 
     try {
-      const reqData = await requirementsService.fetchRequirements(currentSevaCategoryId); // Renamed from currentTaskId
-      setRequirements(reqData);
+      await requirementsService.upsertRequirementsForCell(sevaCategoryId, timeslotId, requirementsToUpsertForCell);
+      toast({ title: "Success", description: "Requirements updated successfully." });
+      // Refresh all requirements data to reflect changes
+      // More granular update is possible but complex if IDs change or new items are added without IDs.
+      const updatedRequirementsData = await requirementsService.fetchAllRequirements();
+      setAllRequirements(updatedRequirementsData);
     } catch (e: any) {
-      const errorMessage = e instanceof Error ? e.message : `Failed to load requirements for Seva Category ${currentSevaCategoryId}`; // Renamed from currentTaskId
-      setError(errorMessage); 
-      toast({ title: "Error Loading Requirements", description: errorMessage, variant: "destructive" });
+      const errorMessage = e instanceof Error ? e.message : "Failed to update requirements.";
+      setError(errorMessage); // Potentially set a more specific error state for the modal
+      toast({ title: "Error Updating Requirements", description: errorMessage, variant: "destructive" });
+      throw e; // Re-throw for the modal to handle if needed
     } finally {
       setLoadingRequirements(false);
     }
-  }, [requirementsService, toast, currentSevaCategoryId]); // Renamed from currentTaskId
-
-  React.useEffect(() => {
-    loadInitialStaticData();
-  }, [loadInitialStaticData]);
-
-  React.useEffect(() => {
-    if (currentSevaCategoryId !== undefined) { // Renamed from currentTaskId
-      loadSevaCategoryRequirements(); // Renamed from loadTaskRequirements
-    } else {
-      setRequirements([]);
-    }
-  }, [currentSevaCategoryId, loadSevaCategoryRequirements]); // Renamed from currentTaskId, loadTaskRequirements
-
-  const updateRequirementCount = async (
-    sevaCategoryId: number, // Renamed from taskId
-    locationId: number,
-    timeslotId: number,
-    requiredCount: number
-  ) => {
-    const validRequiredCount = Math.max(0, requiredCount);
-
-    try {
-      await requirementsService.upsertRequirement({
-        seva_category_id: sevaCategoryId, // Renamed from task_id
-        location_id: locationId,
-        timeslot_id: timeslotId,
-        required_count: validRequiredCount,
-      });
-      if (sevaCategoryId === currentSevaCategoryId) { // Renamed from taskId and currentTaskId
-        await loadSevaCategoryRequirements(); // Renamed from loadTaskRequirements
-      }
-      toast({ title: "Success", description: "Requirement updated." });
-    } catch (e: any) {
-      const errorMessage = e instanceof Error ? e.message : "Failed to update requirement";
-      toast({ title: "Error Updating Requirement", description: errorMessage, variant: "destructive" });
-      throw e; 
-    }
   };
-
-  const requirementRows = React.useMemo((): RequirementRow[] => {
-    if (!currentSevaCategoryId || locations.length === 0 || timeslots.length === 0) { // Renamed from currentTaskId
-      return [];
-    }
-    const currentSevaCategory = sevaCategories.find(sc => sc.id === currentSevaCategoryId); // Renamed from currentTask, tasks, currentTaskId
-    return locations.flatMap(loc =>
-      timeslots.map(ts => {
-        const existingReq = requirements.find(
-          r => r.location_id === loc.id && r.timeslot_id === ts.id && r.seva_category_id === currentSevaCategoryId // Added seva_category_id check
-        ); 
-        return {
-          seva_category_id: currentSevaCategoryId, // Renamed from task_id
-          location_id: loc.id,
-          timeslot_id: ts.id,
-          required_count: existingReq?.required_count || 0,
-          id: existingReq?.id,
-          created_at: existingReq?.created_at,
-          updated_at: existingReq?.updated_at,
-          seva_category_name: currentSevaCategory?.name || 'N/A', // Renamed from task_name, currentTask
-          location_name: loc.name,
-          timeslot_name: ts.name,
-        };
-      })
-    );
-  }, [requirements, sevaCategories, locations, timeslots, currentSevaCategoryId]); // Renamed from tasks, currentTaskId
+  
+  // Function to be called by a FiltersBar component (not implemented in this step)
+  // const onFilterChange = (newFilters: object) => {
+  //   setActiveFilters(newFilters);
+  // };
 
   return {
-    sevaCategories, // Renamed from tasks
-    locations,
-    timeslots,
-    requirementRows,
-    loading: loadingInitial || loadingRequirements, 
-    loadingInitial, 
+    // Data for UI
+    displaySevaCategories, // Rows for the grid
+    allTimeslots,       // Columns for the grid
+    allLocations,       // For the modal
+    gridData,           // The matrix data: RequirementCellData[][]
+    
+    // State
+    isLoading: loadingInitial || loadingRequirements,
+    loadingInitial,
     loadingRequirements,
-    error, 
-    currentSevaCategoryId, // Renamed from currentTaskId
-    setCurrentSevaCategoryId, // Renamed from setCurrentTaskId
-    updateRequirementCount,
-    refreshRequirements: loadSevaCategoryRequirements, // Renamed from loadTaskRequirements
+    error,
+    
+    // Actions
+    refreshData: loadInitialData, // To reload everything
+    updateRequirementsForCell,
+    // onFilterChange, // If filters were implemented
+    
+    // User context (passed in but useful to return if components downstream need it)
+    userRole, 
+    userSevaCategoryIds,
   };
 }
-export type RequirementsData = ReturnType<typeof useRequirementsData>;
+
+export type RequirementsPageData = ReturnType<typeof useRequirementsData>;
