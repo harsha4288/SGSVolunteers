@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { UserCog, Settings } from "lucide-react";
+import { Toaster } from "@/components/ui/toaster";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto mt-14">
           {children}
         </main>
+        <Toaster />
       </SidebarInset>
     </SidebarProvider>
   );
