@@ -10,7 +10,7 @@ import type { RequirementsData } from '../hooks/use-requirements-data';
 import type { RequirementRow } from '../types';
 import { RefreshCw, Save, AlertCircle } from 'lucide-react';
 
-interface RequirementsTableProps { // Added this interface
+interface RequirementsTableProps {
   requirementsData: RequirementsData;
 }
 
@@ -112,12 +112,12 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
     loadingInitial, 
     loadingRequirements,
     error, 
-    currentTaskId,
+    currentSevaCategoryId, // Renamed from currentTaskId
     updateRequirementCount,
-    tasks, 
+    sevaCategories, // Renamed from tasks
   } = requirementsData;
   
-  if (loadingInitial && !currentTaskId && tasks.length === 0) {
+  if (loadingInitial && !currentSevaCategoryId && sevaCategories.length === 0) { // Renamed from currentTaskId and tasks
     return (
       <div className="space-y-2 mt-4">
         {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
@@ -125,29 +125,29 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
     );
   }
   
-  if (error && (!tasks || tasks.length === 0)) { 
+  if (error && (!sevaCategories || sevaCategories.length === 0)) { // Renamed from tasks
      return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading essential data: {error}</p> </div>;
   }
 
-  if (!currentTaskId) {
-    return <p className="text-muted-foreground mt-4 text-center">Please select a task to view or define its volunteer requirements.</p>;
+  if (!currentSevaCategoryId) { // Renamed from currentTaskId
+    return <p className="text-muted-foreground mt-4 text-center">Please select a Seva Category to view or define its volunteer requirements.</p>; // Updated text
   }
   
   if (loadingRequirements && requirementRows.length === 0 && !error) {
      return (
       <div className="space-y-2 mt-4">
-        <p className="text-center text-muted-foreground">Loading requirements for selected task...</p>
+        <p className="text-center text-muted-foreground">Loading requirements for selected Seva Category...</p> {/* Updated text */}
         {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
       </div>
     );
   }
   
-  if (!loadingInitial && !loadingRequirements && requirementRows.length === 0 && currentTaskId && !error) {
-    return <p className="text-muted-foreground mt-4 text-center">No locations or timeslots found. Please set these up first, or requirements for this task have not been defined.</p>;
+  if (!loadingInitial && !loadingRequirements && requirementRows.length === 0 && currentSevaCategoryId && !error) { // Renamed from currentTaskId
+    return <p className="text-muted-foreground mt-4 text-center">No locations or timeslots found. Please set these up first, or requirements for this Seva Category have not been defined.</p>; // Updated text
   }
   
   if (error && requirementRows.length === 0) { 
-     return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading requirements for this task: {error}. Please try selecting the task again or refresh.</p> </div>;
+     return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading requirements for this Seva Category: {error}. Please try selecting the Seva Category again or refresh.</p> </div>; // Updated text
   }
 
   return (
@@ -170,7 +170,7 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
                   row={row}
                   onSave={(newCount) =>
                     updateRequirementCount(
-                      row.task_id,
+                      row.seva_category_id, // Changed from task_id
                       row.location_id,
                       row.timeslot_id,
                       newCount

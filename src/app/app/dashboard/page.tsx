@@ -5,11 +5,12 @@ import * as React from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from './components/stat-card';
 import { AlertsFaqsPanel } from './components/alerts-faqs-panel';
-import { useDashboardStats } from './hooks/use-dashboard-stats'; // New hook for stats
-import { Users, ListChecks, BarChartHorizontal } from 'lucide-react'; // Icons for StatCards
+import { useDashboardStats } from './hooks/use-dashboard-stats';
+import { Users, ListChecks, BarChartHorizontal, AlertCircle } from 'lucide-react'; // Added AlertCircle
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added Alert components
 
 export default function DashboardPage() {
-  const { stats, loading: loadingStats } = useDashboardStats();
+  const { stats, loading: loadingStats, error: statsError } = useDashboardStats(); // Added error state
 
   return (
     <div className="container mx-auto py-3 px-2 space-y-4">
@@ -20,6 +21,15 @@ export default function DashboardPage() {
             <CardDescription>Overview of volunteer activities and system status.</CardDescription>
         </CardHeader>
       </Card>
+
+      {/* Display error if stats fetching failed */}
+      {statsError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Stats</AlertTitle>
+          <AlertDescription>{statsError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Grid for StatCards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

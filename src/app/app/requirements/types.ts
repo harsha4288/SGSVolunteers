@@ -1,7 +1,7 @@
 // src/app/app/requirements/types.ts
 export interface Requirement {
   id?: number;
-  task_id: number;
+  seva_category_id: number; // Renamed from task_id
   timeslot_id: number;
   location_id: number;
   required_count: number;
@@ -9,10 +9,12 @@ export interface Requirement {
   updated_at?: string;
 }
 
-export interface Task {
+// Renamed from Task to SevaCategoryRef
+export interface SevaCategoryRef {
   id: number;
-  name: string;
-  description?: string;
+  name: string; // maps from seva_categories.category_name
+  description?: string | null;
+  default_location_id?: number | null; // from seva_categories.location_id
 }
 
 export interface Location {
@@ -22,14 +24,14 @@ export interface Location {
 
 export interface Timeslot {
   id: number;
-  name: string; // e.g., "Sat 9am-11am"
-  start_time?: string; // Optional, depending on table structure
-  end_time?: string;   // Optional, depending on table structure
+  name: string; // From time_slots.description for user-friendliness
+  // start_time and end_time can be added if needed for display logic later
 }
 
 // Combined type for display
 export interface RequirementRow extends Requirement {
-  task_name?: string;
+  seva_category_id: number; // Ensure this is part of Requirement and then here
+  seva_category_name?: string; // Renamed from task_name
   location_name?: string;
   timeslot_name?: string;
 }

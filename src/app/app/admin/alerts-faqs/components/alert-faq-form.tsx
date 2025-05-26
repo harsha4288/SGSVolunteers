@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch"; // Added Switch import
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,6 +18,7 @@ import type { Alert, FAQ, Timeslot, AlertFAQFormValues } from "../types";
 const commonSchema = {
   category: z.string().optional().nullable(),
   timeslot_id_filter: z.coerce.number().optional().nullable(), // coerce to number from string select
+  active: z.boolean().optional(), // Added active to common schema
 };
 const alertSchema = z.object({
   ...commonSchema,
@@ -25,12 +27,15 @@ const alertSchema = z.object({
   content: z.string().optional().nullable(),
   start_date: z.string().optional().nullable(), 
   end_date: z.string().optional().nullable(),
+  // active is in commonSchema
 });
 const faqSchema = z.object({
   ...commonSchema,
   id: z.number().optional(),
   question: z.string().min(5, "Question must be at least 5 characters"),
   answer: z.string().min(10, "Answer must be at least 10 characters"),
+  sort_order: z.coerce.number().optional(), // Added sort_order
+  // active is in commonSchema
 });
 
 interface AlertFaqFormProps {
@@ -55,16 +60,16 @@ export function AlertFaqForm({ mode, formOpen, setFormOpen, initialData, onSubmi
 
   React.useEffect(() => {
     if (formOpen) {
-      // Ensure defaultValues are correctly set, especially for optional fields like timeslot_id_filter
       const defaults = {
         ...initialData,
-        timeslot_id_filter: initialData?.timeslot_id_filter ?? undefined, // Use undefined for RHF to pick up placeholder
+        timeslot_id_filter: initialData?.timeslot_id_filter ?? undefined,
         category: initialData?.category ?? "",
-        content: (initialData as Alert)?.content ?? "",
-        answer: (initialData as FAQ)?.answer ?? "",
-        start_date: (initialData as Alert)?.start_date ?? "",
-        end_date: (initialData as Alert)?.end_date ?? "",
-
+        content: (initialData as Alert)?.content ?? "", // Alert specific
+        answer: (initialData as FAQ)?.answer ?? "",     // FAQ specific
+        start_date: (initialData as Alert)?.start_date ?? "", // Alert specific
+        end_date: (initialData as Alert)?.end_date ?? "",     // Alert specific
+        active: initialData?.active ?? true, // Default to true for new items
+        sort_order: (initialData as FAQ)?.sort_order ?? 0, // FAQ specific, default to 0
       };
       form.reset(defaults);
     }
@@ -87,8 +92,11 @@ export function AlertFaqForm({ mode, formOpen, setFormOpen, initialData, onSubmi
         delete (dataToSubmit as any).start_date;
         delete (dataToSubmit as any).end_date;
         delete (dataToSubmit as any).content;
+        delete (dataToSubmit as any).start_date; // Also ensure these are not on FAQ object if commonSchema puts them there
+        delete (dataToSubmit as any).end_date;
+      } else { // Alert mode
+        delete (dataToSubmit as any).sort_order; // Ensure sort_order is not on Alert object
       }
-
 
       await onSubmit(dataToSubmit);
       setFormOpen(false);
@@ -174,6 +182,29 @@ export function AlertFaqForm({ mode, formOpen, setFormOpen, initialData, onSubmi
                 </FormItem>
               )}
             />
+
+            {/* Active Switch */}
+            <FormField
+              control={form.control}
+              name="active"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Active</FormLabel>
+                    <FormDescription>
+                      {isAlertMode ? "Inactive alerts will not be shown to users." : "Inactive FAQs will not be shown to users."}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             {isAlertMode && (
               <>
                 <FormField
@@ -183,6 +214,7 @@ export function AlertFaqForm({ mode, formOpen, setFormOpen, initialData, onSubmi
                     <FormItem>
                       <FormLabel>Start Date (Optional)</FormLabel>
                       <FormControl><Input type="datetime-local" {...field} value={field.value || ''} /></FormControl>
+                      <FormDescription>Alert will only show after this date/time.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -194,12 +226,31 @@ export function AlertFaqForm({ mode, formOpen, setFormOpen, initialData, onSubmi
                     <FormItem>
                       <FormLabel>End Date (Optional)</FormLabel>
                       <FormControl><Input type="datetime-local" {...field} value={field.value || ''} /></FormControl>
+                      <FormDescription>Alert will hide after this date/time.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </>
             )}
+
+            {!isAlertMode && ( // Sort Order for FAQs only
+                <FormField
+                control={form.control}
+                name="sort_order"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Sort Order (Optional)</FormLabel>
+                    <FormControl>
+                        <Input type="number" placeholder="0" {...field} onChange={event => field.onChange(+event.target.value)} value={field.value ?? 0} />
+                    </FormControl>
+                    <FormDescription>FAQs with lower numbers appear first.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            )}
+
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit" disabled={isSubmitting}>

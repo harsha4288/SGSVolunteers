@@ -3,47 +3,82 @@
 
 import * as React from 'react';
 import { createClient } from '@/lib/supabase/client';
-// import { useToast } from '@/hooks/use-toast'; // If needed for error notifications
-
-// Mock service, replace with actual service calls
-// const createDashboardService = (supabase: any) => ({
-//   fetchTotalVolunteers: async () => { /* ... */ return 150; },
-//   fetchTasksFilledPercentage: async () => { /* ... */ return 75; },
-//   fetchOverallAttendancePercentage: async () => { /* ... */ return 88; },
-// });
+import { useToast } from '@/hooks/use-toast'; 
+import type { Database } from '@/lib/types/supabase'; // For Supabase client type
 
 export function useDashboardStats() {
-  // const [supabase] = React.useState(() => createClient());
-  // const [service] = React.useState(() => createDashboardService(supabase));
-  // const { toast } = useToast();
+  const [supabase] = React.useState(() => createClient<Database>()); // Typed Supabase client
+  const { toast } = useToast();
 
   const [stats, setStats] = React.useState({
     totalVolunteers: 0,
     tasksFilledPercentage: 0,
     overallAttendancePercentage: 0,
-    // Add more stats as needed
   });
   const [loading, setLoading] = React.useState(true);
-  // const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   const loadStats = React.useCallback(async () => {
     setLoading(true);
-    // setError(null);
+    setError(null);
     try {
-      // Simulate fetching data
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
-      setStats({
-        totalVolunteers: 150, // Mock data
-        tasksFilledPercentage: 75, // Mock data
-        overallAttendancePercentage: 88, // Mock data
+      // 1. Fetch Total Volunteers
+      const { count: volunteerCount, error: volunteerError } = await supabase
+        .from('volunteers')
+        .select('id', { count: 'exact', head: true });
+
+      if (volunteerError) throw new Error(`Failed to fetch total volunteers: ${volunteerError.message}`);
+      
+      // 2. Fetch Data for Tasks Filled Percentage
+      const { data: varianceData, error: varianceError } = await supabase
+        .from('vw_seva_timeslot_variance_summary')
+        .select('total_required_count, total_available_volunteers');
+
+      if (varianceError) throw new Error(`Failed to fetch variance summary: ${varianceError.message}`);
+
+      let filledTasks = 0;
+      let relevantTasks = 0;
+      varianceData?.forEach(item => {
+        if (item.total_required_count > 0) {
+          relevantTasks++;
+          if (item.total_available_volunteers >= item.total_required_count) {
+            filledTasks++;
+          }
+        }
       });
+      const tasksFilledPercentage = relevantTasks > 0 ? (filledTasks / relevantTasks) * 100 : 0; // Or 100 if no relevant tasks
+
+      // 3. Fetch Data for Overall Attendance Percentage
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('vw_assignments_vs_attendance')
+        .select('assigned_volunteers_count, actual_attendance_count');
+      
+      if (attendanceError) throw new Error(`Failed to fetch attendance data: ${attendanceError.message}`);
+
+      let totalAssigned = 0;
+      let totalAttended = 0;
+      attendanceData?.forEach(item => {
+        totalAssigned += item.assigned_volunteers_count || 0;
+        totalAttended += item.actual_attendance_count || 0;
+      });
+      const overallAttendancePercentage = totalAssigned > 0 ? (totalAttended / totalAssigned) * 100 : 0; // Or 100 if no assignments
+
+      setStats({
+        totalVolunteers: volunteerCount || 0,
+        tasksFilledPercentage: parseFloat(tasksFilledPercentage.toFixed(1)), // Keep one decimal place
+        overallAttendancePercentage: parseFloat(overallAttendancePercentage.toFixed(1)), // Keep one decimal place
+      });
+
     } catch (e: any) {
-      // setError(e.message);
-      // toast({ title: "Error Loading Stats", description: e.message, variant: "destructive" });
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred while fetching dashboard stats.";
+      setError(errorMessage);
+      toast({ title: "Error Loading Dashboard Stats", description: errorMessage, variant: "destructive" });
+      // Keep existing stats or reset, based on preference. Resetting to 0 for now.
+      setStats({ totalVolunteers: 0, tasksFilledPercentage: 0, overallAttendancePercentage: 0 });
     } finally {
       setLoading(false);
     }
-  }, []); // Add service to deps if it's used
+  }, [supabase, toast]); 
 
   React.useEffect(() => {
     loadStats();
@@ -52,7 +87,7 @@ export function useDashboardStats() {
   return {
     stats,
     loading,
-    // error,
+    error, // Expose error state
     refreshStats: loadStats,
   };
 }

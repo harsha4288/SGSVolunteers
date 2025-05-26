@@ -13,23 +13,26 @@ export function AlertsFaqsPanel() {
   // Use the existing hook, it fetches both alerts and FAQs
   const { alerts, faqs, loading, error } = useAlertsFaqsData();
 
-  // Filter for active alerts (e.g., based on start_date and end_date)
-  // For simplicity, we'll just take the latest few for now.
+  const now = new Date();
+
   const activeAlerts = alerts
     .filter(alert => {
-        // Basic filtering: no end_date or end_date is in the future
-        // and no start_date or start_date is in the past
-        const now = new Date();
-        // Alert is considered active if:
-        // 1. No end_date OR end_date is in the future
-        // 2. No start_date OR start_date is in the past
-        const isNotEnded = !alert.end_date || new Date(alert.end_date) >= now;
-        const isStarted = !alert.start_date || new Date(alert.start_date) <= now;
-        return isNotEnded && isStarted;
+      // Must be active
+      if (!alert.active) return false;
+      
+      // Date filtering
+      const hasStartDate = alert.start_date && new Date(alert.start_date) > now;
+      const hasEndDate = alert.end_date && new Date(alert.end_date) < now;
+      
+      return !hasStartDate && !hasEndDate; // Not yet started OR already ended
     })
-    .slice(0, 3); // Show top 3 active alerts
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()) // Sort by most recent
+    .slice(0, 3);
 
-  const recentFaqs = faqs.slice(0, 3); // Show top 3 recent FAQs
+  const activeFaqs = faqs
+    .filter(faq => faq.active) // Must be active
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()) // Sort by sort_order then most recent
+    .slice(0, 3);
 
   if (loading) {
     return (
@@ -57,7 +60,7 @@ export function AlertsFaqsPanel() {
     );
   }
   
-  const hasContent = activeAlerts.length > 0 || recentFaqs.length > 0;
+  const hasContent = activeAlerts.length > 0 || activeFaqs.length > 0; // Changed recentFaqs to activeFaqs
 
   return (
     <Card>
@@ -72,7 +75,7 @@ export function AlertsFaqsPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!hasContent && <p className="text-muted-foreground text-center py-4">No current alerts or FAQs.</p>}
+        {!hasContent && <p className="text-muted-foreground text-center py-4">No active alerts or FAQs.</p>} {/* Updated text */}
         
         {activeAlerts.length > 0 && (
           <div>
@@ -88,11 +91,11 @@ export function AlertsFaqsPanel() {
           </div>
         )}
 
-        {recentFaqs.length > 0 && (
+        {activeFaqs.length > 0 && ( // Changed recentFaqs to activeFaqs
           <div>
-            <h4 className="text-sm font-semibold mb-2 mt-4 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-blue-500"/>Recent FAQs</h4>
+            <h4 className="text-sm font-semibold mb-2 mt-4 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-blue-500"/>Active FAQs</h4> {/* Updated text */}
             <ul className="space-y-2">
-              {recentFaqs.map(faq => (
+              {activeFaqs.map(faq => ( // Changed recentFaqs to activeFaqs
                 <li key={`faq-${faq.id}`} className="text-xs p-2 bg-secondary rounded-md">
                   <div className="font-medium mb-0.5">{faq.question} {faq.category && <Badge variant="outline" className="ml-2 text-xs font-normal">{faq.category}</Badge>}</div>
                    <p className="text-muted-foreground truncate max-w-md">{faq.answer}</p>

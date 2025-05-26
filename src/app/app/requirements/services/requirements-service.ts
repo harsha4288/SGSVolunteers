@@ -1,7 +1,7 @@
 // src/app/app/requirements/services/requirements-service.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/supabase';
-import type { Requirement, Task, Location, Timeslot } from '../types';
+import type { Requirement, SevaCategoryRef, Location, Timeslot } from '../types';
 
 interface RequirementsServiceProps {
   supabase: SupabaseClient<Database>;
@@ -14,10 +14,18 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
     throw new Error(`Failed to ${context.toLowerCase()}.`);
   };
 
-  const fetchTasks = async (): Promise<Task[]> => {
-    const { data, error } = await supabase.from('tasks').select('id, name, description');
-    if (error) handleError(error, 'fetch tasks');
-    return data || [];
+  const fetchSevaCategories = async (): Promise<SevaCategoryRef[]> => {
+    const { data, error } = await supabase
+      .from('seva_categories')
+      .select('id, category_name, description, location_id'); // Supabase returns actual column names
+    if (error) handleError(error, 'fetch Seva Categories');
+    // Manually map to SevaCategoryRef, ensuring correct property names
+    return (data || []).map(sc => ({
+      id: sc.id,
+      name: sc.category_name, // Map category_name to name
+      description: sc.description,
+      default_location_id: sc.location_id, // Map location_id to default_location_id
+    }));
   };
 
   const fetchLocations = async (): Promise<Location[]> => {
@@ -27,15 +35,21 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   };
 
   const fetchTimeslots = async (): Promise<Timeslot[]> => {
-    const { data, error } = await supabase.from('timeslots').select('id, name, start_time, end_time');
+    const { data, error } = await supabase
+      .from('time_slots')
+      .select('id, description'); // Supabase returns actual column names
     if (error) handleError(error, 'fetch timeslots');
-    return data || [];
+     // Manually map to Timeslot, ensuring correct property names
+    return (data || []).map(ts => ({
+      id: ts.id,
+      name: ts.description, // Map description to name
+    }));
   };
 
-  const fetchRequirements = async (taskId?: number): Promise<Requirement[]> => {
+  const fetchRequirements = async (sevaCategoryId?: number): Promise<Requirement[]> => {
     let query = supabase.from('requirements').select('*');
-    if (taskId) {
-      query = query.eq('task_id', taskId);
+    if (sevaCategoryId) {
+      query = query.eq('seva_category_id', sevaCategoryId);
     }
     const { data, error } = await query;
     if (error) handleError(error, 'fetch requirements');
@@ -43,9 +57,13 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   };
 
   const upsertRequirement = async (requirement: Omit<Requirement, 'id' | 'created_at' | 'updated_at'>): Promise<Requirement> => {
+    // Ensure the requirement object being passed to upsert has seva_category_id, not task_id
+    const { seva_category_id, location_id, timeslot_id, required_count } = requirement;
+    const upsertData = { seva_category_id, location_id, timeslot_id, required_count };
+
     const { data, error } = await supabase
       .from('requirements')
-      .upsert(requirement, { onConflict: 'task_id, timeslot_id, location_id' })
+      .upsert(upsertData, { onConflict: 'seva_category_id, timeslot_id, location_id' })
       .select()
       .single();
 
@@ -54,7 +72,7 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   };
 
   return {
-    fetchTasks,
+    fetchSevaCategories, // Renamed from fetchTasks
     fetchLocations,
     fetchTimeslots,
     fetchRequirements,

@@ -5,11 +5,11 @@ import * as React from 'react';
 import { DataTable, DataTableHeader, DataTableBody, DataTableRow, DataTableHead, DataTableCell } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit3, Trash2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, AlertTriangle, HelpCircle, CheckCircle2, XCircle } from 'lucide-react'; // Added CheckCircle2, XCircle
 import type { Alert, FAQ } from '../types'; 
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Skeleton } from '@/components/ui/skeleton'; // Added for loading state
+import { Skeleton } from '@/components/ui/skeleton'; 
 
 
 interface AlertsFaqsTableProps<T extends Alert | FAQ> {
@@ -40,14 +40,21 @@ export function AlertsFaqsTable<T extends Alert | FAQ>({ data, dataType, onEdit,
   };
   
   const columns = [
-    { header: 'Type', cell: (item: T) => (
+    { header: 'Type', width: 'w-[80px]', cell: (item: T) => ( // Added width
         <Badge variant="outline" className="capitalize whitespace-nowrap text-xs">
           {dataType === 'alert' ? <AlertTriangle className="h-3 w-3 mr-1"/> : <HelpCircle className="h-3 w-3 mr-1"/>}
           {dataType}
         </Badge>
       )
     },
-    { header: 'Category', cell: (item: T) => item.category || <span className="text-xs text-muted-foreground">N/A</span> },
+    { header: 'Status', width: 'w-[100px]', cell: (item: T) => ( // Added Status column
+        <Badge variant={item.active ? "default" : "secondary"} className={`text-xs ${item.active ? 'bg-green-100 text-green-700 hover:bg-green-100/90' : 'bg-gray-100 text-gray-600 hover:bg-gray-100/90'}`}>
+          {item.active ? <CheckCircle2 className="h-3 w-3 mr-1"/> : <XCircle className="h-3 w-3 mr-1"/>}
+          {item.active ? 'Active' : 'Inactive'}
+        </Badge>
+      ) 
+    },
+    { header: 'Category', width: 'w-[150px]', cell: (item: T) => item.category || <span className="text-xs text-muted-foreground">N/A</span> }, // Added width
     { header: dataType === 'alert' ? 'Title' : 'Question', cell: (item: T) => (
         <div className="font-medium text-sm">{dataType === 'alert' ? (item as Alert).title : (item as FAQ).question}</div>
       )
@@ -58,8 +65,15 @@ export function AlertsFaqsTable<T extends Alert | FAQ>({ data, dataType, onEdit,
         </p>
       )
     },
-    { header: 'Timeslot Filter', cell: (item: T) => item.timeslot_name || <span className="text-xs text-muted-foreground">All Timeslots</span> },
-    { header: 'Actions', cell: (item: T) => (
+    // Conditionally add Sort Order column for FAQs
+    ...(dataType === 'faq' ? [{ 
+        header: 'Sort Order', 
+        width: 'w-[100px]', // Added width
+        align: 'center' as 'center', 
+        cell: (item: T) => (item as FAQ).sort_order ?? <span className="text-xs text-muted-foreground">0</span> 
+    }] : []),
+    { header: 'Timeslot Filter', width: 'w-[150px]', cell: (item: T) => item.timeslot_name || <span className="text-xs text-muted-foreground">All Timeslots</span> }, // Added width
+    { header: 'Actions', width: 'w-[80px]', align: 'right' as 'right', cell: (item: T) => ( // Added width and align
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">

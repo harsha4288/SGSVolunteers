@@ -1,7 +1,7 @@
 // src/app/app/reports/services/reports-service.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/supabase';
-import type { ReportType, VarianceReportData, AttendanceReportData } from '../types';
+import type { VarianceSummaryData, RequirementDetailData, AttendanceReportData } from '../types';
 
 interface ReportsServiceProps {
   supabase: SupabaseClient<Database>;
@@ -13,22 +13,31 @@ export function createReportsService({ supabase }: ReportsServiceProps) {
     throw new Error(`Failed to ${context.toLowerCase()}.`);
   };
 
-  const fetchVarianceReportData = async (): Promise<Omit<VarianceReportData, 'variance'>[]> => {
-    // Data directly from the view
-    const { data, error } = await supabase.from('vw_requirements_vs_availability').select('*');
-    if (error) handleError(error, 'fetch variance report data');
+  const fetchVarianceSummaryData = async (): Promise<VarianceSummaryData[]> => {
+    // Data directly from the view, no client-side calculation needed for 'overall_variance'
+    const { data, error } = await supabase.from('vw_seva_timeslot_variance_summary').select('*');
+    if (error) handleError(error, 'fetch variance summary data');
+    return data || [];
+  };
+
+  const fetchRequirementDetailsData = async (): Promise<RequirementDetailData[]> => {
+    const { data, error } = await supabase.from('vw_requirement_details').select('*');
+    if (error) handleError(error, 'fetch requirement details data');
     return data || [];
   };
 
   const fetchAttendanceReportData = async (): Promise<Omit<AttendanceReportData, 'attendance_rate'>[]> => {
-    // Data directly from the view
-    const { data, error } = await supabase.from('vw_availability_vs_actual_attendance').select('*');
+    // Data directly from the view, 'attendance_rate' will be calculated client-side
+    const { data, error } = await supabase
+      .from('vw_assignments_vs_attendance')
+      .select('task_id, task_name, timeslot_slot_name, timeslot_description, assigned_location_id, assigned_location_name, assigned_volunteers_count, actual_attendance_count');
     if (error) handleError(error, 'fetch attendance report data');
     return data || [];
   };
 
   return {
-    fetchVarianceReportData,
+    fetchVarianceSummaryData,
+    fetchRequirementDetailsData,
     fetchAttendanceReportData,
   };
 }

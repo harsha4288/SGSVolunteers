@@ -5,18 +5,18 @@ import * as React from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createRequirementsService } from '../services/requirements-service';
-import type { Requirement, Task, Location, Timeslot, RequirementRow } from '../types';
+import type { Requirement, SevaCategoryRef, Location, Timeslot, RequirementRow } from '../types';
 
 interface UseRequirementsDataProps {
-  initialTaskId?: number;
+  initialSevaCategoryId?: number; // Renamed from initialTaskId
 }
 
-export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps) {
+export function useRequirementsData({ initialSevaCategoryId }: UseRequirementsDataProps) {
   const [supabase] = React.useState(() => createClient());
   const [requirementsService] = React.useState(() => createRequirementsService({ supabase }));
   const { toast } = useToast();
 
-  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [sevaCategories, setSevaCategories] = React.useState<SevaCategoryRef[]>([]); // Renamed from tasks
   const [locations, setLocations] = React.useState<Location[]>([]);
   const [timeslots, setTimeslots] = React.useState<Timeslot[]>([]);
   const [requirements, setRequirements] = React.useState<Requirement[]>([]);
@@ -24,27 +24,27 @@ export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps)
   const [loadingInitial, setLoadingInitial] = React.useState(true);
   const [loadingRequirements, setLoadingRequirements] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [currentTaskId, setCurrentTaskId] = React.useState<number | undefined>(initialTaskId);
+  const [currentSevaCategoryId, setCurrentSevaCategoryId] = React.useState<number | undefined>(initialSevaCategoryId); // Renamed from currentTaskId
 
   const loadInitialStaticData = React.useCallback(async () => {
     setLoadingInitial(true);
     setError(null);
     try {
-      const [taskData, locationData, timeslotData] = await Promise.all([
-        requirementsService.fetchTasks(),
+      const [sevaCategoryData, locationData, timeslotData] = await Promise.all([ // Renamed taskData
+        requirementsService.fetchSevaCategories(), // Renamed from fetchTasks
         requirementsService.fetchLocations(),
         requirementsService.fetchTimeslots(),
       ]);
-      setTasks(taskData);
+      setSevaCategories(sevaCategoryData); // Renamed from setTasks
       setLocations(locationData);
       setTimeslots(timeslotData);
 
-      if (!initialTaskId && taskData.length > 0) {
-        setCurrentTaskId(taskData[0].id);
-      } else if (initialTaskId && !taskData.some(t => t.id === initialTaskId)){
-        setCurrentTaskId(taskData.length > 0 ? taskData[0].id : undefined);
-         if (taskData.length > 0) {
-           toast({ title: "Notice", description: `Initial task ID ${initialTaskId} not found. Displaying first available task.`, variant: "default" });
+      if (!initialSevaCategoryId && sevaCategoryData.length > 0) { // Renamed initialTaskId and taskData
+        setCurrentSevaCategoryId(sevaCategoryData[0].id); // Renamed setCurrentTaskId and taskData
+      } else if (initialSevaCategoryId && !sevaCategoryData.some(sc => sc.id === initialSevaCategoryId)){ // Renamed initialTaskId and taskData
+        setCurrentSevaCategoryId(sevaCategoryData.length > 0 ? sevaCategoryData[0].id : undefined); // Renamed setCurrentTaskId and taskData
+         if (sevaCategoryData.length > 0) { // Renamed taskData
+           toast({ title: "Notice", description: `Initial Seva Category ID ${initialSevaCategoryId} not found. Displaying first available.`, variant: "default" }); // Renamed initialTaskId
         }
       }
     } catch (e: any) {
@@ -54,41 +54,41 @@ export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps)
     } finally {
       setLoadingInitial(false);
     }
-  }, [requirementsService, toast, initialTaskId]);
+  }, [requirementsService, toast, initialSevaCategoryId]); // Renamed initialTaskId
 
-  const loadTaskRequirements = React.useCallback(async () => {
-    if (!currentTaskId) {
+  const loadSevaCategoryRequirements = React.useCallback(async () => { // Renamed from loadTaskRequirements
+    if (!currentSevaCategoryId) { // Renamed from currentTaskId
       setRequirements([]);
       return;
     }
     setLoadingRequirements(true);
     setError(null); 
     try {
-      const reqData = await requirementsService.fetchRequirements(currentTaskId);
+      const reqData = await requirementsService.fetchRequirements(currentSevaCategoryId); // Renamed from currentTaskId
       setRequirements(reqData);
     } catch (e: any) {
-      const errorMessage = e instanceof Error ? e.message : `Failed to load requirements for task ${currentTaskId}`;
+      const errorMessage = e instanceof Error ? e.message : `Failed to load requirements for Seva Category ${currentSevaCategoryId}`; // Renamed from currentTaskId
       setError(errorMessage); 
       toast({ title: "Error Loading Requirements", description: errorMessage, variant: "destructive" });
     } finally {
       setLoadingRequirements(false);
     }
-  }, [requirementsService, toast, currentTaskId]);
+  }, [requirementsService, toast, currentSevaCategoryId]); // Renamed from currentTaskId
 
   React.useEffect(() => {
     loadInitialStaticData();
   }, [loadInitialStaticData]);
 
   React.useEffect(() => {
-    if (currentTaskId !== undefined) {
-      loadTaskRequirements();
+    if (currentSevaCategoryId !== undefined) { // Renamed from currentTaskId
+      loadSevaCategoryRequirements(); // Renamed from loadTaskRequirements
     } else {
       setRequirements([]);
     }
-  }, [currentTaskId, loadTaskRequirements]);
+  }, [currentSevaCategoryId, loadSevaCategoryRequirements]); // Renamed from currentTaskId, loadTaskRequirements
 
   const updateRequirementCount = async (
-    taskId: number,
+    sevaCategoryId: number, // Renamed from taskId
     locationId: number,
     timeslotId: number,
     requiredCount: number
@@ -97,13 +97,13 @@ export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps)
 
     try {
       await requirementsService.upsertRequirement({
-        task_id: taskId,
+        seva_category_id: sevaCategoryId, // Renamed from task_id
         location_id: locationId,
         timeslot_id: timeslotId,
         required_count: validRequiredCount,
       });
-      if (taskId === currentTaskId) {
-        await loadTaskRequirements(); 
+      if (sevaCategoryId === currentSevaCategoryId) { // Renamed from taskId and currentTaskId
+        await loadSevaCategoryRequirements(); // Renamed from loadTaskRequirements
       }
       toast({ title: "Success", description: "Requirement updated." });
     } catch (e: any) {
@@ -114,33 +114,33 @@ export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps)
   };
 
   const requirementRows = React.useMemo((): RequirementRow[] => {
-    if (!currentTaskId || locations.length === 0 || timeslots.length === 0) {
+    if (!currentSevaCategoryId || locations.length === 0 || timeslots.length === 0) { // Renamed from currentTaskId
       return [];
     }
-    const currentTask = tasks.find(t => t.id === currentTaskId);
+    const currentSevaCategory = sevaCategories.find(sc => sc.id === currentSevaCategoryId); // Renamed from currentTask, tasks, currentTaskId
     return locations.flatMap(loc =>
       timeslots.map(ts => {
         const existingReq = requirements.find(
-          r => r.location_id === loc.id && r.timeslot_id === ts.id
+          r => r.location_id === loc.id && r.timeslot_id === ts.id && r.seva_category_id === currentSevaCategoryId // Added seva_category_id check
         ); 
         return {
-          task_id: currentTaskId,
+          seva_category_id: currentSevaCategoryId, // Renamed from task_id
           location_id: loc.id,
           timeslot_id: ts.id,
           required_count: existingReq?.required_count || 0,
           id: existingReq?.id,
           created_at: existingReq?.created_at,
           updated_at: existingReq?.updated_at,
-          task_name: currentTask?.name || 'N/A',
+          seva_category_name: currentSevaCategory?.name || 'N/A', // Renamed from task_name, currentTask
           location_name: loc.name,
           timeslot_name: ts.name,
         };
       })
     );
-  }, [requirements, tasks, locations, timeslots, currentTaskId]);
+  }, [requirements, sevaCategories, locations, timeslots, currentSevaCategoryId]); // Renamed from tasks, currentTaskId
 
   return {
-    tasks,
+    sevaCategories, // Renamed from tasks
     locations,
     timeslots,
     requirementRows,
@@ -148,10 +148,10 @@ export function useRequirementsData({ initialTaskId }: UseRequirementsDataProps)
     loadingInitial, 
     loadingRequirements,
     error, 
-    currentTaskId,
-    setCurrentTaskId,
+    currentSevaCategoryId, // Renamed from currentTaskId
+    setCurrentSevaCategoryId, // Renamed from setCurrentTaskId
     updateRequirementCount,
-    refreshRequirements: loadTaskRequirements,
+    refreshRequirements: loadSevaCategoryRequirements, // Renamed from loadTaskRequirements
   };
 }
 export type RequirementsData = ReturnType<typeof useRequirementsData>;
