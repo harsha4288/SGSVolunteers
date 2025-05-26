@@ -4,13 +4,14 @@
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { AlertCircle, ListChecks } from 'lucide-react';
 
-import { useRequirementsData, RequirementsPageData } from '../hooks/use-requirements-data';
+import { useRequirementsData, RequirementsPageData } from './hooks/use-requirements-data';
 import { FiltersBar } from './components/filters-bar';
 import { RequirementsGrid } from './components/requirements-grid';
 import { RequirementEditModal } from './components/requirement-edit-modal';
-import type { RequirementCellData, Requirement } from '../types';
+import type { RequirementCellData, Requirement } from './types';
 
 // Mock user data for now - this should come from an auth context or session
 const MOCK_USER_ROLE = 'admin' as 'admin' | 'coordinator' | 'volunteer';
@@ -31,9 +32,9 @@ export default function RequirementsPage() {
     userRole,
     // userSevaCategoryIds, // Already part of the hook's context
     // onFilterChange, // To be implemented if FiltersBar becomes active
-  }: RequirementsPageData = useRequirementsData({ 
-    userRole: MOCK_USER_ROLE, 
-    userSevaCategoryIds: MOCK_USER_SEVA_CATEGORY_IDS 
+  }: RequirementsPageData = useRequirementsData({
+    userRole: MOCK_USER_ROLE,
+    userSevaCategoryIds: MOCK_USER_SEVA_CATEGORY_IDS
   });
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -56,20 +57,20 @@ export default function RequirementsPage() {
   };
 
   const handleSaveModal = async (
-    sevaCategoryId: number, 
-    timeslotId: number, 
+    sevaCategoryId: number,
+    timeslotId: number,
     requirementsToUpsert: Array<Omit<Requirement, 'id'|'created_at'|'updated_at'>>
   ) => {
     // The hook's updateRequirementsForCell will show toasts on success/failure.
     // It also re-fetches data, which will update the gridData.
     await updateRequirementsForCell(sevaCategoryId, timeslotId, requirementsToUpsert);
-    // No need to manually close modal here if updateRequirementsForCell doesn't throw, 
+    // No need to manually close modal here if updateRequirementsForCell doesn't throw,
     // Form will close itself via its own onSave prop if it's designed that way OR
     // we can rely on the fact that RequirementEditModal has its own onSave that calls this, then its own onClose.
     // For clarity, let's assume modal closes itself on successful internal save.
     // If not, add: handleCloseModal();
   };
-  
+
   // Initial loading state for the entire page content
   if (loadingInitial && displaySevaCategories.length === 0 && allTimeslots.length === 0) {
     // Basic skeleton, can be enhanced
@@ -95,11 +96,11 @@ export default function RequirementsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <FiltersBar 
-            userRole={userRole} 
+          <FiltersBar
+            userRole={userRole}
             // onFilterChange={onFilterChange} // Pass if filter logic is active in hook
           />
-          
+
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
@@ -128,10 +129,10 @@ export default function RequirementsPage() {
           onSave={handleSaveModal}
           // modalData requires RequirementEditModalData, which is { sevaCategory, timeslot, requirementsForCell }
           // selectedCellDataForModal directly matches this structure from RequirementCellData
-          modalData={{ 
+          modalData={{
             sevaCategory: selectedCellDataForModal.sevaCategory,
             timeslot: selectedCellDataForModal.timeslot,
-            requirementsForCell: selectedCellDataForModal.requirements_for_cell 
+            requirementsForCell: selectedCellDataForModal.requirements_for_cell
           }}
           allLocations={allLocations}
           userRole={userRole}

@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from 'react';
-import { useReportData } from '../../../hooks/use-report-data'; // Adjusted path
-import { ReportDisplay } from '../../common/report-display'; // Adjusted path
-import type { RequirementsVsAssignmentsData, ReportFilters } from '../../../types'; // Adjusted path
+import { useReportData } from '../../hooks/use-report-data'; // Adjusted path
+import { ReportDisplay } from '../common/report-display'; // Adjusted path
+import type { RequirementsVsAssignmentsData, ReportFilters } from '../../types'; // Adjusted path
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -13,9 +13,9 @@ interface RequirementsVsAssignmentsViewProps {
 }
 
 export function RequirementsVsAssignmentsView({ filters }: RequirementsVsAssignmentsViewProps) {
-  const { data, loading, error, refreshData } = useReportData({ 
-    reportType: 'requirements_vs_assignments', 
-    initialFilters: filters 
+  const { data, loading, error, refreshData } = useReportData({
+    reportType: 'requirements_vs_assignments',
+    initialFilters: filters
   });
 
   // React.useEffect to re-fetch data when filters change from parent
@@ -59,7 +59,7 @@ export function RequirementsVsAssignmentsView({ filters }: RequirementsVsAssignm
       title="Requirements vs. Assignments Variance"
       data={reportData}
       columns={columns}
-      chartDataKey="category_name" 
+      chartDataKey="category_name"
       chartValueKeys={[
         { key: 'total_required', name: 'Total Required', color: 'hsl(var(--chart-1))' },
         { key: 'assigned_volunteers', name: 'Assigned Volunteers', color: 'hsl(var(--chart-2))' },

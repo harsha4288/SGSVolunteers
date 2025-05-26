@@ -119,8 +119,7 @@ export const chatQueryParserFlow = ai.defineFlow(
       return { intent: 'UNRECOGNIZED', originalQuery: userQuery };
 
     } catch (e) {
-      console.error("Error parsing LLM JSON output:", e, "
-Raw output:", jsonOutput);
+      console.error("Error parsing LLM JSON output:", e, "Raw output:", jsonOutput);
       return { intent: 'UNRECOGNIZED', originalQuery: userQuery };
     }
   }

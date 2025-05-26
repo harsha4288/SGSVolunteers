@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from 'react';
-import { useReportData } from '../../../hooks/use-report-data'; // Adjusted path
-import { ReportDisplay } from '../../common/report-display'; // Adjusted path
-import type { RequirementsByLocationData, ReportFilters } from '../../../types'; // Adjusted path
+import { useReportData } from '../../hooks/use-report-data'; // Adjusted path
+import { ReportDisplay } from '../common/report-display'; // Adjusted path
+import type { RequirementsByLocationData, ReportFilters } from '../../types'; // Adjusted path
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -13,9 +13,9 @@ interface RequirementsByLocationViewProps {
 }
 
 export function RequirementsByLocationView({ filters }: RequirementsByLocationViewProps) {
-  const { data, loading, error, refreshData } = useReportData({ 
-    reportType: 'requirements_by_location', 
-    initialFilters: filters 
+  const { data, loading, error, refreshData } = useReportData({
+    reportType: 'requirements_by_location',
+    initialFilters: filters
   });
 
   // Effect to refresh data when filters prop changes.
@@ -32,13 +32,13 @@ export function RequirementsByLocationView({ filters }: RequirementsByLocationVi
   ];
 
   const reportData = data as RequirementsByLocationData[];
-  
+
   // Charting this data can be complex. A simple bar chart might group by Seva Category and sum required_count,
   // or by location. For detailed breakdown, the table is primary.
   // For this example, let's chart total requirements per Seva Category.
   // More advanced charting could involve drill-downs or stacked bars if library supports it easily.
-  
-  // Charting this detailed data directly can be dense. 
+
+  // Charting this detailed data directly can be dense.
   // The ReportDisplay component will attempt to chart based on the provided data.
   // For a meaningful chart, data might need pre-aggregation before being passed to ReportDisplay,
   // or ReportDisplay itself would need more complex charting options (e.g., allowing grouping).
@@ -56,9 +56,9 @@ export function RequirementsByLocationView({ filters }: RequirementsByLocationVi
   }
 
   return (
-    <ReportDisplay<RequirementsByLocationData> 
+    <ReportDisplay<RequirementsByLocationData>
       title="Requirements Breakdown by Location"
-      data={reportData} 
+      data={reportData}
       columns={columns}
       // Chart: Sum of required_count per category_name.
       // This requires ReportDisplay to handle aggregation or the data to be pre-aggregated for the chart.
@@ -66,7 +66,7 @@ export function RequirementsByLocationView({ filters }: RequirementsByLocationVi
       // For simplicity, let's use category_name as X-axis and sum of required_count as Y-axis.
       // This will result in multiple bars for the same category if there are multiple locations/timeslots.
       // A better chart would aggregate this first. Let's assume ReportDisplay can plot this directly for now.
-      chartDataKey="category_name" 
+      chartDataKey="category_name"
       chartValueKeys={[
         { key: 'required_count', name: 'Required Count', color: 'hsl(var(--chart-1))' },
       ]}

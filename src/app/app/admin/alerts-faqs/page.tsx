@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, AlertTriangle, HelpCircle, AlertCircle as AlertIcon } from 'lucide-react'; // Renamed AlertCircle to AlertIcon
-import { useAlertsFaqsData } from '../hooks/use-alerts-faqs-data';
-import { AlertsFaqsTable } from '../components/alerts-faqs-table';
-import { AlertFaqForm } from '../components/alert-faq-form';
-import type { Alert, FAQ } from '../types'; 
+import { useAlertsFaqsData } from './hooks/use-alerts-faqs-data';
+import { AlertsFaqsTable } from './components/alerts-faqs-table';
+import { AlertFaqForm } from './components/alert-faq-form';
+import type { Alert, FAQ } from './types';
 import { Skeleton } from '@/components/ui/skeleton'; // Added Skeleton
 import { Alert as ShadcnAlert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added ShadcnAlert
 
@@ -51,7 +51,7 @@ export default function AlertsFaqsPage() {
       await saveFaq(data as Omit<FAQ, 'id' | 'created_at' | 'updated_at' | 'timeslot_name'>);
     }
   };
-  
+
   // Skeleton for initial page load
   if (loading && alerts.length === 0 && faqs.length === 0 && timeslots.length === 0 && !error) {
     return (

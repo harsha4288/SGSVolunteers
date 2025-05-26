@@ -7,6 +7,70 @@
 
 BEGIN;
 
+-- 0. Create locations table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.locations (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed some default locations
+INSERT INTO public.locations (name, description) VALUES
+    ('Temple', 'Main temple area'),
+    ('Event Center', 'Event center building'),
+    ('Kitchen', 'Food preparation area'),
+    ('Registration', 'Registration and check-in area'),
+    ('Parking', 'Parking management area')
+ON CONFLICT (name) DO NOTHING;
+
+-- Create alerts table for admin alerts/FAQs module
+CREATE TABLE IF NOT EXISTS public.alerts (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    title TEXT NOT NULL,
+    content TEXT,
+    category TEXT,
+    timeslot_id_filter BIGINT REFERENCES public.time_slots(id) ON DELETE SET NULL,
+    start_date DATE,
+    end_date DATE,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create FAQs table for admin alerts/FAQs module
+CREATE TABLE IF NOT EXISTS public.faqs (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    category TEXT,
+    timeslot_id_filter BIGINT REFERENCES public.time_slots(id) ON DELETE SET NULL,
+    sort_order INTEGER DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add triggers for updated_at columns
+DROP TRIGGER IF EXISTS trg_locations_update_updated_at ON public.locations;
+CREATE TRIGGER trg_locations_update_updated_at
+BEFORE UPDATE ON public.locations
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_alerts_update_updated_at ON public.alerts;
+CREATE TRIGGER trg_alerts_update_updated_at
+BEFORE UPDATE ON public.alerts
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_faqs_update_updated_at ON public.faqs;
+CREATE TRIGGER trg_faqs_update_updated_at
+BEFORE UPDATE ON public.faqs
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
 -- 1. Remove problematic location_id from seva_categories
 ALTER TABLE public.seva_categories DROP COLUMN IF EXISTS location_id;
 
@@ -75,9 +139,9 @@ FROM public.requirements r
 JOIN public.seva_categories sc ON r.seva_category_id = sc.id
 JOIN public.time_slots ts ON r.timeslot_id = ts.id
 LEFT JOIN (
-    SELECT 
-        vc.seva_category_id, 
-        vc.timeslot_id, 
+    SELECT
+        vc.seva_category_id,
+        vc.timeslot_id,
         COUNT(DISTINCT vc.volunteer_id) as assigned_volunteers_count
     FROM public.volunteer_commitments vc
     WHERE vc.commitment_type = 'ASSIGNED_TASK'
@@ -118,7 +182,7 @@ WITH TaskAssignments AS (
         ts.description AS timeslot_description,
         ts.start_time AS timeslot_start_time,
         ts.end_time AS timeslot_end_time,
-        vc.seva_category_id, 
+        vc.seva_category_id,
         sc.category_name AS task_name
     FROM
         public.volunteer_commitments vc
@@ -136,7 +200,7 @@ VolunteerAttendance AS (
         vci.volunteer_id,
         e.id AS event_id,
         MIN(vci.check_in_time) AS first_check_in,
-        MAX(vci.check_out_time) AS last_check_out 
+        MAX(vci.check_out_time) AS last_check_out
     FROM
         public.volunteer_check_ins vci
     JOIN public.events e ON vci.event_id = e.id
@@ -144,21 +208,21 @@ VolunteerAttendance AS (
         vci.volunteer_id, e.id
 )
 SELECT
-    ta.seva_category_id AS task_id, 
+    ta.seva_category_id AS task_id,
     ta.task_name,
     ta.timeslot_slot_name,
     ta.timeslot_description,
     COUNT(DISTINCT ta.volunteer_id) AS assigned_volunteers_count,
-    COUNT(DISTINCT CASE 
-                            WHEN va.volunteer_id IS NOT NULL AND 
-                                 ts_event.id = va.event_id AND 
+    COUNT(DISTINCT CASE
+                            WHEN va.volunteer_id IS NOT NULL AND
+                                 ts_event.id = va.event_id AND
                                  (va.first_check_in <= ta.timeslot_end_time AND COALESCE(va.last_check_out, va.first_check_in + INTERVAL '24 hour') >= ta.timeslot_start_time)
-                            THEN ta.volunteer_id 
-                            ELSE NULL 
+                            THEN ta.volunteer_id
+                            ELSE NULL
                           END) AS actual_attendance_count
 FROM
     TaskAssignments ta
-JOIN 
+JOIN
     public.time_slots ts_event ON ta.time_slot_id = ts_event.id
 LEFT JOIN
     VolunteerAttendance va ON ta.volunteer_id = va.volunteer_id AND ts_event.event_id = va.event_id
@@ -168,7 +232,7 @@ GROUP BY
     ta.timeslot_slot_name,
     ta.timeslot_description;
 
-COMMENT ON VIEW public.vw_assignments_vs_attendance IS 
+COMMENT ON VIEW public.vw_assignments_vs_attendance IS
 'Compares volunteers assigned to a Seva Category/Timeslot against actual attendance. Attendance is counted if a volunteer checked-in during any part of the assigned timeslot for the corresponding event.';
 
 COMMIT;

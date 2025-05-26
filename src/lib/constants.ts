@@ -7,6 +7,9 @@ import {
   UserCog,
   CalendarClock,
   Sparkles,
+  ListChecks,
+  BarChart2,
+  AlertTriangle,
 } from "lucide-react";
 
 export const SITE_CONFIG = {
@@ -40,6 +43,24 @@ export const APP_NAV_ITEMS: NavItem[] = [
     title: "AI Chatbot",
     href: "/app/ai-chat",
     icon: Sparkles,
+  },
+  {
+    title: "Requirements",
+    href: "/app/requirements",
+    icon: ListChecks,
+    adminOnly: true,
+  },
+  {
+    title: "Reports",
+    href: "/app/reports",
+    icon: BarChart2,
+    adminOnly: true,
+  },
+  {
+    title: "Alerts & FAQs",
+    href: "/app/admin/alerts-faqs",
+    icon: AlertTriangle,
+    adminOnly: true,
   },
   {
     title: "User Management",
