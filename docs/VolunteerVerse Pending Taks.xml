@@ -33,7 +33,7 @@
         </important_guidelines>
     </task>
     <task>
-        <order>3</order>
+        <order>3</order> 
         <title>Fix Attendance Icons for Volunteer Role</title>
         <epic>Bug Fixes</epic>
         <module>Assignments</module>
