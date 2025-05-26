@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const parsedResult = await chatQueryParserFlow(userQuery);
 
     // Initialize Supabase client
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     let data: any = null;
     let errorMessage: string | null = null;
 
