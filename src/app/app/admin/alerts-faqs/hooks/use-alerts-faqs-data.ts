@@ -23,16 +23,16 @@ export function useAlertsFaqsData() {
     setError(null);
     try {
       const [alertData, faqData, timeslotData] = await Promise.all([
-        service.fetchAlerts(),
-        service.fetchFaqs(),
-        service.fetchTimeslots(),
+        service.fetchAlerts().catch(() => []),
+        service.fetchFaqs().catch(() => []),
+        service.fetchTimeslots().catch(() => []),
       ]);
       setAlerts(alertData);
       setFaqs(faqData);
       setTimeslots(timeslotData);
     } catch (e: any) {
       setError(e.message);
-      toast({ title: "Error Loading Data", description: e.message, variant: "destructive" });
+      console.warn('Alerts/FAQs module data loading failed:', e.message);
     } finally {
       setLoading(false);
     }

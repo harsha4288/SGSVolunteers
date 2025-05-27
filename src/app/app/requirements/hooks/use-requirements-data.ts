@@ -5,10 +5,10 @@ import * as React from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createRequirementsService } from '../services/requirements-service';
-import type { 
-  Requirement, 
-  SevaCategoryRef, 
-  Location, 
+import type {
+  Requirement,
+  SevaCategoryRef,
+  Location,
   Timeslot,
   RequirementCellData, // For the grid
 } from '../types';
@@ -28,7 +28,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
   const [allSevaCategories, setAllSevaCategories] = React.useState<SevaCategoryRef[]>([]);
   const [allLocations, setAllLocations] = React.useState<Location[]>([]);
   const [allTimeslots, setAllTimeslots] = React.useState<Timeslot[]>([]);
-  
+
   // Dynamic data - requirements
   const [allRequirements, setAllRequirements] = React.useState<Requirement[]>([]);
 
@@ -40,7 +40,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
   const [loadingInitial, setLoadingInitial] = React.useState(true);
   const [loadingRequirements, setLoadingRequirements] = React.useState(false); // For updates or specific fetches
   const [error, setError] = React.useState<string | null>(null);
-  
+
   // Active filters (example, can be expanded)
   // const [activeFilters, setActiveFilters] = React.useState<object>({}); // To be used by FiltersBar
 
@@ -50,12 +50,12 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
     setError(null);
     try {
       const [sevaCategoriesData, locationsData, timeslotsData, requirementsData] = await Promise.all([
-        requirementsService.fetchSevaCategories(),
-        requirementsService.fetchLocations(),
-        requirementsService.fetchTimeslots(),
-        requirementsService.fetchAllRequirements(),
+        requirementsService.fetchSevaCategories().catch(() => []),
+        requirementsService.fetchLocations().catch(() => []),
+        requirementsService.fetchTimeslots().catch(() => []),
+        requirementsService.fetchAllRequirements().catch(() => []),
       ]);
-      
+
       setAllSevaCategories(sevaCategoriesData);
       setAllLocations(locationsData);
       setAllTimeslots(timeslotsData);
@@ -64,11 +64,12 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load initial data for requirements module.";
       setError(errorMessage);
-      toast({ title: "Error Loading Data", description: errorMessage, variant: "destructive" });
+      console.warn('Requirements module data loading failed:', errorMessage);
+      // Don't show toast on initial load failure, just log it
     } finally {
       setLoadingInitial(false);
     }
-  }, [requirementsService, toast]);
+  }, [requirementsService]);
 
   React.useEffect(() => {
     loadInitialData();
@@ -90,7 +91,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
           r => r.seva_category_id === sevaCategory.id && r.timeslot_id === timeslot.id
         );
         const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
-        
+
         return {
           sevaCategory,
           timeslot,
@@ -106,8 +107,8 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
 
   // Function to update requirements for a specific cell (SevaCategory/Timeslot combination)
   const updateRequirementsForCell = async (
-    sevaCategoryId: number, 
-    timeslotId: number, 
+    sevaCategoryId: number,
+    timeslotId: number,
     // This array comes from the modal, representing desired state for each location for that cell
     requirementsToUpsertForCell: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>>
   ) => {
@@ -128,7 +129,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
       setLoadingRequirements(false);
     }
   };
-  
+
   // Function to be called by a FiltersBar component (not implemented in this step)
   // const onFilterChange = (newFilters: object) => {
   //   setActiveFilters(newFilters);
@@ -140,20 +141,20 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
     allTimeslots,       // Columns for the grid
     allLocations,       // For the modal
     gridData,           // The matrix data: RequirementCellData[][]
-    
+
     // State
     isLoading: loadingInitial || loadingRequirements,
     loadingInitial,
     loadingRequirements,
     error,
-    
+
     // Actions
     refreshData: loadInitialData, // To reload everything
     updateRequirementsForCell,
     // onFilterChange, // If filters were implemented
-    
+
     // User context (passed in but useful to return if components downstream need it)
-    userRole, 
+    userRole,
     userSevaCategoryIds,
   };
 }

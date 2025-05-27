@@ -14,42 +14,37 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 import type { ReportFilters } from '../types'; // Assuming types.ts is in the parent directory
-// Mock data for filter options - in a real app, these would come from props or a context/store
-// For example, fetched in page.tsx and passed down.
+
 interface FilterOption { value: string | number; label: string; }
-const MOCK_SEVA_CATEGORIES: FilterOption[] = [
-  { value: 1, label: "Parking Management" }, { value: 2, label: "Catering Support" }, { value: 3, label: "Info Desk" }
-];
-const MOCK_TIMESLOTS: FilterOption[] = [
-  { value: 1, label: "Sat Morning (9am-12pm)" }, { value: 2, label: "Sat Afternoon (1pm-4pm)" }, { value: 3, label: "Sun Morning (9am-12pm)" }
-];
-const MOCK_LOCATIONS: FilterOption[] = [
-  { value: 1, label: "Main Hall" }, { value: 2, label: "Dining Area" }, { value: 3, label: "Parking Lot A" }
-];
+
+// Data interfaces for filter options
+interface SevaCategory { id: number; category_name: string; }
+interface Timeslot { id: number; slot_name: string; }
+interface Location { id: number; name: string; }
 
 
 interface ReportFiltersProps {
   initialFilters?: ReportFilters;
   onApplyFilters: (filters: ReportFilters) => void;
-  // Props to supply options for dropdowns, e.g.:
-  // sevaCategories: Array<{ id: number; name: string }>;
-  // timeslots: Array<{ id: number; name: string }>;
-  // locations: Array<{ id: number; name: string }>;
-  // isLoadingOptions?: boolean;
+  sevaCategories?: SevaCategory[];
+  timeslots?: Timeslot[];
+  locations?: Location[];
+  isLoadingOptions?: boolean;
 }
 
 export function ReportFilters({
   initialFilters = {},
   onApplyFilters,
-  // sevaCategories = MOCK_SEVA_CATEGORIES, // Use mock data for now
-  // timeslots = MOCK_TIMESLOTS,
-  // locations = MOCK_LOCATIONS,
+  sevaCategories = [],
+  timeslots = [],
+  locations = [],
+  isLoadingOptions = false,
 }: ReportFiltersProps) {
   const [selectedSevaCategoryIds, setSelectedSevaCategoryIds] = React.useState<number[]>(initialFilters.sevaCategoryIds || []);
   const [selectedTimeslotIds, setSelectedTimeslotIds] = React.useState<number[]>(initialFilters.timeslotIds || []);
   const [selectedLocationIds, setSelectedLocationIds] = React.useState<number[]>(initialFilters.locationIds || []);
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(initialFilters.dateRange || undefined);
-  
+
   // For multi-select popovers
   const [openSevaCategoryPicker, setOpenSevaCategoryPicker] = React.useState(false);
   const [openTimeslotPicker, setOpenTimeslotPicker] = React.useState(false);
@@ -71,7 +66,7 @@ export function ReportFilters({
     setDateRange(undefined);
     onApplyFilters({}); // Apply empty filters
   };
-  
+
   const renderMultiSelectPopover = (
     label: string,
     options: FilterOption[],
@@ -165,10 +160,16 @@ export function ReportFilters({
             </PopoverContent>
         </Popover>
 
-        {renderMultiSelectPopover("Seva Category", MOCK_SEVA_CATEGORIES, selectedSevaCategoryIds, setSelectedSevaCategoryIds, openSevaCategoryPicker, setOpenSevaCategoryPicker)}
-        {renderMultiSelectPopover("Timeslot", MOCK_TIMESLOTS, selectedTimeslotIds, setSelectedTimeslotIds, openTimeslotPicker, setOpenTimeslotPicker)}
-        {renderMultiSelectPopover("Location", MOCK_LOCATIONS, selectedLocationIds, setSelectedLocationIds, openLocationPicker, setOpenLocationPicker)}
-        
+        {renderMultiSelectPopover("Seva Category",
+          sevaCategories.map(sc => ({ value: sc.id, label: sc.category_name })),
+          selectedSevaCategoryIds, setSelectedSevaCategoryIds, openSevaCategoryPicker, setOpenSevaCategoryPicker)}
+        {renderMultiSelectPopover("Timeslot",
+          timeslots.map(ts => ({ value: ts.id, label: ts.slot_name })),
+          selectedTimeslotIds, setSelectedTimeslotIds, openTimeslotPicker, setOpenTimeslotPicker)}
+        {renderMultiSelectPopover("Location",
+          locations.map(loc => ({ value: loc.id, label: loc.name })),
+          selectedLocationIds, setSelectedLocationIds, openLocationPicker, setOpenLocationPicker)}
+
         <Button onClick={handleApply} size="sm" className="h-9 text-xs px-3">Apply Filters</Button>
         <Button onClick={handleReset} variant="ghost" size="sm" className="h-9 text-xs px-3">
             <FilterX className="h-3 w-3 mr-1" /> Reset

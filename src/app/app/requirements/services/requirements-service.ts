@@ -17,13 +17,13 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   const fetchSevaCategories = async (): Promise<SevaCategoryRef[]> => {
     const { data, error } = await supabase
       .from('seva_categories')
-      .select('id, category_name, description, location_id'); // location_id is default_location_id
+      .select('id, category_name, description');
     if (error) handleError(error, 'fetch Seva Categories');
     return (data || []).map(sc => ({
       id: sc.id,
       name: sc.category_name,
       description: sc.description,
-      default_location_id: sc.location_id,
+      default_location_id: null, // No default location anymore
     }));
   };
 
@@ -71,11 +71,11 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   // The `requirementsToUpsert` array should contain full Requirement objects.
   // Existing requirements not in the list for this cell (SevaCategory/Timeslot) might need to be handled (e.g., deleted if count is 0).
   const upsertRequirementsForCell = async (
-    sevaCategoryId: number, 
-    timeslotId: number, 
+    sevaCategoryId: number,
+    timeslotId: number,
     requirementsToUpsert: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>>
   ): Promise<Requirement[]> => {
-    
+
     // Logic to handle existing requirements for this cell:
     // 1. Fetch all existing requirements for the given seva_category_id and timeslot_id.
     const { data: existingRequirements, error: fetchError } = await supabase
@@ -97,7 +97,7 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
         }
       }
     }
-    
+
     // Perform deletions for locations no longer having a requirement in this cell
     if (requirementsToDelete.length > 0) {
       const { error: deleteError } = await supabase
@@ -118,14 +118,14 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
         required_count: r.required_count,
         notes: r.notes,
     }));
-    
+
     if (validUpserts.length === 0) { // If all requirements were to be deleted, and none to upsert.
         return []; // Return empty array as no actual upsert happened.
     }
 
     const { data, error: upsertError } = await supabase
       .from('requirements')
-      .upsert(validUpserts, { 
+      .upsert(validUpserts, {
         onConflict: 'seva_category_id, location_id, timeslot_id', // Unique constraint
         // ignoreDuplicates: false, // default is false, ensures update on conflict
       })

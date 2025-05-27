@@ -19,19 +19,30 @@ export function MainNav() {
   const pathname = usePathname();
   const { isAdmin, loading } = useUserRole();
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('MainNav - isAdmin:', isAdmin, 'loading:', loading);
+    console.log('Total nav items:', APP_NAV_ITEMS.length);
+    console.log('Admin-only items:', APP_NAV_ITEMS.filter(item => item.adminOnly).length);
+  }, [isAdmin, loading]);
+
   // Filter navigation items based on user role
   const filteredNavItems = React.useMemo(() => {
     if (loading) {
       // While loading, show all items except admin-only ones
+      console.log('Still loading, showing non-admin items only');
       return APP_NAV_ITEMS.filter(item => !item.adminOnly);
     }
 
-    return APP_NAV_ITEMS.filter(item => {
+    const filtered = APP_NAV_ITEMS.filter(item => {
       if (item.adminOnly && !isAdmin) {
         return false;
       }
       return true;
     });
+
+    console.log('Filtered nav items:', filtered.length, 'isAdmin:', isAdmin);
+    return filtered;
   }, [isAdmin, loading]);
 
   return (

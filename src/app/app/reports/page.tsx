@@ -12,31 +12,41 @@ import { RequirementsByLocationView } from './components/views/requirements-by-l
 import { AssignmentsVsAttendanceView } from './components/views/assignments-vs-attendance-view';
 
 import type { ReportFilters as ReportFiltersType } from './types';
-// For populating filter dropdowns - these would typically be fetched
-// or come from a shared data store/context.
-// For now, using mock data or assuming they are fetched within ReportFilters or passed if static.
+import { createClient } from '@/lib/supabase/client';
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = React.useState<string>('requirements_vs_assignments');
   const [filters, setFilters] = React.useState<ReportFiltersType>({});
 
-  // State for filter options (example, could be fetched here or in a layout component)
-  // const [sevaCategories, setSevaCategories] = React.useState<Array<{id: number, name: string}>>([]);
-  // const [timeslots, setTimeslots] = React.useState<Array<{id: number, name: string}>>([]);
-  // const [locations, setLocations] = React.useState<Array<{id: number, name: string}>>([]);
-  // const [loadingFilterOptions, setLoadingFilterOptions] = React.useState(true);
+  // State for filter options
+  const [sevaCategories, setSevaCategories] = React.useState<Array<{id: number, category_name: string}>>([]);
+  const [timeslots, setTimeslots] = React.useState<Array<{id: number, slot_name: string}>>([]);
+  const [locations, setLocations] = React.useState<Array<{id: number, name: string}>>([]);
+  const [loadingFilterOptions, setLoadingFilterOptions] = React.useState(true);
 
-  // React.useEffect(() => {
-  //   // Fetch options for filters, e.g., all seva categories, timeslots, locations
-  //   // This is just a placeholder for actual data fetching logic
-  //   const fetchOptions = async () => {
-  //     setLoadingFilterOptions(true);
-  //     // const fetchedCategories = await someService.fetchSevaCategoriesForFilter();
-  //     // setSevaCategories(fetchedCategories);
-  //     setLoadingFilterOptions(false);
-  //   };
-  //   fetchOptions();
-  // }, []);
+  React.useEffect(() => {
+    const fetchOptions = async () => {
+      setLoadingFilterOptions(true);
+      try {
+        const supabase = createClient();
+
+        const [categoriesResult, timeslotsResult, locationsResult] = await Promise.all([
+          supabase.from('seva_categories').select('id, category_name').order('category_name'),
+          supabase.from('time_slots').select('id, slot_name').order('start_time'),
+          supabase.from('locations').select('id, name').order('name')
+        ]);
+
+        if (categoriesResult.data) setSevaCategories(categoriesResult.data);
+        if (timeslotsResult.data) setTimeslots(timeslotsResult.data);
+        if (locationsResult.data) setLocations(locationsResult.data);
+      } catch (error) {
+        console.warn('Failed to fetch filter options:', error);
+      } finally {
+        setLoadingFilterOptions(false);
+      }
+    };
+    fetchOptions();
+  }, []);
 
   const handleApplyFilters = (newFilters: ReportFiltersType) => {
     setFilters(newFilters);
@@ -61,11 +71,10 @@ export default function ReportsPage() {
       <ReportFilters
         initialFilters={filters}
         onApplyFilters={handleApplyFilters}
-        // Pass fetched options for filters here:
-        // sevaCategories={sevaCategories}
-        // timeslots={timeslots}
-        // locations={locations}
-        // isLoadingOptions={loadingFilterOptions}
+        sevaCategories={sevaCategories}
+        timeslots={timeslots}
+        locations={locations}
+        isLoadingOptions={loadingFilterOptions}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

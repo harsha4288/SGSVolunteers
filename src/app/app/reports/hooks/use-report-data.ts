@@ -5,13 +5,13 @@ import * as React from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createReportsService } from '../services/reports-service';
-import type { 
-  ReportType, 
+import type {
+  ReportType,
   ReportFilters,
   RequirementsVsAssignmentsData,
   RequirementsByLocationData,
   AssignmentsVsAttendanceData,
-  GenericReportData 
+  GenericReportData
 } from '../types';
 
 interface UseReportDataProps {
@@ -35,17 +35,17 @@ export function useReportData({ reportType, initialFilters = {} }: UseReportData
     try {
       let rawData: GenericReportData[] = [];
       if (reportType === 'requirements_vs_assignments') {
-        rawData = await reportsService.fetchRequirementsVsAssignments(filtersToApply) as RequirementsVsAssignmentsData[];
+        rawData = await reportsService.fetchRequirementsVsAssignments(filtersToApply).catch(() => []) as RequirementsVsAssignmentsData[];
         // Variance is already calculated in the view.
       } else if (reportType === 'requirements_by_location') {
-        rawData = await reportsService.fetchRequirementsByLocation(filtersToApply) as RequirementsByLocationData[];
+        rawData = await reportsService.fetchRequirementsByLocation(filtersToApply).catch(() => []) as RequirementsByLocationData[];
       } else if (reportType === 'assignments_vs_attendance') {
-        const fetchedData = await reportsService.fetchAssignmentsVsAttendance(filtersToApply);
+        const fetchedData = await reportsService.fetchAssignmentsVsAttendance(filtersToApply).catch(() => []);
         // Client-side calculation for attendance_rate
         rawData = fetchedData.map(item => ({
           ...item,
-          attendance_rate: item.assigned_volunteers_count > 0 
-            ? (item.actual_attendance_count / item.assigned_volunteers_count) * 100 
+          attendance_rate: item.assigned_volunteers_count > 0
+            ? (item.actual_attendance_count / item.assigned_volunteers_count) * 100
             : 0,
         })) as AssignmentsVsAttendanceData[];
       }
@@ -53,7 +53,7 @@ export function useReportData({ reportType, initialFilters = {} }: UseReportData
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : `Failed to load ${reportType} report data`;
       setError(errorMessage);
-      toast({ title: `Error Loading Report`, description: errorMessage, variant: "destructive" });
+      console.warn('Reports module data loading failed:', errorMessage);
       setData([]); // Clear data on error
     } finally {
       setLoading(false);

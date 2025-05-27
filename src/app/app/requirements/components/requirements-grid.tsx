@@ -43,7 +43,7 @@ export function RequirementsGrid({
       </div>
     );
   }
-  
+
   if (sevaCategories.length === 0) {
     return <p className="text-muted-foreground text-center py-8">No Seva Categories to display. Please add Seva Categories or adjust filters.</p>;
   }
@@ -59,13 +59,13 @@ export function RequirementsGrid({
         </TableCaption>
         <TableHeader>
           <TableRow className="bg-muted/30">
-            <TableHead className="sticky left-0 z-10 bg-muted/30 w-1/6 min-w-[200px] max-w-[300px] p-2 text-xs sm:text-sm">
-              Seva Category (Task)
+            <TableHead className="sticky left-0 z-10 bg-muted/30 w-1/6 min-w-[180px] max-w-[250px] p-3 text-sm font-semibold">
+              Seva Category
             </TableHead>
             {timeslots.map((timeslot) => (
-              <TableHead key={timeslot.id} className="p-1.5 text-center w-1/6 min-w-[150px] max-w-[200px] text-xs sm:text-sm">
-                <div className="flex flex-col items-center">
-                  <span className="font-semibold">{timeslot.name.split('(')[0].trim()}</span> 
+              <TableHead key={timeslot.id} className="p-3 text-center w-1/6 min-w-[120px] max-w-[160px] text-sm font-semibold">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-semibold">{timeslot.name.split('(')[0].trim()}</span>
                   {timeslot.name.includes('(') && (
                     <span className="text-xs text-muted-foreground font-normal">
                       ({timeslot.name.split('(')[1]})
@@ -82,12 +82,12 @@ export function RequirementsGrid({
             // Determine row-specific editability for coordinators
             // For now, using global isEditable, but this could be refined:
             // const canEditRow = userRole === 'admin' || (userRole === 'coordinator' && userSevaCategoryIds.includes(sevaCategory.id));
-            
+
             return (
               <TableRow key={sevaCategory.id} className="hover:bg-muted/10">
-                <TableHead 
-                    scope="row" 
-                    className="sticky left-0 z-10 bg-background border-r p-2 text-xs sm:text-sm font-medium max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap"
+                <TableHead
+                    scope="row"
+                    className="sticky left-0 z-10 bg-background border-r p-3 text-sm font-medium max-w-[250px] overflow-hidden text-ellipsis whitespace-nowrap"
                     title={sevaCategory.name}
                 >
                   {sevaCategory.name}

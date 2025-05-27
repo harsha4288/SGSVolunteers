@@ -20,17 +20,18 @@ export function RequirementCell({ cellData, onSelect, isEditable }: RequirementC
   };
 
   const cellClasses = `
-    p-2 border border-border h-20 flex items-center justify-center 
-    text-center text-sm
-    ${isEditable ? 'cursor-pointer hover:bg-muted/50' : 'bg-muted/20 cursor-not-allowed'}
-    ${total_required_count > 0 ? 'font-semibold' : 'text-muted-foreground'}
+    p-3 border border-border h-16 flex items-center justify-center
+    text-center text-lg font-semibold transition-colors
+    ${isEditable ? 'cursor-pointer hover:bg-accent/20 hover:border-accent/50' : 'bg-muted/10 cursor-default'}
+    ${total_required_count > 0 ? 'bg-background' : 'bg-muted/5'}
   `;
 
   const valueClasses = `
     ${total_required_count > 0 && total_required_count < 5 ? 'text-orange-600' : ''}
-    ${total_required_count >= 5 ? 'text-green-600' : ''}
-    ${total_required_count === 0 && isEditable ? 'text-gray-400 italic' : ''}
-     ${total_required_count === 0 && !isEditable ? 'text-muted-foreground' : ''}
+    ${total_required_count >= 5 && total_required_count < 10 ? 'text-blue-600' : ''}
+    ${total_required_count >= 10 ? 'text-green-600' : ''}
+    ${total_required_count === 0 && isEditable ? 'text-muted-foreground italic text-sm' : ''}
+    ${total_required_count === 0 && !isEditable ? 'text-muted-foreground' : ''}
   `;
 
   return (
@@ -40,7 +41,7 @@ export function RequirementCell({ cellData, onSelect, isEditable }: RequirementC
       title={isEditable ? `Click to edit requirements for ${cellData.sevaCategory.name} at ${cellData.timeslot.name}` : `View requirements for ${cellData.sevaCategory.name} at ${cellData.timeslot.name}`}
     >
       <span className={valueClasses}>
-        {total_required_count > 0 ? total_required_count : (isEditable ? '0 (Edit)' : '0')}
+        {total_required_count > 0 ? total_required_count : (isEditable ? '0 (Edit)' : '—')}
       </span>
     </td>
   );
