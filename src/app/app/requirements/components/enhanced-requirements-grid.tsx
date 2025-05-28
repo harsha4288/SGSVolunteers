@@ -15,6 +15,7 @@ import { ClipboardList, UserCheck, ArrowUpRight, ArrowDownRight } from "lucide-r
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import type { RequirementCellData, SevaCategoryRef, Timeslot } from "../types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EnhancedRequirementsGridProps {
     sevaCategories: SevaCategoryRef[];
@@ -92,13 +93,13 @@ export function EnhancedRequirementsGrid({
                 <Table className="min-w-max text-[11px]">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="bg-muted/50 w-[80px] font-medium text-[11px] px-1 py-1">
+                            <TableHead className="bg-muted/50 w-[70px] font-medium text-[11px] px-2 py-1 align-middle text-center">
                                 Seva
                             </TableHead>
                             {filteredTimeslots.map((timeslot) => (
                                 <TableHead
                                     key={timeslot.id}
-                                    className="bg-muted/50 text-center min-w-[60px] px-1 py-1 align-bottom"
+                                    className="bg-muted/50 text-center w-[60px] min-w-[60px] max-w-[60px] px-2 py-1 align-middle"
                                     style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', height: 80 }}
                                 >
                                     <span className="font-medium text-[10px] truncate max-w-[60px] block">
@@ -114,7 +115,7 @@ export function EnhancedRequirementsGrid({
                     <TableBody>
                         {sevaCategories.map((seva, rowIndex) => (
                             <TableRow key={seva.id} className="h-7">
-                                <TableCell className="font-medium bg-muted/30 px-1 py-1 text-[11px] truncate max-w-[80px] flex flex-col items-center gap-0.5">
+                                <TableCell className="font-medium bg-muted/30 px-2 py-1 text-[11px] truncate w-[70px] min-w-[70px] max-w-[70px] text-center align-middle flex flex-col items-center gap-0.5">
                                     <span className="flex items-center gap-1">
                                         {sevaCategoryMeta[seva.category_name]?.icon || <span>🔹</span>}
                                         <span className="font-bold">{sevaCategoryMeta[seva.category_name]?.code || seva.category_name.slice(0, 2).toUpperCase()}</span>
@@ -125,7 +126,13 @@ export function EnhancedRequirementsGrid({
                                     // Find the correct colIndex in the original timeslots array
                                     const origColIndex = timeslots.findIndex(t => t.id === filteredTimeslots[colIndex].id);
                                     const cellData = gridData[rowIndex]?.[origColIndex];
-                                    if (!cellData) return <TableCell key={colIndex} />;
+                                    if (!cellData) return <TableCell key={colIndex} className="w-[60px] min-w-[60px] max-w-[60px] px-2 text-center align-middle" />;
+
+                                    // TEMP: Debug log for DB data
+                                    if (rowIndex === 0 && colIndex === 0) {
+                                        // eslint-disable-next-line no-console
+                                        console.log('DEBUG cellData:', cellData);
+                                    }
 
                                     const {
                                         total_required_count,
@@ -133,32 +140,47 @@ export function EnhancedRequirementsGrid({
                                         variance,
                                     } = cellData;
 
+                                    // Color for variance (border or text only, no background)
+                                    let varianceClass = "border text-xs";
+                                    if (variance < 0) varianceClass += " border-red-700 text-red-700";
+                                    else if (variance === 0) varianceClass += " border-green-700 text-green-700";
+                                    else varianceClass += " border-blue-700 text-blue-700";
+
                                     return (
                                         <TableCell
                                             key={colIndex}
                                             className={cn(
-                                                "p-0 cursor-pointer transition-colors group min-w-[60px] max-w-[70px]",
+                                                "p-0 cursor-pointer transition-colors group w-[60px] min-w-[60px] max-w-[60px] px-2 align-middle text-center",
                                                 isEditable && "hover:bg-accent/10"
                                             )}
                                             onClick={() => isEditable && onCellSelect(cellData)}
                                         >
-                                            <div className="flex flex-col items-center justify-center gap-0.5 py-0.5 px-0.5">
-                                                <div className="flex items-center gap-0.5">
+                                            <div className="flex flex-col items-center justify-center gap-0.5 py-0.5 px-0.5 h-full">
+                                                {/* Row 1: Required & Assigned */}
+                                                <div className="flex items-center gap-1 justify-center w-full">
                                                     <ClipboardList className="h-3 w-3 text-muted-foreground" aria-label="Required" />
                                                     <span className="font-semibold text-[11px]">{total_required_count}</span>
-                                                </div>
-                                                <div className="flex items-center gap-0.5">
-                                                    <UserCheck className="h-3 w-3 text-muted-foreground" aria-label="Assigned" />
+                                                    <UserCheck className="h-3 w-3 text-muted-foreground ml-2" aria-label="Assigned" />
                                                     <span className="text-[11px]">{total_assigned_count}</span>
                                                 </div>
-                                                <div className="flex items-center gap-0.5">
-                                                    <span className={cn(
-                                                        "rounded px-1 py-0.5 text-[11px] font-semibold flex items-center gap-0.5 border",
-                                                        variance < 0 ? "bg-red-700 text-white border-red-800" : variance === 0 ? "bg-green-700 text-white border-green-800" : "bg-blue-700 text-white border-blue-800"
-                                                    )} aria-label="Variance (Required - Assigned)">
-                                                        {getVarianceIcon(variance)}
-                                                        {variance}
-                                                    </span>
+                                                {/* Row 2: Variance */}
+                                                <div className="flex items-center justify-center w-full h-full">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className={cn(
+                                                                    "rounded px-1 py-0.5 font-semibold flex items-center gap-0.5 border mx-auto",
+                                                                    varianceClass
+                                                                )}>
+                                                                    {getVarianceIcon(variance)}
+                                                                    {variance}
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="text-xs">
+                                                                Variance = Required - Assigned
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                 </div>
                                             </div>
                                         </TableCell>
