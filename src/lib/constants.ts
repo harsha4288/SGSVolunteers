@@ -1,4 +1,3 @@
-
 import type { NavItem } from "@/lib/types";
 import {
   LayoutDashboard,
@@ -40,7 +39,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
     icon: Shirt,
   },
   {
-    title: "AI Chatbot",
+    title: "Ask AI",
     href: "/app/ai-chat",
     icon: Sparkles,
   },

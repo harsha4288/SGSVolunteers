@@ -64,7 +64,7 @@ export default function AiChatPage() {
     <div className="container mx-auto py-8 px-4 flex flex-col h-[calc(100vh-100px)]">
       <Card className="flex flex-col flex-grow">
         <CardHeader>
-          <CardTitle>AI Chatbot</CardTitle>
+          <CardTitle>Ask AI</CardTitle>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden">
           <ScrollArea className="h-full pr-4">

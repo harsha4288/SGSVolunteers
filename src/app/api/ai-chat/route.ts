@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
             // For now, let's return count or a message indicating details require more setup.
             const { data: commitData, error: commitErr, count } = await commitmentsQuery;
              if (commitErr) throw commitErr;
-            data = `There are ${count} commitments for ${parsedResult.sevaCategory}. Fetching detailed list is not fully supported yet by the chatbot.`;
+            data = `There are ${count} commitments for ${parsedResult.sevaCategory}. Fetching detailed list is not fully supported yet by Ask AI.`;
           } else {
              const { count, error: commitErr } = await commitmentsQuery;
              if (commitErr) throw commitErr;
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: data });
 
   } catch (error: any) {
-    console.error('Error in AI Chat API:', error);
+    console.error('Error in Ask AI API:', error);
     // More specific error handling based on error type if needed
     const reply = "Sorry, I encountered an error while processing your request. " + (error.message || "");
     return NextResponse.json({ reply }, { status: 500 });
