@@ -2,9 +2,9 @@
 "use client";
 
 import * as React from 'react';
-import { useReportData } from '../../hooks/use-report-data'; // Adjusted path
-import { ReportDisplay } from '../common/report-display'; // Adjusted path
-import type { RequirementsVsAssignmentsData, ReportFilters } from '../../types'; // Adjusted path
+import { useReportData } from '../../hooks/use-report-data';
+import { ReportDisplay } from '../common/report-display';
+import type { RequirementsVsAssignmentsData, ReportFilters } from '../../types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -20,13 +20,8 @@ export function RequirementsVsAssignmentsView({ filters }: RequirementsVsAssignm
 
   // React.useEffect to re-fetch data when filters change from parent
   React.useEffect(() => {
-    refreshData(); // This will use the currentFilters inside the hook, which should be updated via applyFilters
-                    // Or, the hook needs to be enhanced to directly accept new filters on refreshData,
-                    // or applyFilters needs to be called from page.tsx when filters prop changes.
-                    // For now, assuming hook's internal currentFilters are the source of truth for refreshData.
-                    // The hook's useEffect for currentFilters changes handles this.
+    refreshData();
   }, [filters, refreshData]);
-
 
   const columns = [
     { accessorKey: 'category_name', header: 'Seva Category' },
@@ -46,11 +41,11 @@ export function RequirementsVsAssignmentsView({ filters }: RequirementsVsAssignm
 
   if (error && !loading && data.length === 0) {
     return (
-        <Alert variant="destructive" className="my-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error Loading Report Data</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <Alert variant="destructive" className="my-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error Loading Report Data</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 
@@ -63,15 +58,11 @@ export function RequirementsVsAssignmentsView({ filters }: RequirementsVsAssignm
       chartValueKeys={[
         { key: 'total_required', name: 'Total Required', color: 'hsl(var(--chart-1))' },
         { key: 'assigned_volunteers', name: 'Assigned Volunteers', color: 'hsl(var(--chart-2))' },
-        // Variance could be charted too, but might make bar chart confusing if negative.
-        // Consider a separate chart or table display for variance details if needed.
       ]}
       loading={loading}
-      // Error is handled above for the case where data is empty due to error
-      // ReportDisplay also has its own error prop, but this provides a more prominent message.
-      error={null} // Pass null as error is handled here if data is empty
+      error={null}
       onRefresh={refreshData}
-      reportTypeForId="reqsVsAssignments" // Unique ID for chart
+      reportTypeForId="reqsVsAssignments"
       emptyStateMessage="No data available for the selected filters. Try adjusting your filter criteria."
     />
   );

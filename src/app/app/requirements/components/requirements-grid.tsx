@@ -2,18 +2,17 @@
 "use client";
 
 import * as React from 'react';
-import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import type { SevaCategoryRef, Timeslot, RequirementCellData } from '../types';
-import { RequirementCell } from './requirement-cell';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RequirementsGridProps {
-  sevaCategories: SevaCategoryRef[]; // Rows
-  timeslots: Timeslot[];             // Columns
-  gridData: RequirementCellData[][]; // Matrix of cell data
+  sevaCategories: SevaCategoryRef[];
+  timeslots: Timeslot[];
+  gridData: RequirementCellData[][];
   onCellSelect: (cellData: RequirementCellData) => void;
-  userRole: 'admin' | 'coordinator' | 'volunteer'; // Example roles
+  userRole: 'admin' | 'coordinator' | 'volunteer';
   isLoading: boolean;
 }
 
@@ -25,18 +24,17 @@ export function RequirementsGrid({
   userRole,
   isLoading,
 }: RequirementsGridProps) {
-
-  const isEditable = userRole === 'admin' || userRole === 'coordinator'; // Simplified, coordinators might have row-specific editability
+  const isEditable = userRole === 'admin' || userRole === 'coordinator';
 
   if (isLoading && sevaCategories.length === 0 && timeslots.length === 0) {
     return (
       <div className="border rounded-md p-4">
         <div className="space-y-3">
-          <Skeleton className="h-8 w-1/4" /> {/* Header placeholder */}
+          <Skeleton className="h-8 w-1/4" />
           {[...Array(3)].map((_, i) => (
             <div key={i} className="flex gap-3">
-              <Skeleton className="h-20 w-1/6" /> {/* Seva Category name placeholder */}
-              {[...Array(5)].map((_, j) => <Skeleton key={j} className="h-20 w-1/6" />)} {/* Cell placeholders */}
+              <Skeleton className="h-20 w-1/6" />
+              {[...Array(5)].map((_, j) => <Skeleton key={j} className="h-20 w-1/6" />)}
             </div>
           ))}
         </div>
@@ -52,60 +50,50 @@ export function RequirementsGrid({
   }
 
   return (
-    <ScrollArea className="whitespace-nowrap border rounded-md">
-      <Table className="min-w-full table-fixed">
-        <TableCaption className="my-4">
-          Volunteer requirements matrix. Click on a cell to view or edit details.
-        </TableCaption>
+    <div className="overflow-x-auto">
+      <Table>
         <TableHeader>
-          <TableRow className="bg-muted/30">
-            <TableHead className="sticky left-0 z-10 bg-muted/30 w-1/6 min-w-[180px] max-w-[250px] p-3 text-sm font-semibold">
-              Seva Category
-            </TableHead>
+          <TableRow>
+            <TableHead className="font-medium text-sm">Seva Category</TableHead>
             {timeslots.map((timeslot) => (
-              <TableHead key={timeslot.id} className="p-3 text-center w-1/6 min-w-[120px] max-w-[160px] text-sm font-semibold">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="font-semibold">{timeslot.name.split('(')[0].trim()}</span>
-                  {timeslot.name.includes('(') && (
-                    <span className="text-xs text-muted-foreground font-normal">
-                      ({timeslot.name.split('(')[1]})
-                    </span>
-                  )}
-                </div>
+              <TableHead key={timeslot.id} className="text-center font-medium text-sm">
+                {timeslot.name}
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {gridData.map((row, rowIndex) => {
-            const sevaCategory = sevaCategories[rowIndex]; // Get current Seva Category for the row
-            // Determine row-specific editability for coordinators
-            // For now, using global isEditable, but this could be refined:
-            // const canEditRow = userRole === 'admin' || (userRole === 'coordinator' && userSevaCategoryIds.includes(sevaCategory.id));
-
+            const sevaCategory = sevaCategories[rowIndex];
             return (
-              <TableRow key={sevaCategory.id} className="hover:bg-muted/10">
-                <TableHead
-                    scope="row"
-                    className="sticky left-0 z-10 bg-background border-r p-3 text-sm font-medium max-w-[250px] overflow-hidden text-ellipsis whitespace-nowrap"
-                    title={sevaCategory.name}
-                >
+              <TableRow key={sevaCategory.id}>
+                <TableCell className="font-medium text-sm">
                   {sevaCategory.name}
-                </TableHead>
-                {row.map((cellData) => (
-                  <RequirementCell
-                    key={`${cellData.sevaCategory.id}-${cellData.timeslot.id}`}
-                    cellData={cellData}
-                    onSelect={() => onCellSelect(cellData)}
-                    isEditable={isEditable} // Could be canEditRow for coordinator role
-                  />
-                ))}
+                </TableCell>
+                {row.map((cellData) => {
+                  const count = cellData.total_required_count;
+                  return (
+                    <TableCell
+                      key={`${cellData.sevaCategory.id}-${cellData.timeslot.id}`}
+                      className={`text-center cursor-pointer hover:bg-accent/20 transition-colors ${count > 0 ? 'bg-background' : 'bg-muted/5'
+                        }`}
+                      onClick={() => onCellSelect(cellData)}
+                    >
+                      <span className={`text-lg font-semibold ${count === 0 ? 'text-muted-foreground' :
+                          count < 5 ? 'text-orange-600' :
+                            count < 10 ? 'text-blue-600' :
+                              'text-green-600'
+                        }`}>
+                        {count || '—'}
+                      </span>
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    </div>
   );
 }
