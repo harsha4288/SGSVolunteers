@@ -28,72 +28,90 @@ export function useUserRole(): UserRole {
   useEffect(() => {
     const checkUserRole = async () => {
       try {
-        // TEMPORARY: Force admin access for development
-        console.log('FORCING ADMIN ACCESS FOR DEVELOPMENT');
-        setRoleInfo({
-          isAdmin: true,
-          isTeamLead: true,
-          isVolunteer: true,
-          loading: false,
-          error: null,
-        });
-        return;
-
         const supabase = createClient();
 
-        // Get the current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        // Check for impersonation first
+        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
+        let profileToCheck: { id: string; email: string } | null = null;
 
-        if (userError || !user) {
-          setRoleInfo({
-            isAdmin: false,
-            isTeamLead: false,
-            isVolunteer: false,
-            loading: false,
-            error: 'Not authenticated',
-          });
-          return;
-        }
+        if (impersonatedProfileId) {
+          // If impersonating, use the impersonated profile
+          const impersonatedEmail = localStorage.getItem('impersonatedEmail');
+          if (!impersonatedEmail) {
+            throw new Error('Impersonation data incomplete');
+          }
+          profileToCheck = {
+            id: impersonatedProfileId,
+            email: impersonatedEmail
+          };
+          console.log('Using impersonated profile:', profileToCheck);
+        } else {
+          // Get the current authenticated user
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        console.log('Current user:', user.email);
-
-        // Ensure user has a properly linked profile
-        await ensureUserProfile(user.email!, user.id, user.user_metadata?.full_name);
-
-        // Get the user's profile (should exist now)
-        let { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileError || !profile) {
-          // Fallback: try to find by email
-          const { data: emailProfile, error: emailError } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('email', user.email)
-            .single();
-
-          if (emailError || !emailProfile) {
-            // For development: grant admin access to any authenticated user
-            console.warn('Profile not found for user, granting temporary admin access');
-            console.log('Setting admin access: isAdmin=true, isTeamLead=true, isVolunteer=true');
+          if (userError || !user) {
+            console.error('Auth check failed:', userError);
             setRoleInfo({
-              isAdmin: true,
-              isTeamLead: true,
-              isVolunteer: true,
+              isAdmin: false,
+              isTeamLead: false,
+              isVolunteer: false,
               loading: false,
-              error: null,
+              error: 'Not authenticated',
             });
             return;
           }
 
-          // Use the email-found profile
-          profile = emailProfile;
+          // Check for user.email as it's used in profile lookup
+          if (!user.email) {
+            console.error('User authenticated but email is missing.');
+            setRoleInfo({
+              isAdmin: false,
+              isTeamLead: false,
+              isVolunteer: false,
+              loading: false,
+              error: 'User email is missing and is required for profile lookup.',
+            });
+            return;
+          }
+
+          // Get the user's profile
+          let { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('user_id', user.id)
+            .single();
+
+          if (profileError || !profile) {
+            // Fallback: try to find by email
+            const { data: emailProfile, error: emailError } = await supabase
+              .from('profiles')
+              .select('id, email')
+              .eq('email', user.email)
+              .single();
+
+            if (emailError || !emailProfile) {
+              console.warn(`Profile not found for user ${user.id} (email: ${user.email}). Setting default roles.`);
+              setRoleInfo({
+                isAdmin: false,
+                isTeamLead: false,
+                isVolunteer: false,
+                loading: false,
+                error: 'User profile not found.',
+              });
+              return;
+            }
+            profile = emailProfile;
+          }
+
+          profileToCheck = profile;
+          console.log('Using authenticated user profile:', profileToCheck);
         }
 
-        // Get user roles
+        if (!profileToCheck) {
+          throw new Error('No profile available to check roles');
+        }
+
+        // Get user roles for the determined profile
         const { data: roles, error: rolesError } = await supabase
           .from('profile_roles')
           .select(`
@@ -103,18 +121,18 @@ export function useUserRole(): UserRole {
               role_name
             )
           `)
-          .eq('profile_id', profile.id);
+          .eq('profile_id', profileToCheck.id);
+
+        console.log('Role lookup result:', { roles, rolesError });
 
         if (rolesError) {
-          // For development: grant admin access if role check fails
-          console.warn('Role check failed, granting temporary admin access');
-          console.log('Setting admin access due to role error: isAdmin=true, isTeamLead=true, isVolunteer=true');
+          console.error('Error fetching roles:', rolesError.message);
           setRoleInfo({
-            isAdmin: true,
-            isTeamLead: true,
-            isVolunteer: true,
+            isAdmin: false,
+            isTeamLead: false,
+            isVolunteer: false,
             loading: false,
-            error: null,
+            error: 'Failed to fetch user roles.',
           });
           return;
         }
@@ -123,21 +141,13 @@ export function useUserRole(): UserRole {
         const isTeamLead = roles?.some(r => r.roles?.role_name === 'Team Lead') || false;
         const isVolunteer = roles?.some(r => r.roles?.role_name === 'Volunteer') || false;
 
-        // If no roles found but profile exists, grant admin for development
-        if (!isAdmin && !isTeamLead && !isVolunteer) {
-          console.warn('No roles found for user, granting temporary admin access');
-          console.log('Setting admin access due to no roles: isAdmin=true, isTeamLead=true, isVolunteer=true');
-          setRoleInfo({
-            isAdmin: true,
-            isTeamLead: true,
-            isVolunteer: true,
-            loading: false,
-            error: null,
-          });
-          return;
-        }
+        console.log('Role check results:', {
+          roles: roles?.map(r => r.roles?.role_name),
+          isAdmin,
+          isTeamLead,
+          isVolunteer
+        });
 
-        console.log('Final role assignment:', { isAdmin, isTeamLead, isVolunteer });
         setRoleInfo({
           isAdmin,
           isTeamLead,
@@ -146,16 +156,14 @@ export function useUserRole(): UserRole {
           error: null,
         });
 
-      } catch (error) {
-        // For development: grant admin access if anything fails
-        console.warn('User role check failed, granting temporary admin access');
-        console.log('Setting admin access due to error: isAdmin=true, isTeamLead=true, isVolunteer=true');
+      } catch (error: any) {
+        console.error('User role check failed:', error);
         setRoleInfo({
-          isAdmin: true,
-          isTeamLead: true,
-          isVolunteer: true,
+          isAdmin: false,
+          isTeamLead: false,
+          isVolunteer: false,
           loading: false,
-          error: null,
+          error: error?.message || 'An unexpected error occurred while checking user role.',
         });
       }
     };

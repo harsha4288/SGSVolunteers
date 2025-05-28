@@ -223,7 +223,7 @@ export type Database = {
           created_at?: string
         }
         Relationships: [
-           {
+          {
             foreignKeyName: "seva_categories_event_id_fkey"
             columns: ["event_id"]
             referencedRelation: "events"
@@ -540,6 +540,95 @@ export type Database = {
           }
         ];
       };
+      alerts: {
+        Row: {
+          id: number;
+          title: string;
+          content: string | null;
+          category: string | null;
+          timeslot_id_filter: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          title: string;
+          content?: string | null;
+          category?: string | null;
+          timeslot_id_filter?: number | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          title?: string;
+          content?: string | null;
+          category?: string | null;
+          timeslot_id_filter?: number | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "alerts_timeslot_id_filter_fkey",
+            columns: ["timeslot_id_filter"],
+            referencedRelation: "time_slots",
+            referencedColumns: ["id"]
+          }
+        ];
+      };
+      faqs: {
+        Row: {
+          id: number;
+          question: string;
+          answer: string;
+          category: string | null;
+          timeslot_id_filter: number | null;
+          sort_order: number;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          question: string;
+          answer: string;
+          category?: string | null;
+          timeslot_id_filter?: number | null;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          question?: string;
+          answer?: string;
+          category?: string | null;
+          timeslot_id_filter?: number | null;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "faqs_timeslot_id_filter_fkey",
+            columns: ["timeslot_id_filter"],
+            referencedRelation: "time_slots",
+            referencedColumns: ["id"]
+          }
+        ];
+      };
       volunteer_check_ins: {
         Row: {
           id: number;
@@ -659,3 +748,12 @@ export interface NavItem {
   disabled?: boolean;
   external?: boolean;
 }
+
+// Add these type exports at the end
+export type Alert = Database['public']['Tables']['alerts']['Row'];
+export type InsertAlert = Database['public']['Tables']['alerts']['Insert'];
+export type UpdateAlert = Database['public']['Tables']['alerts']['Update'];
+
+export type FAQ = Database['public']['Tables']['faqs']['Row'];
+export type InsertFAQ = Database['public']['Tables']['faqs']['Insert'];
+export type UpdateFAQ = Database['public']['Tables']['faqs']['Update'];

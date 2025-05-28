@@ -1,6 +1,6 @@
 // src/app/app/admin/alerts-faqs/services/alerts-faqs-service.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/supabase';
+import type { Database, Alert as DbAlert, FAQ as DbFAQ, InsertAlert, InsertFAQ } from '@/lib/types/supabase';
 import type { Alert, FAQ, Timeslot } from '../types';
 
 interface AlertsFaqsServiceProps {
@@ -15,24 +15,69 @@ export function createAlertsFaqsService({ supabase }: AlertsFaqsServiceProps) {
 
   // Fetch Timeslots for dropdowns
   const fetchTimeslots = async (): Promise<Timeslot[]> => {
-    const { data, error } = await supabase.from('timeslots').select('id, name').order('name');
+    const { data, error } = await supabase
+      .from('time_slots')
+      .select('id, slot_name')
+      .order('slot_name');
+
     if (error) handleError(error, 'fetch timeslots');
-    return data || [];
+    return (data || []).map(ts => ({
+      id: ts.id,
+      name: ts.slot_name
+    }));
   };
-  
+
   // Alerts CRUD
   const fetchAlerts = async (): Promise<Alert[]> => {
-    const { data, error } = await supabase.from('alerts')
-      .select('*, timeslots (name)') // Join with timeslots to get name
+    const { data, error } = await supabase
+      .from('alerts')
+      .select(`
+        *,
+        time_slot:timeslot_id_filter (
+          slot_name
+        )
+      `)
       .order('created_at', { ascending: false });
+
     if (error) handleError(error, 'fetch alerts');
-    return (data?.map(a => ({...a, timeslot_name: a.timeslots?.name})) || []) as Alert[];
+
+    return (data || []).map(alert => ({
+      ...alert,
+      time_slot_id_filter: alert.timeslot_id_filter,
+      timeslot_name: alert.time_slot?.slot_name
+    })) as Alert[];
   };
 
   const upsertAlert = async (alertData: Omit<Alert, 'id' | 'created_at' | 'updated_at' | 'timeslot_name'>): Promise<Alert> => {
-    const { data, error } = await supabase.from('alerts').upsert(alertData).select().single();
+    // Map the data to match the database schema
+    const dbData: InsertAlert = {
+      title: alertData.title,
+      content: alertData.content || null,
+      category: alertData.category || null,
+      timeslot_id_filter: alertData.time_slot_id_filter || null,
+      start_date: alertData.start_date || null,
+      end_date: alertData.end_date || null,
+      active: alertData.active ?? true,
+    };
+
+    const { data, error } = await supabase
+      .from('alerts')
+      .upsert(dbData)
+      .select(`
+        *,
+        time_slot:timeslot_id_filter (
+          slot_name
+        )
+      `)
+      .single();
+
     if (error) handleError(error, 'upsert alert');
-    return data as Alert;
+
+    return {
+      ...data!,
+      time_slot_id_filter: data!.timeslot_id_filter,
+      timeslot_name: data!.time_slot?.slot_name
+    } as Alert;
   };
 
   const deleteAlert = async (id: number): Promise<void> => {
@@ -42,17 +87,55 @@ export function createAlertsFaqsService({ supabase }: AlertsFaqsServiceProps) {
 
   // FAQs CRUD
   const fetchFaqs = async (): Promise<FAQ[]> => {
-    const { data, error } = await supabase.from('faqs')
-      .select('*, timeslots (name)') // Join with timeslots to get name
+    const { data, error } = await supabase
+      .from('faqs')
+      .select(`
+        *,
+        time_slot:timeslot_id_filter (
+          slot_name
+        )
+      `)
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
+
     if (error) handleError(error, 'fetch FAQs');
-    return (data?.map(f => ({...f, timeslot_name: f.timeslots?.name})) || []) as FAQ[];
+
+    return (data || []).map(faq => ({
+      ...faq,
+      time_slot_id_filter: faq.timeslot_id_filter,
+      timeslot_name: faq.time_slot?.slot_name
+    })) as FAQ[];
   };
 
   const upsertFaq = async (faqData: Omit<FAQ, 'id' | 'created_at' | 'updated_at' | 'timeslot_name'>): Promise<FAQ> => {
-    const { data, error } = await supabase.from('faqs').upsert(faqData).select().single();
+    // Map the data to match the database schema
+    const dbData: InsertFAQ = {
+      question: faqData.question,
+      answer: faqData.answer,
+      category: faqData.category || null,
+      timeslot_id_filter: faqData.time_slot_id_filter || null,
+      sort_order: faqData.sort_order ?? 0,
+      active: faqData.active ?? true,
+    };
+
+    const { data, error } = await supabase
+      .from('faqs')
+      .upsert(dbData)
+      .select(`
+        *,
+        time_slot:timeslot_id_filter (
+          slot_name
+        )
+      `)
+      .single();
+
     if (error) handleError(error, 'upsert FAQ');
-    return data as FAQ;
+
+    return {
+      ...data!,
+      time_slot_id_filter: data!.timeslot_id_filter,
+      timeslot_name: data!.time_slot?.slot_name
+    } as FAQ;
   };
 
   const deleteFaq = async (id: number): Promise<void> => {

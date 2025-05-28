@@ -22,17 +22,60 @@ export function useAlertsFaqsData() {
     setLoading(true);
     setError(null);
     try {
-      const [alertData, faqData, timeslotData] = await Promise.all([
-        service.fetchAlerts().catch(() => []),
-        service.fetchFaqs().catch(() => []),
-        service.fetchTimeslots().catch(() => []),
+      // Fetch data without silently catching errors
+      const alertsPromise = service.fetchAlerts();
+      const faqsPromise = service.fetchFaqs();
+      const timeslotsPromise = service.fetchTimeslots();
+
+      // Wait for all promises and catch errors individually
+      const [alertsResult, faqsResult, timeslotsResult] = await Promise.allSettled([
+        alertsPromise,
+        faqsPromise,
+        timeslotsPromise
       ]);
-      setAlerts(alertData);
-      setFaqs(faqData);
-      setTimeslots(timeslotData);
+
+      // Handle results and collect errors
+      const errors: string[] = [];
+
+      if (alertsResult.status === 'fulfilled') {
+        setAlerts(alertsResult.value);
+      } else {
+        errors.push(`Alerts: ${alertsResult.reason?.message || 'Unknown error'}`);
+        console.error('Error fetching alerts:', alertsResult.reason);
+      }
+
+      if (faqsResult.status === 'fulfilled') {
+        setFaqs(faqsResult.value);
+      } else {
+        errors.push(`FAQs: ${faqsResult.reason?.message || 'Unknown error'}`);
+        console.error('Error fetching FAQs:', faqsResult.reason);
+      }
+
+      if (timeslotsResult.status === 'fulfilled') {
+        setTimeslots(timeslotsResult.value);
+      } else {
+        errors.push(`Timeslots: ${timeslotsResult.reason?.message || 'Unknown error'}`);
+        console.error('Error fetching timeslots:', timeslotsResult.reason);
+      }
+
+      // Set error state if any errors occurred
+      if (errors.length > 0) {
+        setError(errors.join('; '));
+        toast({
+          title: "Error loading data",
+          description: errors.join('\n'),
+          variant: "destructive"
+        });
+      }
     } catch (e: any) {
-      setError(e.message);
-      console.warn('Alerts/FAQs module data loading failed:', e.message);
+      const errorMsg = e?.message || 'An unexpected error occurred';
+      setError(errorMsg);
+      console.error('Alerts/FAQs module data loading failed:', e);
+      toast({
+        title: "Error loading data",
+        description: errorMsg,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -66,7 +109,7 @@ export function useAlertsFaqsData() {
 
   // FAQ operations
   const saveFaq = async (faqData: Omit<FAQ, 'id' | 'created_at' | 'updated_at' | 'timeslot_name'>) => {
-     try {
+    try {
       await service.upsertFaq(faqData);
       toast({ title: "FAQ Saved", description: "The FAQ has been successfully saved." });
       await loadData(); // Refresh list
