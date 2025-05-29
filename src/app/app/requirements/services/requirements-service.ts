@@ -38,11 +38,15 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
   const fetchTimeslots = async (): Promise<Timeslot[]> => {
     const { data, error } = await supabase
       .from('time_slots')
-      .select('id, slot_name, description'); // Use slot_name or description as 'name'
+      .select('id, slot_name, description, start_time, end_time')
+      .order('start_time', { ascending: true });
     if (error) handleError(error, 'fetch timeslots');
     return (data || []).map(ts => ({
       id: ts.id,
-      name: ts.slot_name || ts.description || 'Unnamed Timeslot', // Fallback for name
+      name: ts.slot_name || ts.description || 'Unnamed Timeslot',
+      slot_name: ts.slot_name,
+      start_time: ts.start_time,
+      end_time: ts.end_time,
     }));
   };
 
@@ -135,12 +139,43 @@ export function createRequirementsService({ supabase }: RequirementsServiceProps
     return data || [];
   };
 
+  // Fetches total assigned volunteers for each Seva Category and Timeslot combination
+  const fetchAssignmentCountsByCell = async (): Promise<Array<{ seva_category_id: number; timeslot_id: number; total_assigned: number }>> => {
+    const { data, error } = await supabase
+      .from('volunteer_commitments')
+      .select('seva_category_id, timeslot_id, volunteer_id') // Select volunteer_id to count distinct volunteers if needed, or just count rows
+      .eq('commitment_type', 'ASSIGNED_TASK');
+
+    if (error) handleError(error, 'fetch assignment counts');
+    if (!data) return [];
+
+    // Aggregate counts in JS
+    const countsMap = new Map<string, { seva_category_id: number; timeslot_id: number; total_assigned: number }>();
+
+    for (const commitment of data) {
+      if (commitment.seva_category_id === null || commitment.timeslot_id === null) continue;
+      const key = `${commitment.seva_category_id}-${commitment.timeslot_id}`;
+      if (!countsMap.has(key)) {
+        countsMap.set(key, {
+          seva_category_id: commitment.seva_category_id,
+          timeslot_id: commitment.timeslot_id,
+          total_assigned: 0,
+        });
+      }
+      countsMap.get(key)!.total_assigned += 1; // Assuming one row per assigned volunteer for a task in a category/slot
+                                             // If a volunteer can be listed multiple times for the same task/slot combo and should only be counted once,
+                                             // this would need a Set of volunteer_ids per key then .size.
+    }
+    return Array.from(countsMap.values());
+  };
+
   return {
     fetchSevaCategories,
     fetchLocations,
     fetchTimeslots,
-    fetchAllRequirements, // Renamed from fetchRequirements
-    fetchRequirementsForCell, // New specific fetcher
-    upsertRequirementsForCell, // New batch upsert logic for a cell
+    fetchAllRequirements,
+    fetchRequirementsForCell,
+    upsertRequirementsForCell,
+    fetchAssignmentCountsByCell,
   };
 }

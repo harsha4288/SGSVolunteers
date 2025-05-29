@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
 
-import { useUnifiedRequirements } from './hooks/use-unified-requirements';
+import { useRequirementsData } from './hooks/use-requirements-data';
 import { FiltersBar } from './components/filters-bar';
 import { EnhancedRequirementsGrid } from './components/enhanced-requirements-grid';
 import { EnhancedRequirementEditModal } from './components/enhanced-requirement-edit-modal';
@@ -15,6 +15,7 @@ import type { RequirementCellData } from './types';
 
 // Mock user data for now - this should come from an auth context or session
 const MOCK_USER_ROLE = 'admin' as 'admin' | 'coordinator' | 'volunteer';
+const MOCK_USER_SEVA_CATEGORY_IDS: number[] = []; // For admin, this is not used by useRequirementsData filtering
 
 export default function RequirementsPage() {
   const [isFilterExpanded, setIsFilterExpanded] = React.useState(false);
@@ -26,15 +27,15 @@ export default function RequirementsPage() {
     allTimeslots,
     allLocations,
     gridData,
-    loading,
     loadingInitial,
     loadingRequirements,
     error,
     refreshData,
-    updateRequirement,
-    updateFilters,
-  } = useUnifiedRequirements({
+    updateRequirementsForCell,
+    userRole,
+  } = useRequirementsData({
     userRole: MOCK_USER_ROLE,
+    userSevaCategoryIds: MOCK_USER_SEVA_CATEGORY_IDS,
   });
 
   const handleCellSelect = (cellData: RequirementCellData) => {
@@ -54,31 +55,35 @@ export default function RequirementsPage() {
     timeslot_id: number,
     requirementsToUpsert: Array<any>
   ) => {
-    // The hook's updateRequirement will show toasts on success/failure
-    for (const req of requirementsToUpsert) {
-      await updateRequirement(
-        req.seva_category_id,
-        req.timeslot_id,
-        req.location_id,
-        req.required_count,
-        req.notes
-      );
+    const cellSpecificRequirements = requirementsToUpsert.map(req => ({
+      seva_category_id,
+      timeslot_id,
+      location_id: req.location_id,
+      required_count: req.required_count,
+      notes: req.notes,
+    }));
+
+    try {
+      await updateRequirementsForCell(seva_category_id, timeslot_id, cellSpecificRequirements);
+      handleCloseModal();
+    } catch (saveError) {
+      console.error("Failed to save modal data:", saveError);
     }
   };
 
   // Initial loading state for the entire page content
   if (loadingInitial && displaySevaCategories.length === 0 && allTimeslots.length === 0) {
     return (
-      <div className="container mx-auto py-3 px-2 space-y-3">
+      <div className="container mx-auto py-3 px-1 space-y-3">
         <Card><CardHeader><CardTitle>Loading Requirements...</CardTitle></CardHeader></Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-3 px-2 space-y-4">
+    <div className="container mx-auto py-3 px-1 space-y-4">
       <Card className="mb-4">
-        <CardHeader>
+        <CardHeader className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-accent flex-shrink-0" />
@@ -100,12 +105,12 @@ export default function RequirementsPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2">
           {isFilterExpanded && (
             <div className="mb-4">
               <FiltersBar
                 userRole={MOCK_USER_ROLE}
-                onFilterChange={updateFilters}
+                onFilterChange={() => { /* Placeholder for filter logic */ }}
               />
             </div>
           )}
@@ -126,7 +131,7 @@ export default function RequirementsPage() {
             gridData={gridData}
             onCellSelect={handleCellSelect}
             userRole={MOCK_USER_ROLE}
-            isLoading={loading}
+            isLoading={loadingInitial || loadingRequirements}
           />
         </CardContent>
       </Card>

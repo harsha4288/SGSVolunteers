@@ -84,7 +84,7 @@ export function EnhancedRequirementsGrid({
 
     // Filter out 'All Days' and 'Full Day' timeslots
     const filteredTimeslots = timeslots.filter(
-        t => !/all\s*days|full\s*day/i.test(t.slot_name)
+        t => !/all\s*days|full(\s*day)?/i.test(t.name)
     );
 
     return (
@@ -93,21 +93,15 @@ export function EnhancedRequirementsGrid({
                 <Table className="min-w-max text-[11px]">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="bg-muted/50 w-[70px] font-medium text-[11px] px-2 py-1 align-middle text-center">
+                            <TableHead className="bg-muted/50 w-[60px] min-w-[60px] max-w-[60px] font-medium text-[11px] px-0.5 py-0.5 align-middle text-center">
                                 Seva
                             </TableHead>
                             {filteredTimeslots.map((timeslot) => (
                                 <TableHead
                                     key={timeslot.id}
-                                    className="bg-muted/50 text-center w-[60px] min-w-[60px] max-w-[60px] px-2 py-1 align-middle"
-                                    style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', height: 80 }}
+                                    className="bg-muted/50 text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap w-auto min-w-[45px]"
                                 >
-                                    <span className="font-medium text-[10px] truncate max-w-[60px] block">
-                                        {timeslot.slot_name}
-                                    </span>
-                                    <span className="text-[9px] text-muted-foreground block rotate-180">
-                                        {new Date(timeslot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                                    {timeslot.name}
                                 </TableHead>
                             ))}
                         </TableRow>
@@ -115,12 +109,13 @@ export function EnhancedRequirementsGrid({
                     <TableBody>
                         {sevaCategories.map((seva, rowIndex) => (
                             <TableRow key={seva.id} className="h-7">
-                                <TableCell className="font-medium bg-muted/30 px-2 py-1 text-[11px] truncate w-[70px] min-w-[70px] max-w-[70px] text-center align-middle flex flex-col items-center gap-0.5">
-                                    <span className="flex items-center gap-1">
-                                        {sevaCategoryMeta[seva.category_name]?.icon || <span>🔹</span>}
-                                        <span className="font-bold">{sevaCategoryMeta[seva.category_name]?.code || seva.category_name.slice(0, 2).toUpperCase()}</span>
+                                <TableCell className="font-medium bg-muted/30 px-0.5 py-0.5 text-[11px] w-[60px] min-w-[60px] max-w-[60px] text-center align-middle flex flex-col items-center justify-center gap-px">
+                                    <span className="flex items-center justify-center gap-0.5">
+                                        {sevaCategoryMeta[seva.name]?.icon || <span>🔹</span>}
+                                        <span className="font-bold md:hidden">{sevaCategoryMeta[seva.name]?.code || seva.name.slice(0, 2).toUpperCase()}</span>
+                                        <span className="font-bold hidden md:inline truncate max-w-[50px]">{seva.name}</span>
                                     </span>
-                                    <span className="text-[9px] text-muted-foreground truncate max-w-[60px]">{seva.category_name}</span>
+                                    <span className="text-[9px] text-muted-foreground truncate max-w-[50px] hidden md:hidden">{seva.name}</span>
                                 </TableCell>
                                 {filteredTimeslots.map((_, colIndex) => {
                                     // Find the correct colIndex in the original timeslots array
@@ -150,17 +145,17 @@ export function EnhancedRequirementsGrid({
                                         <TableCell
                                             key={colIndex}
                                             className={cn(
-                                                "p-0 cursor-pointer transition-colors group w-[60px] min-w-[60px] max-w-[60px] px-2 align-middle text-center",
+                                                "cursor-pointer transition-colors group w-[50px] min-w-[50px] max-w-[50px] p-px align-middle text-center",
                                                 isEditable && "hover:bg-accent/10"
                                             )}
                                             onClick={() => isEditable && onCellSelect(cellData)}
                                         >
-                                            <div className="flex flex-col items-center justify-center gap-0.5 py-0.5 px-0.5 h-full">
+                                            <div className="flex flex-col items-center justify-center gap-0 py-0 px-0 h-full">
                                                 {/* Row 1: Required & Assigned */}
-                                                <div className="flex items-center gap-1 justify-center w-full">
+                                                <div className="flex items-center gap-0.5 justify-center w-full">
                                                     <ClipboardList className="h-3 w-3 text-muted-foreground" aria-label="Required" />
                                                     <span className="font-semibold text-[11px]">{total_required_count}</span>
-                                                    <UserCheck className="h-3 w-3 text-muted-foreground ml-2" aria-label="Assigned" />
+                                                    <UserCheck className="h-3 w-3 text-muted-foreground ml-1" aria-label="Assigned" />
                                                     <span className="text-[11px]">{total_assigned_count}</span>
                                                 </div>
                                                 {/* Row 2: Variance */}
@@ -169,7 +164,7 @@ export function EnhancedRequirementsGrid({
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <span className={cn(
-                                                                    "rounded px-1 py-0.5 font-semibold flex items-center gap-0.5 border mx-auto",
+                                                                    "rounded px-0.5 py-px font-semibold flex items-center gap-px border mx-auto",
                                                                     varianceClass
                                                                 )}>
                                                                     {getVarianceIcon(variance)}

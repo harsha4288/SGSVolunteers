@@ -31,6 +31,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
 
   // Dynamic data - requirements
   const [allRequirements, setAllRequirements] = React.useState<Requirement[]>([]);
+  const [assignmentCounts, setAssignmentCounts] = React.useState<Array<{ seva_category_id: number; timeslot_id: number; total_assigned: number }>>([]);
 
   // Derived/Filtered data for display
   const [displaySevaCategories, setDisplaySevaCategories] = React.useState<SevaCategoryRef[]>([]);
@@ -49,17 +50,19 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
     setLoadingInitial(true);
     setError(null);
     try {
-      const [sevaCategoriesData, locationsData, timeslotsData, requirementsData] = await Promise.all([
+      const [sevaCategoriesData, locationsData, timeslotsData, requirementsData, fetchedAssignmentCounts] = await Promise.all([
         requirementsService.fetchSevaCategories().catch(() => []),
         requirementsService.fetchLocations().catch(() => []),
         requirementsService.fetchTimeslots().catch(() => []),
         requirementsService.fetchAllRequirements().catch(() => []),
+        requirementsService.fetchAssignmentCountsByCell().catch(() => []), // Fetch assignment counts
       ]);
 
       setAllSevaCategories(sevaCategoriesData);
       setAllLocations(locationsData);
       setAllTimeslots(timeslotsData);
       setAllRequirements(requirementsData);
+      setAssignmentCounts(fetchedAssignmentCounts); // Set assignment counts
 
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load initial data for requirements module.";
@@ -92,17 +95,32 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
         );
         const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
 
+        // Find the assignment count for this specific cell
+        const cellAssignmentCount = assignmentCounts.find(
+          ac => ac.seva_category_id === sevaCategory.id && ac.timeslot_id === timeslot.id
+        );
+        const total_assigned_count = cellAssignmentCount?.total_assigned || 0;
+        const variance = total_assigned_count - total_required_count; // Common: Assigned - Required or Required - Assigned. Let's stick to Assigned - Required for now.
+        const fulfillment_rate = total_required_count > 0 ? (total_assigned_count / total_required_count) * 100 : 0;
+        // Placeholder for attendance rate as we are not fetching attendance details here
+        const attendance_rate = 0;
+
         return {
           sevaCategory,
           timeslot,
           total_required_count,
-          requirements_for_cell: requirementsForCell, // Full details for the modal
+          total_assigned_count, // Use fetched count
+          total_attended_count: 0, // Placeholder, not fetched by this hook
+          requirements_for_cell: requirementsForCell,
+          variance,
+          fulfillment_rate,
+          attendance_rate,
         };
       });
     });
     setGridData(newGridData);
 
-  }, [allSevaCategories, allTimeslots, allRequirements, userRole, userSevaCategoryIds /*, activeFilters */]);
+  }, [allSevaCategories, allTimeslots, allRequirements, assignmentCounts, userRole, userSevaCategoryIds]);
 
 
   // Function to update requirements for a specific cell (SevaCategory/Timeslot combination)
@@ -119,7 +137,9 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
       // Refresh all requirements data to reflect changes
       // More granular update is possible but complex if IDs change or new items are added without IDs.
       const updatedRequirementsData = await requirementsService.fetchAllRequirements();
+      const updatedAssignmentCounts = await requirementsService.fetchAssignmentCountsByCell(); // Also refresh assignment counts
       setAllRequirements(updatedRequirementsData);
+      setAssignmentCounts(updatedAssignmentCounts); // Set updated counts
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : "Failed to update requirements.";
       setError(errorMessage); // Potentially set a more specific error state for the modal
