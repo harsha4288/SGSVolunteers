@@ -41,3 +41,24 @@ CREATE INDEX IF NOT EXISTS idx_volunteer_check_ins_recorded_by ON public.volunte
 -- Note: This table structure fixes the issue where attendance taken on one time slot
 -- was incorrectly showing for all time slots. The time_slot_id field ensures each
 -- check-in record is linked to a specific time slot, providing accurate attendance tracking.
+
+-- Volunteer Requirements Table (Global per Seva Category/Timeslot)
+CREATE TABLE IF NOT EXISTS public.requirements (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    seva_category_id BIGINT NOT NULL REFERENCES public.seva_categories(id) ON DELETE CASCADE,
+    timeslot_id BIGINT NOT NULL REFERENCES public.time_slots(id) ON DELETE CASCADE,
+    required_count INTEGER NOT NULL CHECK (required_count >= 0),
+    notes TEXT, -- Optional: breakdown by location or other info
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (seva_category_id, timeslot_id)
+);
+
+COMMENT ON TABLE public.requirements IS 'Stores required volunteer counts per seva category and timeslot. Location is informational only (in notes).';
+COMMENT ON COLUMN public.requirements.seva_category_id IS 'FK to seva_categories. Requirement is global for the category, not per location.';
+COMMENT ON COLUMN public.requirements.timeslot_id IS 'FK to time_slots. Requirement is global for the timeslot, not per location.';
+COMMENT ON COLUMN public.requirements.required_count IS 'Total number of volunteers required for this seva category and timeslot.';
+COMMENT ON COLUMN public.requirements.notes IS 'Optional breakdown by location or other info.';
+
+CREATE INDEX IF NOT EXISTS idx_requirements_seva_category_id ON public.requirements(seva_category_id);
+CREATE INDEX IF NOT EXISTS idx_requirements_timeslot_id ON public.requirements(timeslot_id);

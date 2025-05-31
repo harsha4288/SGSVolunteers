@@ -27,7 +27,7 @@ export interface Requirement {
   id?: number;
   seva_category_id: number;
   timeslot_id: number;
-  location_id: number;
+  location_id: number | null;
   required_count: number;
   notes?: string;
   created_at?: string;

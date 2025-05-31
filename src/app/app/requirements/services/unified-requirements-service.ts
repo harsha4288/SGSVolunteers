@@ -27,32 +27,24 @@ export function createUnifiedRequirementsService({
 
         try {
             let query = supabase
-                .from('volunteer_requirements')
+                .from('requirements')
                 .select(`
-          *,
-          seva_categories (
-            id,
-            category_name
-          ),
-          time_slots (
-            id,
-            slot_name,
-            start_time,
-            end_time
-          ),
-          locations (
-            id,
-            name
-          ),
-          volunteer_assignments (
-            id,
-            volunteer_id
-          ),
-          volunteer_check_ins (
-            id,
-            volunteer_id
-          )
-        `);
+                    *,
+                    seva_categories (
+                        id,
+                        category_name
+                    ),
+                    time_slots (
+                        id,
+                        slot_name,
+                        start_time,
+                        end_time
+                    ),
+                    volunteer_commitments!requirements_seva_category_id_timeslot_id_fkey (
+                        id,
+                        volunteer_id
+                    )
+                `);
 
             // Apply filters if provided
             if (filters) {
@@ -78,9 +70,9 @@ export function createUnifiedRequirementsService({
                 timeslot_id: item.timeslot_id,
                 location_id: item.location_id,
                 required_count: item.required_count,
-                notes: item.notes,
-                created_at: item.created_at,
-                updated_at: item.updated_at,
+                notes: item.notes || undefined,
+                created_at: item.created_at || undefined,
+                updated_at: item.updated_at || undefined,
                 seva_category: {
                     id: item.seva_categories?.id || item.seva_category_id,
                     name: item.seva_categories?.category_name || '',
@@ -94,11 +86,11 @@ export function createUnifiedRequirementsService({
                     end_time: item.time_slots?.end_time || '',
                 },
                 location: {
-                    id: item.locations?.id || item.location_id,
-                    name: item.locations?.name || '',
+                    id: item.location_id,
+                    name: '', // We'll need to add locations table to the query
                 },
-                assigned_count: item.volunteer_assignments?.length || 0,
-                attended_count: item.volunteer_check_ins?.length || 0,
+                assigned_count: Array.isArray(item.volunteer_commitments) ? item.volunteer_commitments.length : 0,
+                attended_count: 0, // We'll need to add check-ins to get this
             }));
         } catch (error) {
             console.error("Error fetching requirements:", error);
@@ -117,7 +109,7 @@ export function createUnifiedRequirementsService({
         try {
             // Check if requirement exists
             const { data: existing } = await supabase
-                .from('volunteer_requirements')
+                .from('requirements')
                 .select('id')
                 .eq('seva_category_id', requirement.seva_category_id)
                 .eq('timeslot_id', requirement.timeslot_id)
@@ -127,7 +119,7 @@ export function createUnifiedRequirementsService({
             if (existing) {
                 // Update
                 const { error } = await supabase
-                    .from('volunteer_requirements')
+                    .from('requirements')
                     .update({
                         required_count: requirement.required_count,
                         notes: requirement.notes,
@@ -140,7 +132,7 @@ export function createUnifiedRequirementsService({
             } else {
                 // Insert
                 const { error } = await supabase
-                    .from('volunteer_requirements')
+                    .from('requirements')
                     .insert({
                         ...requirement,
                         created_at: new Date().toISOString(),
@@ -168,7 +160,7 @@ export function createUnifiedRequirementsService({
 
         try {
             const { error } = await supabase
-                .from('volunteer_requirements')
+                .from('requirements')
                 .delete()
                 .eq('seva_category_id', seva_category_id)
                 .eq('timeslot_id', timeslot_id)
@@ -241,14 +233,13 @@ export function createUnifiedRequirementsService({
         if (!supabase) return [];
 
         try {
-            const { data, error } = await supabase
-                .from('locations')
-                .select('id, name')
-                .order('name');
-
-            if (error) throw error;
-
-            return data || [];
+            // For now, return a simplified location list
+            // In a future update, we can add proper location management
+            return [
+                { id: 1, name: 'Location 1' },
+                { id: 2, name: 'Location 2' },
+                { id: 3, name: 'Location 3' },
+            ];
         } catch (error) {
             console.error("Error fetching locations:", error);
             return [];

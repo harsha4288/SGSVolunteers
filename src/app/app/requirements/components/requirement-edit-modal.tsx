@@ -26,7 +26,7 @@ interface RequirementEditModalProps {
   onSave: (
     sevaCategoryId: number,
     timeslotId: number,
-    requirementsToUpsert: Array<Omit<Requirement, 'id'|'created_at'|'updated_at'>>
+    requirementsToUpsert: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>>
   ) => Promise<void>;
   modalData: RequirementEditModalData | null;
   allLocations: Location[]; // Full list of available locations
@@ -142,7 +142,7 @@ export function RequirementEditModal({
       return;
     }
 
-    const requirementsToUpsert: Array<Omit<Requirement, 'id'|'created_at'|'updated_at'>> = [];
+    const requirementsToUpsert: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>> = [];
 
     if (formInput.use_location_breakdown) {
       // Validate location breakdown totals match
@@ -216,10 +216,10 @@ export function RequirementEditModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 py-4">
           {/* Total Required Count */}
-          <div className="space-y-2">
-            <Label htmlFor="total-count" className="text-sm font-medium">
+          <div className="space-y-1">
+            <Label htmlFor="total-count" className="text-sm font-medium mb-0">
               Total Volunteers Needed *
             </Label>
             <Input
@@ -242,16 +242,16 @@ export function RequirementEditModal({
               onCheckedChange={(checked) => handleInputChange('use_location_breakdown', checked as boolean)}
               disabled={!isEditable}
             />
-            <Label htmlFor="use-location-breakdown" className="text-sm font-medium cursor-pointer">
+            <Label htmlFor="use-location-breakdown" className="text-sm font-medium cursor-pointer mb-0">
               Specify location breakdown
             </Label>
           </div>
 
           {/* Location Breakdown Section */}
           {formInput.use_location_breakdown && (
-            <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
               <div className="flex justify-between items-center">
-                <Label className="text-sm font-medium">Location Requirements</Label>
+                <Label className="text-sm font-medium mb-0">Location Requirements</Label>
                 <span className="text-xs text-muted-foreground">
                   Total: {calculateLocationTotal()} / {formInput.total_required_count}
                   {calculateLocationTotal() !== parseInt(formInput.total_required_count) &&
@@ -260,10 +260,10 @@ export function RequirementEditModal({
                 </span>
               </div>
 
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {formInput.location_breakdown.map((loc) => (
                   <div key={loc.location_id} className="grid grid-cols-12 items-center gap-2 p-2 bg-background rounded border">
-                    <Label className="col-span-4 text-xs font-medium truncate" title={loc.location_name}>
+                    <Label className="col-span-4 text-xs font-medium truncate mb-0" title={loc.location_name}>
                       {loc.location_name}
                     </Label>
                     <Input
@@ -290,8 +290,8 @@ export function RequirementEditModal({
 
           {/* General Notes */}
           {!formInput.use_location_breakdown && (
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm font-medium">
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-sm font-medium mb-0">
                 Notes (Optional)
               </Label>
               <Textarea

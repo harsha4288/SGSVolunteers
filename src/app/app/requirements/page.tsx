@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 import { useRequirementsData } from './hooks/use-requirements-data';
 import { FiltersBar } from './components/filters-bar';
@@ -18,6 +19,7 @@ const MOCK_USER_ROLE = 'admin' as 'admin' | 'coordinator' | 'volunteer';
 const MOCK_USER_SEVA_CATEGORY_IDS: number[] = []; // For admin, this is not used by useRequirementsData filtering
 
 export default function RequirementsPage() {
+  const { toast } = useToast();
   const [isFilterExpanded, setIsFilterExpanded] = React.useState(false);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedCellDataForModal, setSelectedCellDataForModal] = React.useState<RequirementCellData | null>(null);
@@ -38,11 +40,11 @@ export default function RequirementsPage() {
     userSevaCategoryIds: MOCK_USER_SEVA_CATEGORY_IDS,
   });
 
+  // Temporarily disabled modal to focus on inline editing
   const handleCellSelect = (cellData: RequirementCellData) => {
-    if (MOCK_USER_ROLE === 'admin' || MOCK_USER_ROLE === 'coordinator') {
-      setSelectedCellDataForModal(cellData);
-      setIsModalOpen(true);
-    }
+    // Inline editing is now handled directly in the cell component
+    // Modal opening is temporarily disabled
+    console.log('Cell selected for inline editing:', cellData);
   };
 
   const handleCloseModal = () => {
@@ -68,6 +70,56 @@ export default function RequirementsPage() {
       handleCloseModal();
     } catch (saveError) {
       console.error("Failed to save modal data:", saveError);
+    }
+  };
+
+  const handleRequirementUpdate = async (cellData: RequirementCellData, newRequiredCount: number) => {
+    const { sevaCategory, timeslot, requirements_for_cell } = cellData;
+
+    // Calculate the current total required count
+    const currentTotal = requirements_for_cell.reduce((sum, req) => sum + req.required_count, 0);
+    
+    // Skip update if the total hasn't changed
+    if (currentTotal === newRequiredCount) {
+      console.log('Requirement count unchanged, skipping update');
+      return;
+    }
+
+    // Calculate the ratio between current and new total required count
+    const ratio = currentTotal > 0 ? newRequiredCount / currentTotal : 0;
+
+    // Update each requirement proportionally
+    const updatedRequirements = requirements_for_cell.map((req) => {
+      let newCount = Math.round(req.required_count * ratio);
+      
+      // Ensure we distribute any remainder to meet the exact total
+      return {
+        id: req.id,
+        required_count: newCount,
+        location_id: req.location_id
+      };
+    });
+
+    // Ensure the sum of updated requirements equals the new total
+    const updatedTotal = updatedRequirements.reduce((sum, req) => sum + req.required_count, 0);
+    if (updatedTotal !== newRequiredCount && updatedRequirements.length > 0) {
+      // Add any difference to the first requirement to ensure exact total
+      updatedRequirements[0].required_count += (newRequiredCount - updatedTotal);
+    }
+
+    try {
+      await updateRequirementsForCell(sevaCategory.id, timeslot.id, updatedRequirements);
+      toast({
+        title: "Success",
+        description: "Requirements updated successfully."
+      });
+    } catch (error) {
+      console.error('Failed to update requirements:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update requirements. Please try again."
+      });
     }
   };
 
@@ -130,6 +182,7 @@ export default function RequirementsPage() {
             timeslots={allTimeslots}
             gridData={gridData}
             onCellSelect={handleCellSelect}
+            onRequirementUpdate={handleRequirementUpdate}
             userRole={MOCK_USER_ROLE}
             isLoading={loadingInitial || loadingRequirements}
           />

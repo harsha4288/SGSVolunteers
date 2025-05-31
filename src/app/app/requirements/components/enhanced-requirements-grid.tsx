@@ -4,24 +4,22 @@ import * as React from "react";
 import {
     Table,
     TableBody,
-    TableCell,
     TableHead,
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardList, UserCheck, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import type { RequirementCellData, SevaCategoryRef, Timeslot } from "../types";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { RequirementCell } from "./requirement-cell";
+import { SevaCategoryCell } from "./seva-category-cell";
 
 interface EnhancedRequirementsGridProps {
     sevaCategories: SevaCategoryRef[];
     timeslots: Timeslot[];
     gridData: RequirementCellData[][];
     onCellSelect: (cellData: RequirementCellData) => void;
+    onRequirementUpdate?: (cellData: RequirementCellData, newRequiredCount: number) => void;
     userRole: 'admin' | 'coordinator' | 'volunteer';
     isLoading: boolean;
 }
@@ -31,6 +29,7 @@ export function EnhancedRequirementsGrid({
     timeslots,
     gridData,
     onCellSelect,
+    onRequirementUpdate,
     userRole,
     isLoading,
 }: EnhancedRequirementsGridProps) {
@@ -59,32 +58,9 @@ export function EnhancedRequirementsGrid({
         return <p className="text-muted-foreground text-center py-8">No Timeslots to display. Please add Timeslots.</p>;
     }
 
-    const getVarianceColor = (variance: number) => {
-        if (variance < 0) return "bg-destructive/20 text-destructive-foreground";
-        if (variance === 0) return "bg-success/20 text-success-foreground";
-        return "bg-primary/20 text-primary";
-    };
-
-    const getVarianceIcon = (variance: number) => {
-        if (variance < 0) return <ArrowDownRight className="h-3 w-3" />;
-        if (variance === 0) return <ArrowUpRight className="h-3 w-3 rotate-45 text-success" />;
-        return <ArrowUpRight className="h-3 w-3" />;
-    };
-
-    // Seva category icon and short code mapping
-    const sevaCategoryMeta: Record<string, { icon: React.ReactNode; code: string }> = {
-        'Crowd Mgmt': { icon: <span className="text-blue-400">👥</span>, code: 'CM' },
-        'Health': { icon: <span className="text-green-400">🩺</span>, code: 'HL' },
-        'Helpdesk': { icon: <span className="text-yellow-400">🛎️</span>, code: 'HD' },
-        'Meals Prep': { icon: <span className="text-orange-400">🍽️</span>, code: 'MP' },
-        'Hospitality': { icon: <span className="text-pink-400">🏠</span>, code: 'HO' },
-        'Stage': { icon: <span className="text-purple-400">🎤</span>, code: 'ST' },
-        // Add more as needed
-    };
-
     // Filter out 'All Days' and 'Full Day' timeslots
     const filteredTimeslots = timeslots.filter(
-        t => !/all\s*days|full(\s*day)?/i.test(t.name)
+        t => !/all\s*days|full(\s*day)?/i.test(t.slot_name)
     );
 
     return (
@@ -99,86 +75,47 @@ export function EnhancedRequirementsGrid({
                             {filteredTimeslots.map((timeslot) => (
                                 <TableHead
                                     key={timeslot.id}
-                                    className="bg-muted/50 text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap w-auto min-w-[45px]"
+                                    className="bg-muted/50 text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap w-auto min-w-[50px]"
                                 >
-                                    {timeslot.name}
+                                    {timeslot.slot_name}
                                 </TableHead>
                             ))}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {sevaCategories.map((seva, rowIndex) => (
-                            <TableRow key={seva.id} className="h-7">
-                                <TableCell className="font-medium bg-muted/30 px-0.5 py-0.5 text-[11px] w-[60px] min-w-[60px] max-w-[60px] text-center align-middle flex flex-col items-center justify-center gap-px">
-                                    <span className="flex items-center justify-center gap-0.5">
-                                        {sevaCategoryMeta[seva.name]?.icon || <span>🔹</span>}
-                                        <span className="font-bold md:hidden">{sevaCategoryMeta[seva.name]?.code || seva.name.slice(0, 2).toUpperCase()}</span>
-                                        <span className="font-bold hidden md:inline truncate max-w-[50px]">{seva.name}</span>
-                                    </span>
-                                    <span className="text-[9px] text-muted-foreground truncate max-w-[50px] hidden md:hidden">{seva.name}</span>
-                                </TableCell>
-                                {filteredTimeslots.map((_, colIndex) => {
-                                    // Find the correct colIndex in the original timeslots array
-                                    const origColIndex = timeslots.findIndex(t => t.id === filteredTimeslots[colIndex].id);
-                                    const cellData = gridData[rowIndex]?.[origColIndex];
-                                    if (!cellData) return <TableCell key={colIndex} className="w-[60px] min-w-[60px] max-w-[60px] px-2 text-center align-middle" />;
+                            <TableRow key={seva.id}>
+                                <SevaCategoryCell categoryName={seva.category_name} />
+                                {filteredTimeslots.map((timeslot, colIndex) => {
+                                    // Find the cell data for this timeslot
+                                    const cellData = gridData[rowIndex]?.[timeslots.findIndex(t => t.id === timeslot.id)];
 
-                                    // TEMP: Debug log for DB data
-                                    if (rowIndex === 0 && colIndex === 0) {
-                                        // eslint-disable-next-line no-console
-                                        console.log('DEBUG cellData:', cellData);
+                                    if (!cellData) {
+                                        return <RequirementCell
+                                            key={colIndex}
+                                            required={0}
+                                            assigned={0}
+                                            variance={0}
+                                            isEditable={isEditable}
+                                            onClick={() => { }}
+                                            onRequiredChange={() => { }}
+                                        />;
                                     }
 
-                                    const {
-                                        total_required_count,
-                                        total_assigned_count,
-                                        variance,
-                                    } = cellData;
-
-                                    // Color for variance (border or text only, no background)
-                                    let varianceClass = "border text-xs";
-                                    if (variance < 0) varianceClass += " border-red-700 text-red-700";
-                                    else if (variance === 0) varianceClass += " border-green-700 text-green-700";
-                                    else varianceClass += " border-blue-700 text-blue-700";
-
                                     return (
-                                        <TableCell
+                                        <RequirementCell
                                             key={colIndex}
-                                            className={cn(
-                                                "cursor-pointer transition-colors group w-[50px] min-w-[50px] max-w-[50px] p-px align-middle text-center",
-                                                isEditable && "hover:bg-accent/10"
-                                            )}
+                                            required={cellData.total_required_count}
+                                            assigned={cellData.total_assigned_count}
+                                            variance={cellData.variance}
+                                            isEditable={isEditable}
                                             onClick={() => isEditable && onCellSelect(cellData)}
-                                        >
-                                            <div className="flex flex-col items-center justify-center gap-0 py-0 px-0 h-full">
-                                                {/* Row 1: Required & Assigned */}
-                                                <div className="flex items-center gap-0.5 justify-center w-full">
-                                                    <ClipboardList className="h-3 w-3 text-muted-foreground" aria-label="Required" />
-                                                    <span className="font-semibold text-[11px]">{total_required_count}</span>
-                                                    <UserCheck className="h-3 w-3 text-muted-foreground ml-1" aria-label="Assigned" />
-                                                    <span className="text-[11px]">{total_assigned_count}</span>
-                                                </div>
-                                                {/* Row 2: Variance */}
-                                                <div className="flex items-center justify-center w-full h-full">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span className={cn(
-                                                                    "rounded px-0.5 py-px font-semibold flex items-center gap-px border mx-auto",
-                                                                    varianceClass
-                                                                )}>
-                                                                    {getVarianceIcon(variance)}
-                                                                    {variance}
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="top" className="text-xs">
-                                                                Variance = Required - Assigned
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            </div>
-                                        </TableCell>
+                                            onRequiredChange={(newValue) => {
+                                                if (isEditable && onRequirementUpdate) {
+                                                    onRequirementUpdate(cellData, newValue);
+                                                }
+                                            }}
+                                        />
                                     );
                                 })}
                             </TableRow>

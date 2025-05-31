@@ -6,11 +6,12 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { createRequirementsService } from '../services/requirements-service';
 import type {
-  Requirement,
+  RequirementWithDetails, // Changed from Requirement
   SevaCategoryRef,
   Location,
   Timeslot,
-  RequirementCellData, // For the grid
+  RequirementCellData,
+  Requirement as RequirementType, // For the upsert function argument
 } from '../types';
 
 // Assuming userRole and userSevaCategoryIds are provided, possibly via a context or props to the page component
@@ -30,8 +31,7 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
   const [allTimeslots, setAllTimeslots] = React.useState<Timeslot[]>([]);
 
   // Dynamic data - requirements
-  const [allRequirements, setAllRequirements] = React.useState<Requirement[]>([]);
-  const [assignmentCounts, setAssignmentCounts] = React.useState<Array<{ seva_category_id: number; timeslot_id: number; total_assigned: number }>>([]);
+  const [allRequirements, setAllRequirements] = React.useState<RequirementWithDetails[]>([]);
 
   // Derived/Filtered data for display
   const [displaySevaCategories, setDisplaySevaCategories] = React.useState<SevaCategoryRef[]>([]);
@@ -50,29 +50,26 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
     setLoadingInitial(true);
     setError(null);
     try {
-      const [sevaCategoriesData, locationsData, timeslotsData, requirementsData, fetchedAssignmentCounts] = await Promise.all([
-        requirementsService.fetchSevaCategories().catch(() => []),
-        requirementsService.fetchLocations().catch(() => []),
-        requirementsService.fetchTimeslots().catch(() => []),
-        requirementsService.fetchAllRequirements().catch(() => []),
-        requirementsService.fetchAssignmentCountsByCell().catch(() => []), // Fetch assignment counts
+      const [sevaCategoriesData, locationsData, timeslotsData, requirementsData] = await Promise.all([
+        requirementsService.fetchSevaCategories(),
+        requirementsService.fetchLocations(),
+        requirementsService.fetchTimeslots(),
+        requirementsService.fetchAllRequirements(), // Returns RequirementWithDetails[] now
       ]);
 
       setAllSevaCategories(sevaCategoriesData);
       setAllLocations(locationsData);
       setAllTimeslots(timeslotsData);
       setAllRequirements(requirementsData);
-      setAssignmentCounts(fetchedAssignmentCounts); // Set assignment counts
 
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load initial data for requirements module.";
       setError(errorMessage);
-      console.warn('Requirements module data loading failed:', errorMessage);
-      // Don't show toast on initial load failure, just log it
+      toast({ title: "Error Loading Initial Data", description: errorMessage, variant: "destructive" });
     } finally {
       setLoadingInitial(false);
     }
-  }, [requirementsService]);
+  }, [requirementsService, toast]);
 
   React.useEffect(() => {
     loadInitialData();
@@ -93,58 +90,63 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
         const requirementsForCell = allRequirements.filter(
           r => r.seva_category_id === sevaCategory.id && r.timeslot_id === timeslot.id
         );
-        const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
 
-        // Find the assignment count for this specific cell
-        const cellAssignmentCount = assignmentCounts.find(
-          ac => ac.seva_category_id === sevaCategory.id && ac.timeslot_id === timeslot.id
-        );
-        const total_assigned_count = cellAssignmentCount?.total_assigned || 0;
-        const variance = total_assigned_count - total_required_count; // Common: Assigned - Required or Required - Assigned. Let's stick to Assigned - Required for now.
+        const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
+        // Calculate total_assigned_count by aggregating all assignment counts in this cell
+        // Note: Each requirement may have its own assigned_count based on location
+        const total_assigned_count = requirementsForCell.reduce((sum, r) => sum + (r.assigned_count || 0), 0);
+
+        const variance = total_assigned_count - total_required_count;
         const fulfillment_rate = total_required_count > 0 ? (total_assigned_count / total_required_count) * 100 : 0;
-        // Placeholder for attendance rate as we are not fetching attendance details here
+        // Placeholder for attendance_rate, as attended_count is not yet implemented
         const attendance_rate = 0;
 
         return {
           sevaCategory,
           timeslot,
           total_required_count,
-          total_assigned_count, // Use fetched count
-          total_attended_count: 0, // Placeholder, not fetched by this hook
+          total_assigned_count, // Now populated
+          total_attended_count: 0, // Placeholder, needs attended_count from RequirementWithDetails
           requirements_for_cell: requirementsForCell,
-          variance,
-          fulfillment_rate,
-          attendance_rate,
+          variance, // Now populated
+          fulfillment_rate, // Now populated
+          attendance_rate, // Placeholder
         };
       });
     });
     setGridData(newGridData);
 
-  }, [allSevaCategories, allTimeslots, allRequirements, assignmentCounts, userRole, userSevaCategoryIds]);
+  }, [allSevaCategories, allTimeslots, allRequirements, userRole, userSevaCategoryIds /*, activeFilters */]);
 
 
   // Function to update requirements for a specific cell (SevaCategory/Timeslot combination)
   const updateRequirementsForCell = async (
     sevaCategoryId: number,
     timeslotId: number,
-    // This array comes from the modal, representing desired state for each location for that cell
-    requirementsToUpsertForCell: Array<Omit<Requirement, 'id' | 'created_at' | 'updated_at'>>
+    // This now expects Omit<RequirementType, ...> because the modal deals with individual location requirements
+    requirementsToUpsertForCell: Array<Omit<RequirementType, 'id' | 'created_at' | 'updated_at' | 'seva_category_id' | 'timeslot_id'>>
   ) => {
     setLoadingRequirements(true);
     try {
-      await requirementsService.upsertRequirementsForCell(sevaCategoryId, timeslotId, requirementsToUpsertForCell);
+      // The service function now handles deleting old and inserting new, then re-fetching.
+      const updatedCellRequirements = await requirementsService.upsertRequirementsForCell(sevaCategoryId, timeslotId, requirementsToUpsertForCell);
+
+      // Update the allRequirements state by replacing the requirements for the affected cell
+      setAllRequirements(prevAllReqs => {
+        // Filter out the old requirements for this cell
+        const otherRequirements = prevAllReqs.filter(
+          r => !(r.seva_category_id === sevaCategoryId && r.timeslot_id === timeslotId)
+        );
+        // Add the new/updated requirements for this cell
+        return [...otherRequirements, ...updatedCellRequirements];
+      });
+
       toast({ title: "Success", description: "Requirements updated successfully." });
-      // Refresh all requirements data to reflect changes
-      // More granular update is possible but complex if IDs change or new items are added without IDs.
-      const updatedRequirementsData = await requirementsService.fetchAllRequirements();
-      const updatedAssignmentCounts = await requirementsService.fetchAssignmentCountsByCell(); // Also refresh assignment counts
-      setAllRequirements(updatedRequirementsData);
-      setAssignmentCounts(updatedAssignmentCounts); // Set updated counts
     } catch (e: any) {
       const errorMessage = e instanceof Error ? e.message : "Failed to update requirements.";
-      setError(errorMessage); // Potentially set a more specific error state for the modal
+      setError(errorMessage);
       toast({ title: "Error Updating Requirements", description: errorMessage, variant: "destructive" });
-      throw e; // Re-throw for the modal to handle if needed
+      throw e;
     } finally {
       setLoadingRequirements(false);
     }

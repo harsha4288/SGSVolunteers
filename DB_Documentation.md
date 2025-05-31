@@ -288,6 +288,22 @@ Tracks T-shirts issued to volunteers.
 _Comment: Tracks T-shirts issued to volunteers._
 _Indexes: `idx_tshirt_issuances_volunteer_id(volunteer_id)`, `idx_tshirt_issuances_tshirt_inventory_id(tshirt_inventory_id)`, `idx_tshirt_issuances_issued_by_profile_id(issued_by_profile_id)`._
 
+3.x. public.requirements
+Stores required volunteer counts per seva category and timeslot.
+Note: Requirements are now global per seva category and timeslot. Location is informational only (in notes).
+| Column | Type | Constraints | Description |
+| ---------------- | ----------- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| id | BIGINT | PK, Generated Always as Identity | Unique identifier for the requirement. |
+| seva_category_id | BIGINT | NOT NULL, FK to public.seva_categories(id) | Seva category for which volunteers are required. |
+| timeslot_id | BIGINT | NOT NULL, FK to public.time_slots(id) | Time slot for which volunteers are required. |
+| required_count | INTEGER | NOT NULL, CHECK (required_count >= 0) | Total number of volunteers required for this seva category and timeslot. |
+| notes | TEXT | | Optional: breakdown by location or other info (e.g., '2 at entrance, 8 at hall'). |
+| created_at | TIMESTAMPTZ | DEFAULT NOW() | Timestamp of creation. |
+| updated_at | TIMESTAMPTZ | DEFAULT NOW() | Timestamp of last update. |
+Constraint: UNIQUE (seva_category_id, timeslot_id) ensures only one requirement per seva category and timeslot.
+Comment: Stores required volunteer counts per seva category and timeslot. Location is informational only (in notes).
+
+
 ## 4. Key UI Interaction Patterns
 
 - **Displaying Volunteer's Own Schedule:**

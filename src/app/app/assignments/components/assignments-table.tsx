@@ -18,6 +18,7 @@ import type { Assignment, TimeSlot } from "./assignments-dashboard";
 import { getTaskIconConfig } from "@/lib/task-icons";
 import { useTheme } from "next-themes";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SevaCategoryIcon } from "@/components/shared/seva-category-icon";
 
 import { parseISO } from "date-fns";
 import { useDateOverride } from "@/components/providers/date-override-provider";
@@ -225,8 +226,8 @@ export function AssignmentsTable({
 
       // Check if the slot date is the same as our current/overridden date
       if (startDate.getFullYear() === currentDate.getFullYear() &&
-          startDate.getMonth() === currentDate.getMonth() &&
-          startDate.getDate() === currentDate.getDate()) {
+        startDate.getMonth() === currentDate.getMonth() &&
+        startDate.getDate() === currentDate.getDate()) {
         return "today";
       } else if (startDate < currentDate) {
         return "past";
@@ -268,17 +269,7 @@ export function AssignmentsTable({
       return (
         <div className="inline-flex flex-col items-center gap-1 py-1">
           <div className="flex items-center gap-1" title={taskName}>
-            <div
-              className="rounded-full p-1"
-              style={{ backgroundColor: bgColor }}
-            >
-              <TaskIcon className="h-3 w-3" style={{ color: iconColor }} aria-label={taskName} />
-            </div>
-            {isDesktop ? (
-              <span className="text-xs font-semibold max-w-[100px] truncate">{taskName}</span>
-            ) : (
-              <span className="text-xs font-semibold">{taskConfig.label}</span>
-            )}
+            <SevaCategoryIcon categoryName={taskName} className="min-w-0" />
           </div>
 
           {/* Show check-in status for past or today's slots */}
@@ -316,17 +307,7 @@ export function AssignmentsTable({
     return (
       <div className="inline-flex flex-col items-center gap-1 py-1">
         <div className="flex items-center gap-1" title={taskName}>
-          <div
-            className="rounded-full p-1"
-            style={{ backgroundColor: bgColor }}
-          >
-            <TaskIcon className="h-3 w-3" style={{ color: iconColor }} aria-label={taskName} />
-          </div>
-          {isDesktop ? (
-            <span className="text-xs font-semibold max-w-[100px] truncate">{taskName}</span>
-          ) : (
-            <span className="text-xs font-semibold">{taskConfig.label}</span>
-          )}
+          <SevaCategoryIcon categoryName={taskName} className="min-w-0" />
         </div>
 
         {/* Show different controls based on time slot status and attendance */}

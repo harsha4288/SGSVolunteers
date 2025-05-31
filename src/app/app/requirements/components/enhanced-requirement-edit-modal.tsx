@@ -162,17 +162,17 @@ export function EnhancedRequirementEditModal({
                 </DialogHeader>
 
                 <ScrollArea className="max-h-[60vh]">
-                    <div className="space-y-6 py-4">
+                    <div className="space-y-4 py-4">
                         {/* Location Breakdown */}
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {formInput.location_breakdown.map((loc) => {
                                 const variance = loc.assigned_count - parseInt(loc.required_count || '0');
                                 const attendanceRate = loc.assigned_count ? (loc.attended_count / loc.assigned_count) * 100 : 0;
 
                                 return (
-                                    <div key={loc.location_id} className="space-y-2 pb-4 border-b last:border-0">
+                                    <div key={loc.location_id} className="space-y-1.5 pb-4 border-b last:border-0">
                                         <div className="flex items-center justify-between">
-                                            <Label className="text-sm font-medium">
+                                            <Label className="text-sm font-medium mb-0">
                                                 {loc.location_name}
                                             </Label>
                                             <div className="flex items-center gap-1.5">
@@ -204,9 +204,9 @@ export function EnhancedRequirementEditModal({
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <Label htmlFor={`required-${loc.location_id}`} className="text-xs">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <Label htmlFor={`required-${loc.location_id}`} className="text-xs mb-0">
                                                     Required
                                                 </Label>
                                                 <Input
@@ -229,8 +229,8 @@ export function EnhancedRequirementEditModal({
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <Label htmlFor={`notes-${loc.location_id}`} className="text-xs">
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`notes-${loc.location_id}`} className="text-xs mb-0">
                                                 Notes
                                             </Label>
                                             <Textarea
