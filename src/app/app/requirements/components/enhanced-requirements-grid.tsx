@@ -70,6 +70,8 @@ export function EnhancedRequirementsGrid({
             <DataTable 
                 maxHeight="calc(100vh - 20rem)" 
                 className="text-[11px] w-full"
+                frozenColumns={[0]}
+                columnWidths={[80, ...Array(filteredTimeslots.length).fill(120)]}
             >
                 <DataTableColGroup>
                     <DataTableCol width="80px"/>{/*Seva Category column*/}
@@ -80,12 +82,12 @@ export function EnhancedRequirementsGrid({
                 <DataTableHeader>
                     <DataTableRow>
                         <DataTableHead 
-                            className="font-medium text-[11px] px-1 py-1 align-middle text-center sticky top-0 left-0 !z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-                            // Removed sticky prop to take full control via className
+                            colIndex={0}
+                            className="font-medium text-[11px] px-1 py-1 align-middle text-center"
                         >
                             Seva
                         </DataTableHead>
-                        {filteredTimeslots.map((timeslot) => (
+                        {filteredTimeslots.map((timeslot, colIndex) => (
                             <DataTableHead
                                 key={timeslot.id}
                                 className="text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap"
@@ -99,7 +101,7 @@ export function EnhancedRequirementsGrid({
                 <DataTableBody>
                     {sevaCategories.map((seva, rowIndex) => (
                         <DataTableRow key={seva.id} hover>
-                            <DataTableCell className="p-0 bg-gray-100 dark:bg-neutral-800 sticky left-0 !z-[35]" border>
+                            <DataTableCell colIndex={0} className="p-0" border>
                                 <SevaCategoryCell categoryName={seva.category_name} />
                             </DataTableCell>
                             {filteredTimeslots.map((timeslot, colIndex) => {
@@ -107,7 +109,7 @@ export function EnhancedRequirementsGrid({
                                 const cellData = gridData[rowIndex]?.[timeslots.findIndex(t => t.id === timeslot.id)];
                                 
                                 return (
-                                    <DataTableCell key={colIndex} className="p-0 bg-card sticky z-[5]" border>
+                                    <DataTableCell key={colIndex} colIndex={colIndex + 1} className="p-0" border>
                                         <RequirementCell
                                             required={cellData?.total_required_count || 0}
                                             assigned={cellData?.total_assigned_count || 0}

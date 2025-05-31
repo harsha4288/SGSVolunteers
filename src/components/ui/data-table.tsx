@@ -17,7 +17,21 @@ interface DataTableProps {
   className?: string
   maxHeight?: string
   minWidth?: string
+  /**
+   * Indices of columns to freeze (left-side). Example: [0] to freeze first column.
+   */
+  frozenColumns?: number[]
+  /**
+   * Array of column widths (in px or with units, e.g. '120px', '10rem'). Used for sticky offset calculation.
+   */
+  columnWidths?: (string | number)[]
 }
+
+// Context to provide frozenColumns and columnWidths to all descendants
+const FrozenColumnsContext = React.createContext<{
+  frozenColumns: number[]
+  columnWidths: (string | number)[]
+}>({ frozenColumns: [], columnWidths: [] });
 
 interface DataTableHeaderProps {
   children: React.ReactNode
@@ -53,34 +67,40 @@ interface DataTableHeadProps {
   rowSpan?: number
   colSpan?: number
   sticky?: boolean
+  /**
+   * The column index for this header cell, used to determine if it should be frozen
+   */
+  colIndex?: number
 }
 
 // Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh - 300px)", minWidth = "max", ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        "rounded-md border border-accent/20 bg-card overflow-hidden", // Consistent container styling
-        className
-      )}
-      {...props}
-    >
+  ({ children, className, maxHeight = "calc(100vh - 300px)", minWidth = "max", frozenColumns = [], columnWidths = [], ...props }, ref) => (
+    <FrozenColumnsContext.Provider value={{ frozenColumns, columnWidths }}>
       <div
+        ref={ref}
         className={cn(
-          "overflow-auto custom-scrollbar", // Custom scrollbar with proper height
-          "relative" // For sticky positioning context
+          "rounded-md border border-accent/20 bg-card overflow-hidden", // Consistent container styling
+          className
         )}
-        style={{ maxHeight }}
+        {...props}
       >
-        <table className={cn(
-          "w-full border-collapse table-fixed", // Consistent table layout
-          minWidth && `min-w-${minWidth}`
-        )}>
-          {children}
-        </table>
+        <div
+          className={cn(
+            "overflow-auto custom-scrollbar", // Custom scrollbar with proper height
+            "relative" // For sticky positioning context
+          )}
+          style={{ maxHeight }}
+        >
+          <table className={cn(
+            "w-full border-collapse table-fixed", // Consistent table layout
+            minWidth && `min-w-${minWidth}`
+          )}>
+            {children}
+          </table>
+        </div>
       </div>
-    </div>
+    </FrozenColumnsContext.Provider>
   )
 )
 DataTable.displayName = "DataTable"
@@ -134,51 +154,98 @@ DataTableRow.displayName = "DataTableRow"
 
 // Standardized table header cell
 const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>(
-  ({ children, className, align = "left", border = true, sticky = false, rowSpan, colSpan, ...props }, ref) => (
-    <th
-      ref={ref}
-      rowSpan={rowSpan}
-      colSpan={colSpan}
-      className={cn(
-        "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
-        "bg-muted/50", // Header background (removed backdrop-blur-sm)
-        "text-xs uppercase tracking-wide", // Professional header text styling
-        align === "left" && "text-left",
-        align === "center" && "text-center",
-        align === "right" && "text-right",
-        border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
-        sticky && "sticky top-0 z-50 bg-muted/90", // Individual cell stickiness with higher z-index
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </th>
-  )
+  ({ children, className, align = "left", border = true, sticky = false, rowSpan, colSpan, colIndex, ...props }, ref) => {
+    // Get frozenColumns from context for checking if this header is frozen
+    const { frozenColumns, columnWidths } = React.useContext(FrozenColumnsContext);
+    let stickyStyle = {};
+    let stickyClass = "";
+    
+    // Apply freezing logic for columns if colIndex is provided and it's in frozenColumns
+    if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
+      // Calculate left offset based on previous frozen columns
+      let left = 0;
+      for (let i = 0; i < colIndex; ++i) {
+        if (frozenColumns.includes(i)) {
+          const width = columnWidths[i];
+          if (typeof width === "number") left += width;
+          else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
+          else if (typeof width === "string") left += parseInt(width); // fallback
+        }
+      }
+      stickyStyle = { left };
+      stickyClass = `sticky left-0 z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`;
+    }
+
+    return (
+      <th
+        ref={ref}
+        rowSpan={rowSpan}
+        colSpan={colSpan}
+        style={stickyStyle}
+        className={cn(
+          "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
+          "bg-muted/50", // Header background (removed backdrop-blur-sm)
+          "text-xs uppercase tracking-wide", // Professional header text styling
+          align === "left" && "text-left",
+          align === "center" && "text-center",
+          align === "right" && "text-right",
+          border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
+          sticky && "sticky top-0 z-50 bg-muted/90", // Individual cell stickiness with higher z-index
+          stickyClass, // Apply frozen column classes if applicable
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </th>
+    );
+  }
 )
 DataTableHead.displayName = "DataTableHead"
 
 // Standardized table data cell
-const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps>(
-  ({ children, className, align = "left", border = true, rowSpan, colSpan, ...props }, ref) => (
-    <td
-      ref={ref}
-      rowSpan={rowSpan}
-      colSpan={colSpan}
-      className={cn(
-        "py-2 px-2", // Consistent cell padding
-        "text-sm", // Consistent font size
-        align === "left" && "text-left",
-        align === "center" && "text-center",
-        align === "right" && "text-right",
-        border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </td>
-  )
+const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps & { colIndex?: number }>(
+  ({ children, className, align = "left", border = true, rowSpan, colSpan, colIndex, ...props }, ref) => {
+    // Get frozenColumns and columnWidths from context
+    const { frozenColumns, columnWidths } = React.useContext(FrozenColumnsContext);
+    let stickyStyle = {};
+    let stickyClass = "";
+    if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
+      // Calculate left offset by summing widths of previous frozen columns
+      let left = 0;
+      for (let i = 0; i < colIndex; ++i) {
+        if (frozenColumns.includes(i)) {
+          const width = columnWidths[i];
+          if (typeof width === "number") left += width;
+          else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
+          else if (typeof width === "string") left += parseInt(width); // fallback
+        }
+      }
+      stickyStyle = { left };
+      stickyClass = `sticky z-[35] bg-gray-100 dark:bg-neutral-800`;
+    }
+    return (
+      <td
+        ref={ref}
+        rowSpan={rowSpan}
+        colSpan={colSpan}
+        style={stickyStyle}
+        className={cn(
+          "py-2 px-2", // Consistent cell padding
+          "text-sm", // Consistent font size
+          align === "left" && "text-left",
+          align === "center" && "text-center",
+          align === "right" && "text-right",
+          border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
+          stickyClass,
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </td>
+    );
+  }
 )
 DataTableCell.displayName = "DataTableCell"
 
@@ -202,6 +269,16 @@ const DataTableCol = React.forwardRef<HTMLTableColElement, { width?: string; cla
   )
 )
 DataTableCol.displayName = "DataTableCol"
+
+// USAGE EXAMPLE:
+// <DataTable frozenColumns={[0]} columnWidths={[80, 120, 120, ...]}>
+//   ...
+//   <DataTableRow>
+//     <DataTableCell colIndex={0}>Frozen 1st col</DataTableCell>
+//     <DataTableCell colIndex={1}>...</DataTableCell>
+//     ...
+//   </DataTableRow>
+// </DataTable>
 
 export {
   DataTable,
