@@ -91,7 +91,7 @@ const DataTableHeader = React.forwardRef<HTMLTableSectionElement, DataTableHeade
     <thead
       ref={ref}
       className={cn(
-        "bg-card/95 backdrop-blur-sm", // Consistent header background with slight transparency
+        "bg-card/95", // Consistent header background (removed backdrop-blur-sm)
         sticky && "sticky top-0 z-40", // Excel-like frozen headers
         "border-b border-accent/20", // Header bottom border
         className
@@ -107,7 +107,7 @@ DataTableHeader.displayName = "DataTableHeader"
 // Standardized table body
 const DataTableBody = React.forwardRef<HTMLTableSectionElement, DataTableBodyProps>(
   ({ children, className, ...props }, ref) => (
-    <tbody ref={ref} className={cn("", className)} {...props}>
+    <tbody ref={ref} className={cn("relative z-0", className)} {...props}>
       {children}
     </tbody>
   )
@@ -141,7 +141,7 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
       colSpan={colSpan}
       className={cn(
         "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
-        "bg-muted/50 backdrop-blur-sm", // Header background
+        "bg-muted/50", // Header background (removed backdrop-blur-sm)
         "text-xs uppercase tracking-wide", // Professional header text styling
         align === "left" && "text-left",
         align === "center" && "text-center",
@@ -166,7 +166,7 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps>
       rowSpan={rowSpan}
       colSpan={colSpan}
       className={cn(
-        "py-2 px-2 relative", // Consistent cell padding
+        "py-2 px-2", // Consistent cell padding
         "text-sm", // Consistent font size
         align === "left" && "text-left",
         align === "center" && "text-center",

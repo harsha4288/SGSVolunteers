@@ -1,5 +1,4 @@
 import * as React from "react";
-import { TableCell } from "@/components/ui/table";
 import { SevaCategoryIcon } from "@/components/shared/seva-category-icon";
 
 interface SevaCategoryCellProps {
@@ -53,10 +52,10 @@ function findBestMatch(categoryName: string): { icon: React.ReactNode; code: str
 
 export function SevaCategoryCell({ categoryName }: SevaCategoryCellProps) {
     return (
-        <TableCell
-            className="font-medium px-0.5 py-px text-[11px] truncate text-center align-top flex flex-col items-center justify-start min-w-[60px] max-w-[120px] md:min-w-[70px] md:max-w-[120px] h-full bg-gray-100 dark:bg-muted/30"
+        <div
+            className="font-medium px-0.5 py-px text-[11px] truncate text-center align-top flex flex-col items-center justify-start w-full h-full bg-gray-100 dark:bg-transparent"
         >
             <SevaCategoryIcon categoryName={categoryName} />
-        </TableCell>
+        </div>
     );
-} 
+}

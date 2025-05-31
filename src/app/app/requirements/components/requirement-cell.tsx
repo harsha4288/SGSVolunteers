@@ -3,7 +3,6 @@
 
 import * as React from 'react';
 import type { RequirementCellData } from '../types'; // Assuming types.ts is in the parent directory
-import { TableCell } from "@/components/ui/table";
 import { ClipboardList, UserCheck, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,41 +69,53 @@ export function RequirementCell({ required, assigned, variance, isEditable, onCl
       
       // Find the appropriate sibling cell based on key press
       const currentCell = cellRef.current;
-      const currentRow = currentCell?.parentElement;
+      
+      // With DataTable structure, we need to navigate through the nested structure
+      // First find the parent DataTableCell
+      const parentDataTableCell = currentCell?.closest('[class*="DataTableCell"]');
+      const currentRow = parentDataTableCell?.parentElement;
       const allRows = currentRow?.parentElement?.children;
       const currentRowIndex = Array.from(allRows || []).indexOf(currentRow as HTMLTableRowElement);
-      const currentCellIndex = Array.from(currentRow?.children || []).indexOf(currentCell as HTMLTableCellElement);
+      
+      // Find all DataTableCell elements in the current row
+      const cellsInCurrentRow = currentRow?.querySelectorAll('[class*="DataTableCell"]');
+      const currentCellIndex = Array.from(cellsInCurrentRow || []).indexOf(parentDataTableCell as Element);
       
       let targetCell: HTMLElement | null = null;
       
       if (e.key === 'ArrowUp' && currentRowIndex > 0) {
         // Move to cell above
         const targetRow = allRows?.[currentRowIndex - 1] as HTMLTableRowElement;
-        targetCell = targetRow?.children[currentCellIndex] as HTMLElement;
+        const targetCells = targetRow?.querySelectorAll('[class*="DataTableCell"]');
+        const targetDataTableCell = targetCells?.[currentCellIndex] as HTMLElement;
+        targetCell = targetDataTableCell?.querySelector('[tabindex="0"]') as HTMLElement;
       } else if (e.key === 'ArrowDown' && currentRowIndex < (allRows?.length || 0) - 1) {
         // Move to cell below
         const targetRow = allRows?.[currentRowIndex + 1] as HTMLTableRowElement;
-        targetCell = targetRow?.children[currentCellIndex] as HTMLElement;
+        const targetCells = targetRow?.querySelectorAll('[class*="DataTableCell"]');
+        const targetDataTableCell = targetCells?.[currentCellIndex] as HTMLElement;
+        targetCell = targetDataTableCell?.querySelector('[tabindex="0"]') as HTMLElement;
       } else if (e.key === 'ArrowLeft' && currentCellIndex > 0) {
         // Move to cell to the left
-        targetCell = currentRow?.children[currentCellIndex - 1] as HTMLElement;
+        const targetDataTableCell = cellsInCurrentRow?.[currentCellIndex - 1] as HTMLElement;
+        targetCell = targetDataTableCell?.querySelector('[tabindex="0"]') as HTMLElement;
       } else if ((e.key === 'ArrowRight' || (!e.shiftKey && e.key === 'Tab')) && 
-                currentCellIndex < (currentRow?.children.length || 0) - 1) {
+                currentCellIndex < (cellsInCurrentRow?.length || 0) - 1) {
         // Move to cell to the right or tab
-        targetCell = currentRow?.children[currentCellIndex + 1] as HTMLElement;
+        const targetDataTableCell = cellsInCurrentRow?.[currentCellIndex + 1] as HTMLElement;
+        targetCell = targetDataTableCell?.querySelector('[tabindex="0"]') as HTMLElement;
         if (e.key === 'Tab') e.preventDefault(); // Prevent default tab behavior
       } else if (e.shiftKey && e.key === 'Tab' && currentCellIndex > 0) {
-        // Shift+Tab to move left
-        targetCell = currentRow?.children[currentCellIndex - 1] as HTMLElement;
+        // Move to cell to the left with shift+tab
+        const targetDataTableCell = cellsInCurrentRow?.[currentCellIndex - 1] as HTMLElement;
+        targetCell = targetDataTableCell?.querySelector('[tabindex="0"]') as HTMLElement;
         e.preventDefault(); // Prevent default tab behavior
       }
       
-      // Focus and click the target cell if found
       if (targetCell) {
-        setTimeout(() => {
-          targetCell?.click();
-          targetCell?.focus();
-        }, 10);
+        // Trigger click on the target cell to activate it
+        targetCell.click();
+        targetCell.focus();
       }
     }
   };
@@ -154,7 +165,7 @@ export function RequirementCell({ required, assigned, variance, isEditable, onCl
   `;
 
   // Handle keyboard events on the table cell (when not in edit mode)
-  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLTableCellElement>) => {
+  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (isEditable && e.key === 'Enter') {
       // Enter key activates edit mode
       e.preventDefault();
@@ -169,18 +180,20 @@ export function RequirementCell({ required, assigned, variance, isEditable, onCl
     }
   };
 
+  const cellClassName = cn(
+    "cursor-pointer transition-colors group p-0 align-middle text-center h-full",
+    isEditable && "hover:bg-accent/10"
+  );
+
   return (
-    <TableCell
+    <div
       ref={cellRef}
-      className={cn(
-        "cursor-pointer transition-colors group w-[50px] min-w-[50px] max-w-[50px] p-0 align-middle text-center h-full",
-        isEditable && "hover:bg-accent/10"
-      )}
+      className={`${cellClassName} w-full h-full`}
       onClick={handleClick}
       onKeyDown={handleCellKeyDown}
       tabIndex={0}
     >
-      <div className="flex flex-col items-center justify-center gap-0 py-1 px-0 h-full">
+      <div className="flex flex-col items-center justify-center gap-0 py-1 px-0 h-full w-full overflow-hidden">
         {/* Row 1: Required & Assigned */}
         <div className="flex items-center gap-0.5 justify-center w-full">
           <span className="block md:hidden">
@@ -249,6 +262,6 @@ export function RequirementCell({ required, assigned, variance, isEditable, onCl
           </TooltipProvider>
         </div>
       </div>
-    </TableCell>
+    </div>
   );
 }

@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import {
-    Table,
-    TableBody,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+    DataTable,
+    DataTableHeader,
+    DataTableBody,
+    DataTableRow,
+    DataTableHead,
+    DataTableCell,
+    DataTableColGroup,
+    DataTableCol
+} from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RequirementCellData, SevaCategoryRef, Timeslot } from "../types";
 import { RequirementCell } from "./requirement-cell";
@@ -64,66 +66,67 @@ export function EnhancedRequirementsGrid({
     );
 
     return (
-        <div className="rounded-md border overflow-x-auto">
-            <ScrollArea className="h-[calc(100vh-20rem)] min-w-[600px]">
-                <Table className="min-w-max text-[11px]">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="bg-muted/50 w-[60px] min-w-[60px] max-w-[60px] font-medium text-[11px] px-0.5 py-0.5 align-middle text-center">
-                                Seva
-                            </TableHead>
-                            {filteredTimeslots.map((timeslot) => (
-                                <TableHead
-                                    key={timeslot.id}
-                                    className="bg-muted/50 text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap w-auto min-w-[50px]"
-                                >
-                                    {timeslot.slot_name}
-                                </TableHead>
-                            ))}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sevaCategories.map((seva, rowIndex) => (
-                            <TableRow key={seva.id}>
+        <div className="rounded-md border">
+            <DataTable 
+                maxHeight="calc(100vh - 20rem)" 
+                className="text-[11px] w-full"
+            >
+                <DataTableColGroup>
+                    <DataTableCol width="80px"/>{/*Seva Category column*/}
+                    {filteredTimeslots.map((timeslot) => (
+                        <DataTableCol key={timeslot.id} width="120px"/>
+                    ))}
+                </DataTableColGroup>
+                <DataTableHeader>
+                    <DataTableRow>
+                        <DataTableHead 
+                            className="font-medium text-[11px] px-1 py-1 align-middle text-center sticky top-0 left-0 !z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                            // Removed sticky prop to take full control via className
+                        >
+                            Seva
+                        </DataTableHead>
+                        {filteredTimeslots.map((timeslot) => (
+                            <DataTableHead
+                                key={timeslot.id}
+                                className="text-center font-medium text-[11px] px-1 py-1 whitespace-nowrap"
+                                sticky
+                            >
+                                {timeslot.slot_name}
+                            </DataTableHead>
+                        ))}
+                    </DataTableRow>
+                </DataTableHeader>
+                <DataTableBody>
+                    {sevaCategories.map((seva, rowIndex) => (
+                        <DataTableRow key={seva.id} hover>
+                            <DataTableCell className="p-0 bg-gray-100 dark:bg-neutral-800 sticky left-0 !z-[35]" border>
                                 <SevaCategoryCell categoryName={seva.category_name} />
-                                {filteredTimeslots.map((timeslot, colIndex) => {
-                                    // Find the cell data for this timeslot
-                                    const cellData = gridData[rowIndex]?.[timeslots.findIndex(t => t.id === timeslot.id)];
-
-                                    if (!cellData) {
-                                        return <RequirementCell
-                                            key={colIndex}
-                                            required={0}
-                                            assigned={0}
-                                            variance={0}
-                                            isEditable={isEditable}
-                                            onClick={() => { }}
-                                            onRequiredChange={() => { }}
-                                        />;
-                                    }
-
-                                    return (
+                            </DataTableCell>
+                            {filteredTimeslots.map((timeslot, colIndex) => {
+                                // Find the cell data for this timeslot
+                                const cellData = gridData[rowIndex]?.[timeslots.findIndex(t => t.id === timeslot.id)];
+                                
+                                return (
+                                    <DataTableCell key={colIndex} className="p-0 bg-card sticky z-[5]" border>
                                         <RequirementCell
-                                            key={colIndex}
-                                            required={cellData.total_required_count}
-                                            assigned={cellData.total_assigned_count}
-                                            variance={cellData.variance}
+                                            required={cellData?.total_required_count || 0}
+                                            assigned={cellData?.total_assigned_count || 0}
+                                            variance={cellData?.variance || 0}
                                             isEditable={isEditable}
-                                            onClick={() => isEditable && onCellSelect(cellData)}
+                                            onClick={() => cellData && isEditable && onCellSelect(cellData)}
                                             onRequiredChange={(newValue) => {
-                                                if (isEditable && onRequirementUpdate) {
+                                                if (cellData && isEditable && onRequirementUpdate) {
                                                     onRequirementUpdate(cellData, newValue);
                                                 }
                                             }}
                                         />
-                                    );
-                                })}
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-                <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                                    </DataTableCell>
+                                );
+                            })}
+                        </DataTableRow>
+                    ))}
+                </DataTableBody>
+            </DataTable>
         </div>
     );
 } 
