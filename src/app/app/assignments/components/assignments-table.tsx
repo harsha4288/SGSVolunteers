@@ -372,20 +372,18 @@ export function AssignmentsTable({
   const volunteerNames = Object.keys(volunteerAssignments);
 
   return (
-    <DataTable maxHeight="calc(100vh - 300px)">
-      <DataTableColGroup><DataTableCol width="180px" />{/* Volunteer Name */}
-        {visibleTimeSlots.map((slot) => (
-          <DataTableCol key={slot.id} width={selectedTimeSlotId ? "auto" : "120px"} />
-        ))}
+    <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={["120px", ...visibleTimeSlots.map(() => "84px")]}>
+      <DataTableColGroup><DataTableCol widthClass="w-[120px]" />{/* Volunteer Name */}
+        {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} widthClass="w-[60px] md:w-[84px]" />))}
       </DataTableColGroup>
 
       <DataTableHeader>
         <DataTableRow hover={false}>
-          <DataTableHead align="left" className="px-3">
+          <DataTableHead align="left" className="px-3" colIndex={0}>
             Volunteer
           </DataTableHead>
-          {visibleTimeSlots.map((slot) => (
-            <DataTableHead key={slot.id} align="center" className="py-2 px-2">
+          {visibleTimeSlots.map((slot, index) => (
+            <DataTableHead key={slot.id} align="center" className="py-2 px-2" colIndex={index + 1}>
               {slot.slot_name}
             </DataTableHead>
           ))}
@@ -395,7 +393,7 @@ export function AssignmentsTable({
       <DataTableBody>
         {volunteerNames.map((volunteerName) => (
           <DataTableRow key={volunteerName}>
-            <DataTableCell className="font-medium px-3">
+            <DataTableCell className="font-medium px-3" colIndex={0}>
               <div className="flex flex-col">
                 <span className="text-sm">
                   {volunteerName}
@@ -406,12 +404,12 @@ export function AssignmentsTable({
               </div>
             </DataTableCell>
 
-            {visibleTimeSlots.map((slot) => {
+            {visibleTimeSlots.map((slot, index) => {
               const assignment = volunteerAssignments[volunteerName].find(
                 (a) => a.time_slot_id === slot.id
               );
               return (
-                <DataTableCell key={slot.id} align="center" className="py-1 px-1">
+                <DataTableCell key={slot.id} align="center" className="py-1 px-1" colIndex={index + 1}>
                   {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
                 </DataTableCell>
               );

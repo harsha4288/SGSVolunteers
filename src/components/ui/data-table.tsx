@@ -16,7 +16,6 @@ interface DataTableProps {
   children: React.ReactNode
   className?: string
   maxHeight?: string
-  minWidth?: string
   /**
    * Indices of columns to freeze (left-side). Example: [0] to freeze first column.
    */
@@ -25,13 +24,19 @@ interface DataTableProps {
    * Array of column widths (in px or with units, e.g. '120px', '10rem'). Used for sticky offset calculation.
    */
   columnWidths?: (string | number)[]
+  /**
+   * Default width for columns that don't have an explicit width set.
+   * Can be 'auto', 'min-content', 'max-content', or a fixed value like '100px'.
+   */
+  defaultColumnWidth?: string;
 }
 
-// Context to provide frozenColumns and columnWidths to all descendants
-const FrozenColumnsContext = React.createContext<{
-  frozenColumns: number[]
-  columnWidths: (string | number)[]
-}>({ frozenColumns: [], columnWidths: [] });
+// Context to provide frozenColumns, columnWidths, and defaultColumnWidth to all descendants
+const DataTableContext = React.createContext<{
+  frozenColumns: number[];
+  columnWidths: (string | number)[];
+  defaultColumnWidth?: string;
+}>({ frozenColumns: [], columnWidths: [], defaultColumnWidth: undefined });
 
 interface DataTableHeaderProps {
   children: React.ReactNode
@@ -75,8 +80,8 @@ interface DataTableHeadProps {
 
 // Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh - 300px)", minWidth = "max", frozenColumns = [], columnWidths = [], ...props }, ref) => (
-    <FrozenColumnsContext.Provider value={{ frozenColumns, columnWidths }}>
+  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], defaultColumnWidth = "auto", ...props }, ref) => (
+    <DataTableContext.Provider value={{ frozenColumns, columnWidths, defaultColumnWidth }}>
       <div
         ref={ref}
         className={cn(
@@ -93,14 +98,13 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
           style={{ maxHeight }}
         >
           <table className={cn(
-            "w-full border-collapse table-fixed", // Consistent table layout
-            minWidth && `min-w-${minWidth}`
+            "w-full border-collapse table-fixed" // Consistent table layout
           )}>
             {children}
           </table>
         </div>
       </div>
-    </FrozenColumnsContext.Provider>
+    </DataTableContext.Provider>
   )
 )
 DataTable.displayName = "DataTable"
@@ -155,8 +159,8 @@ DataTableRow.displayName = "DataTableRow"
 // Standardized table header cell
 const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>(
   ({ children, className, align = "left", border = true, sticky = false, rowSpan, colSpan, colIndex, ...props }, ref) => {
-    // Get frozenColumns from context for checking if this header is frozen
-    const { frozenColumns, columnWidths } = React.useContext(FrozenColumnsContext);
+    // Get frozenColumns and defaultColumnWidth from context for checking if this header is frozen
+    const { frozenColumns, columnWidths } = React.useContext(DataTableContext);
     let stickyStyle = {};
     let stickyClass = "";
     
@@ -183,9 +187,9 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
         colSpan={colSpan}
         style={stickyStyle}
         className={cn(
-          "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
+          "font-semibold py-1 px-1 relative", // Consistent header styling with better padding
           "bg-muted/50", // Header background (removed backdrop-blur-sm)
-          "text-xs uppercase tracking-wide", // Professional header text styling
+          "text-xs uppercase tracking-wide whitespace-nowrap overflow-hidden text-ellipsis", // Professional header text styling
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
@@ -207,7 +211,7 @@ DataTableHead.displayName = "DataTableHead"
 const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps & { colIndex?: number }>(
   ({ children, className, align = "left", border = true, rowSpan, colSpan, colIndex, ...props }, ref) => {
     // Get frozenColumns and columnWidths from context
-    const { frozenColumns, columnWidths } = React.useContext(FrozenColumnsContext);
+    const { frozenColumns, columnWidths } = React.useContext(DataTableContext);
     let stickyStyle = {};
     let stickyClass = "";
     if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
@@ -231,8 +235,8 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
         colSpan={colSpan}
         style={stickyStyle}
         className={cn(
-          "py-2 px-2", // Consistent cell padding
-          "text-sm", // Consistent font size
+          "py-1 px-1", // Consistent cell padding
+          "text-sm whitespace-nowrap overflow-hidden text-ellipsis", // Consistent font size
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
@@ -259,14 +263,16 @@ const DataTableColGroup = React.forwardRef<HTMLTableColElement, { children: Reac
 )
 DataTableColGroup.displayName = "DataTableColGroup"
 
-const DataTableCol = React.forwardRef<HTMLTableColElement, { width?: string; className?: string }>(
-  ({ width, className }, ref) => (
-    <col
-      ref={ref}
-      className={className}
-      style={width ? { width } : undefined}
-    />
-  )
+const DataTableCol = React.forwardRef<HTMLTableColElement, { widthClass?: string; className?: string }>(
+  ({ widthClass, className }, ref) => {
+    const { defaultColumnWidth } = React.useContext(DataTableContext);
+    return (
+      <col
+        ref={ref}
+        className={cn(widthClass || `w-${defaultColumnWidth}`, className)}
+      />
+    );
+  }
 )
 DataTableCol.displayName = "DataTableCol"
 
