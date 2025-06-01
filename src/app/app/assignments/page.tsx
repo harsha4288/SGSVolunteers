@@ -15,6 +15,8 @@ export default function AssignmentsPage() {
   const [profileId, setProfileId] = React.useState<string | null>(null);
   const [userRole, setUserRole] = React.useState<"admin" | "team_lead" | "volunteer" | null>(null);
   const [supabase, setSupabase] = React.useState<SupabaseClient<Database> | null>(null);
+  const [selectedSevaId, setSelectedSevaId] = React.useState<number | null>(null);
+  const [selectedTimeSlotId, setSelectedTimeSlotId] = React.useState<number | null>(null);
 
   // Initialize Supabase client and get user profile
   React.useEffect(() => {
@@ -99,6 +101,10 @@ export default function AssignmentsPage() {
       profileId={profileId}
       userRole={userRole}
       supabase={supabase}
+      selectedSevaId={selectedSevaId}
+      setSelectedSevaId={setSelectedSevaId}
+      selectedTimeSlotId={selectedTimeSlotId}
+      setSelectedTimeSlotId={setSelectedTimeSlotId}
     />
   );
 }

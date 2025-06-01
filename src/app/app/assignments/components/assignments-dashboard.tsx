@@ -65,17 +65,25 @@ export interface AssignmentsDashboardProps {
   profileId: string;
   userRole: "admin" | "team_lead" | "volunteer";
   supabase: SupabaseClient<Database>;
+  selectedSevaId: number | null;
+  setSelectedSevaId: React.Dispatch<React.SetStateAction<number | null>>;
+  selectedTimeSlotId: number | null;
+  setSelectedTimeSlotId: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
 export function AssignmentsDashboard({
   profileId,
   userRole,
-  supabase
+  supabase,
+  selectedSevaId,
+  setSelectedSevaId,
+  selectedTimeSlotId,
+  setSelectedTimeSlotId,
 }: AssignmentsDashboardProps) {
   // State for filters
   const [selectedEvent, setSelectedEvent] = React.useState<string>("");
-  const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<string>("all");
-  const [selectedTask, setSelectedTask] = React.useState<string>("all");
+  const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<string>("all"); // Keep for dropdown value
+  const [selectedTask, setSelectedTask] = React.useState<string>("all"); // Keep for dropdown value
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState<string>("");
   const [submittedSearchQuery, setSubmittedSearchQuery] = React.useState<string>("");
@@ -96,6 +104,8 @@ export function AssignmentsDashboard({
       if (e.detail && e.detail.eventId) {
         setSelectedEvent(e.detail.eventId);
         setSelectedTimeSlot("all"); // Reset time slot when event changes
+        setSelectedTimeSlotId(null); // Reset time slot ID when event changes
+        setSelectedSevaId(null); // Reset seva ID when event changes
       }
     };
 
@@ -267,21 +277,11 @@ export function AssignmentsDashboard({
           `)
           .eq("commitment_type", "ASSIGNED_TASK");
 
-        // Add time slot filter if selected
-        if (selectedTimeSlot && selectedTimeSlot !== "all") {
-          query = query.eq("time_slot_id", parseInt(selectedTimeSlot, 10)); // Convert string to number
-        } else {
-          // Otherwise, filter by event through time slots
-          query = query.in(
-            "time_slot_id",
-            timeSlots.map(slot => slot.id)
-          );
-        }
-
-        // Add task filter if selected
-        if (selectedTask && selectedTask !== "all") {
-          query = query.eq("seva_category_id", parseInt(selectedTask, 10)); // Convert string to number
-        }
+        // Filter by event through time slots (always apply this)
+        query = query.in(
+          "time_slot_id",
+          timeSlots.map(slot => slot.id)
+        );
 
         // For volunteer role, filter by family member IDs (volunteers with same email)
         if (userRole === "volunteer") {
@@ -374,10 +374,12 @@ export function AssignmentsDashboard({
   // Handle filter changes
   const handleTimeSlotChange = (value: string) => {
     setSelectedTimeSlot(value);
+    setSelectedTimeSlotId(value === "all" ? null : parseInt(value, 10));
   };
 
   const handleTaskChange = (value: string) => {
     setSelectedTask(value);
+    setSelectedSevaId(value === "all" ? null : parseInt(value, 10));
   };
 
   const handleSearchChange = (value: string) => {
@@ -452,6 +454,8 @@ export function AssignmentsDashboard({
             profileId={profileId}
             supabase={supabase}
             selectedEvent={selectedEvent}
+            selectedSevaId={selectedSevaId}
+            selectedTimeSlotId={selectedTimeSlotId}
           />
         </div>
       )}

@@ -1,14 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, X, Minus, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,13 +9,20 @@ import type { Database } from "@/lib/types/supabase";
 import type { Assignment, TimeSlot } from "./assignments-dashboard";
 import { getTaskIconConfig } from "@/lib/task-icons";
 import { useTheme } from "next-themes";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { SevaCategoryIcon } from "@/components/shared/seva-category-icon";
+import {
+  DataTable,
+  DataTableHeader,
+  DataTableBody,
+  DataTableRow,
+  DataTableHead,
+  DataTableCell,
+  DataTableColGroup,
+  DataTableCol,
+} from "@/components/ui/data-table";
 
 import { parseISO } from "date-fns";
 import { useDateOverride } from "@/components/providers/date-override-provider";
-
-
 
 interface AssignmentsTableProps {
   assignments: Assignment[];
@@ -32,6 +31,8 @@ interface AssignmentsTableProps {
   profileId: string;
   supabase: SupabaseClient<Database>;
   selectedEvent: string;
+  selectedSevaId?: number | null; // New prop for filtering by Seva/task
+  selectedTimeSlotId?: number | null; // New prop for filtering by TimeSlot
 }
 
 export function AssignmentsTable({
@@ -41,42 +42,55 @@ export function AssignmentsTable({
   profileId,
   supabase,
   selectedEvent,
+  selectedSevaId,
+  selectedTimeSlotId,
 }: AssignmentsTableProps) {
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const { theme } = useTheme();
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
-  const [volunteerAssignments, setVolunteerAssignments] = React.useState<Record<string, Assignment[]>>({});
-  const [filteredAssignments, setFilteredAssignments] = React.useState<Assignment[]>(assignments);
-  const [page, setPage] = React.useState(0);
-  const PAGE_SIZE = 30;
 
-  // Set filtered assignments directly from props
-  React.useEffect(() => {
-    setFilteredAssignments(assignments);
-    setPage(0);
-  }, [assignments]);
+  // Filter assignments based on selectedSevaId and selectedTimeSlotId
+  const filteredAssignments = React.useMemo(() => {
+    let currentAssignments = assignments;
+
+    if (selectedSevaId) {
+      currentAssignments = currentAssignments.filter(
+        (a) => a.seva_category_id === selectedSevaId
+      );
+    }
+
+    if (selectedTimeSlotId) {
+      currentAssignments = currentAssignments.filter(
+        (a) => a.time_slot_id === selectedTimeSlotId
+      );
+    }
+    return currentAssignments;
+  }, [assignments, selectedSevaId, selectedTimeSlotId]);
 
   // Group assignments by volunteer (for table/list)
-  React.useEffect(() => {
+  const volunteerAssignments = React.useMemo(() => {
     const grouped: Record<string, Assignment[]> = {};
-    filteredAssignments.forEach(a => {
+    filteredAssignments.forEach((a) => {
       const name = `${a.volunteer.first_name} ${a.volunteer.last_name}`;
       if (!grouped[name]) grouped[name] = [];
       grouped[name].push(a);
     });
-    setVolunteerAssignments(grouped);
+    return grouped;
   }, [filteredAssignments]);
 
-  // Only show visible slots (no "Full" or "All Days")
-  const visibleTimeSlots = timeSlots.filter(
-    slot =>
-      !slot.slot_name.toLowerCase().includes("full") &&
-      slot.slot_name.toLowerCase() !== "all days"
-  );
+  // Determine visible time slots based on selection
+  const visibleTimeSlots = React.useMemo(() => {
+    let slots = timeSlots.filter(
+      (slot) =>
+        !slot.slot_name.toLowerCase().includes("full") &&
+        slot.slot_name.toLowerCase() !== "all days"
+    );
 
-  // For lazy loading
-  const pagedVolunteerNames = Object.keys(volunteerAssignments).slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    if (selectedTimeSlotId) {
+      slots = slots.filter((slot) => slot.id === selectedTimeSlotId);
+    }
+    return slots;
+  }, [timeSlots, selectedTimeSlotId]);
 
   // Attendance controls (Team Lead/Admin)
   const handleCheckInStatus = async (assignment: Assignment, status: "checked_in" | "absent") => {
@@ -89,16 +103,6 @@ export function AssignmentsTable({
     try {
       // Get current timestamp with timezone
       const now = new Date();
-
-      // First, update the assignment's check-in status in the local state
-      // This provides immediate UI feedback
-      const updatedAssignments = filteredAssignments.map(a => {
-        if (a.id === assignment.id) {
-          return { ...a, check_in_status: status };
-        }
-        return a;
-      });
-      setFilteredAssignments(updatedAssignments);
 
       // Then update the database
       // Check for existing check-in for this specific volunteer, event, and time slot
@@ -151,7 +155,6 @@ export function AssignmentsTable({
         description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name} has been ${status === "checked_in" ? "checked in" : "marked as absent"}.`
       });
     } catch (error: any) {
-      // Revert the local state change if there was an error
       toast({
         title: "Error",
         description: error.message || "Failed to update check-in status",
@@ -171,17 +174,6 @@ export function AssignmentsTable({
     const loadingKey = `${assignment.volunteer_id}-${assignment.time_slot_id}`;
     setCheckInLoading(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      // First, update the assignment's check-in status in the local state to remove status
-      // This provides immediate UI feedback
-      const updatedAssignments = filteredAssignments.map(a => {
-        if (a.id === assignment.id) {
-          const { check_in_status, ...assignmentWithoutStatus } = a;
-          return assignmentWithoutStatus;
-        }
-        return a;
-      });
-      setFilteredAssignments(updatedAssignments);
-
       // Delete the check-in record from database to revert to original state
       const { error: deleteError } = await supabase
         .from("volunteer_check_ins")
@@ -197,7 +189,6 @@ export function AssignmentsTable({
         description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name}'s attendance has been reverted to pending.`
       });
     } catch (error: any) {
-      // Revert the local state change if there was an error
       toast({
         title: "Error",
         description: error.message || "Failed to revert attendance",
@@ -241,7 +232,7 @@ export function AssignmentsTable({
   };
 
   // Render assignment cell (role-based)
-  const renderAssignmentCell = (assignment: Assignment, slotId: number, isDesktop = false) => {
+  const renderAssignmentCell = (assignment: Assignment, slotId: number) => {
     // If no assignment for this slot, show a minus sign
     if (!assignment || assignment.time_slot_id !== slotId) {
       return <Minus className="h-4 w-4 text-muted-foreground inline-block" aria-label="Not assigned" />;
@@ -254,12 +245,6 @@ export function AssignmentsTable({
     // Get task icon configuration
     const taskName = assignment.seva_category?.category_name || "";
     const taskConfig = getTaskIconConfig(taskName);
-    const TaskIcon = taskConfig.icon;
-
-    // Use appropriate colors based on theme
-    const isDark = theme === 'dark';
-    const iconColor = isDark ? taskConfig.darkColor : taskConfig.color;
-    const bgColor = isDark ? taskConfig.darkBgColor : taskConfig.bgColor;
 
     // Determine time slot status (today, past, future)
     const timeSlotStatus = getTimeSlotStatus(assignment.time_slot);
@@ -365,135 +350,75 @@ export function AssignmentsTable({
     );
   };
 
-  // Admin controls removed as they're redundant with cell actions
+  // Helper function to shorten names for mobile view (no longer needed with DataTable)
+  // const shortenName = (fullName: string, maxLength: number = 12) => {
+  //   const nameParts = fullName.split(' ');
+  //   if (nameParts.length < 2) return fullName;
 
-  // Helper function to shorten names for mobile view
-  const shortenName = (fullName: string, maxLength: number = 12) => {
-    const nameParts = fullName.split(' ');
-    if (nameParts.length < 2) return fullName;
+  //   const firstName = nameParts[0];
+  //   const lastInitial = nameParts[nameParts.length - 1][0] + '.';
 
-    const firstName = nameParts[0];
-    const lastInitial = nameParts[nameParts.length - 1][0] + '.';
+  //   const shortened = `${firstName} ${lastInitial}`;
 
-    const shortened = `${firstName} ${lastInitial}`;
+  //   // If still too long, truncate with ellipsis
+  //   if (shortened.length > maxLength) {
+  //     return firstName.substring(0, maxLength - 2) + '…';
+  //   }
 
-    // If still too long, truncate with ellipsis
-    if (shortened.length > maxLength) {
-      return firstName.substring(0, maxLength - 2) + '…';
-    }
+  //   return shortened;
+  // };
 
-    return shortened;
-  };
+  // Prepare volunteer names for display
+  const volunteerNames = Object.keys(volunteerAssignments);
 
-  // Responsive rendering
-  if (isMobile) {
-    // Mobile: Excel-like table view with fixed header row for time slots
-    return (
-      <div className="w-full max-w-full px-0">
-        <div className="overflow-x-auto overflow-y-visible w-full pt-2">
-          <table className="w-full text-xs border-collapse border">
-            {/* Header row with time slots */}
-            <thead className="sticky top-0 z-40 shadow-md">
-              <tr className="border-b border-t">
-                <th className="py-1 px-2 text-left font-medium border-r min-w-[80px] max-w-[80px] sticky-header sticky-header-light sticky-header-dark">Volunteer</th>
-                {visibleTimeSlots.map(slot => (
-                  <th key={slot.id} className="py-1 px-1 text-center font-medium bg-muted/80 border-r min-w-[60px]">
-                    {slot.slot_name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody>
-              {pagedVolunteerNames.map((volunteerName, index) => (
-                <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background row-even" : "bg-muted/10 row-odd"} border-b`}>
-                  <td
-                    className="py-1 px-2 text-left border-r min-w-[80px] max-w-[80px] sticky left-0 z-30 sticky-column"
-                    style={{
-                      backgroundColor: theme === 'dark'
-                        ? (index % 2 === 0 ? 'hsl(240, 10%, 3.9%)' : 'hsla(240, 3.7%, 15.9%, 0.1)')
-                        : (index % 2 === 0 ? 'white' : 'hsla(240, 4.8%, 95.9%, 0.1)')
-                    }}
-                  >
-                    <span className="block truncate">{shortenName(volunteerName)}</span>
-                  </td>
-
-                  {visibleTimeSlots.map(slot => {
-                    const assignment = volunteerAssignments[volunteerName].find(a => a.time_slot_id === slot.id);
-                    return (
-                      <td key={slot.id} className="py-0.5 px-0.5 text-center border-r min-w-[60px]">
-                        {assignment ? renderAssignmentCell(assignment, slot.id, false) : <Minus className="h-4 w-4 text-muted-foreground inline-block" />}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination for lazy loading */}
-        {Object.keys(volunteerAssignments).length > PAGE_SIZE && (
-          <div className="flex justify-center gap-2 mt-2">
-            <Button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} size="sm" variant="outline">Prev</Button>
-            <Button onClick={() => setPage(p => (page + 1) * PAGE_SIZE < Object.keys(volunteerAssignments).length ? p + 1 : p)} disabled={(page + 1) * PAGE_SIZE >= Object.keys(volunteerAssignments).length} size="sm" variant="outline">Next</Button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Desktop: Excel-like table view, maximize width and condense filters
   return (
-    <div className="w-full max-w-full">
-      <div className="overflow-x-auto overflow-y-visible w-full border rounded-sm pt-2">
-        <table className="w-full text-sm border-collapse border">
-          {/* Fixed header row */}
-          <thead className="sticky top-0 z-40 shadow-md">
-            <tr className="border-b border-t">
-              <th className="py-2 px-3 text-left font-medium border-r min-w-[180px] max-w-[180px] sticky-header sticky-header-light sticky-header-dark">Volunteer</th>
-              {visibleTimeSlots.map(slot => (
-                <th key={slot.id} className="py-2 px-2 text-center font-medium bg-muted/80 border-r min-w-[80px]">
-                  {slot.slot_name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pagedVolunteerNames.map((volunteerName, index) => (
-              <tr key={volunteerName} className={`${index % 2 === 0 ? "bg-background row-even" : "bg-muted/10 row-odd"} border-b`}>
-                <td
-                  className="py-1.5 px-3 text-left border-r min-w-[180px] max-w-[180px] sticky left-0 z-30 sticky-column"
-                  style={{
-                    backgroundColor: theme === 'dark'
-                      ? (index % 2 === 0 ? 'hsl(240, 10%, 3.9%)' : 'hsla(240, 3.7%, 15.9%, 0.1)')
-                      : (index % 2 === 0 ? 'white' : 'hsla(240, 4.8%, 95.9%, 0.1)')
-                  }}
-                >
-                  <span className="block truncate">{volunteerName}</span>
-                </td>
+    <DataTable maxHeight="calc(100vh - 300px)">
+      <DataTableColGroup><DataTableCol width="180px" /> {/* Volunteer Name */}
+        {visibleTimeSlots.map((slot) => (
+          <DataTableCol key={slot.id} width={selectedTimeSlotId ? "auto" : "120px"} />
+        ))}
+      </DataTableColGroup>
 
-                {visibleTimeSlots.map(slot => {
-                  const assignment = volunteerAssignments[volunteerName].find(a => a.time_slot_id === slot.id);
-                  return (
-                    <td key={slot.id} className="py-1 px-1 text-center border-r min-w-[120px]">
-                      {assignment ? renderAssignmentCell(assignment, slot.id, true) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTableHeader>
+        <DataTableRow hover={false}>
+          <DataTableHead align="left" className="px-3">
+            Volunteer
+          </DataTableHead>
+          {visibleTimeSlots.map((slot) => (
+            <DataTableHead key={slot.id} align="center" className="py-2 px-2">
+              {slot.slot_name}
+            </DataTableHead>
+          ))}
+        </DataTableRow>
+      </DataTableHeader>
 
-      {/* Pagination for lazy loading */}
-      {Object.keys(volunteerAssignments).length > PAGE_SIZE && (
-        <div className="flex justify-center gap-2 mt-2">
-          <Button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} variant="outline">Prev</Button>
-          <Button onClick={() => setPage(p => (page + 1) * PAGE_SIZE < Object.keys(volunteerAssignments).length ? p + 1 : p)} disabled={(page + 1) * PAGE_SIZE >= Object.keys(volunteerAssignments).length} variant="outline">Next</Button>
-        </div>
-      )}
-    </div>
+      <DataTableBody>
+        {volunteerNames.map((volunteerName) => (
+          <DataTableRow key={volunteerName}>
+            <DataTableCell className="font-medium px-3">
+              <div className="flex flex-col">
+                <span className="text-sm">
+                  {volunteerName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {volunteerAssignments[volunteerName][0]?.volunteer.email}
+                </span>
+              </div>
+            </DataTableCell>
+
+            {visibleTimeSlots.map((slot) => {
+              const assignment = volunteerAssignments[volunteerName].find(
+                (a) => a.time_slot_id === slot.id
+              );
+              return (
+                <DataTableCell key={slot.id} align="center" className="py-1 px-1">
+                  {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
+                </DataTableCell>
+              );
+            })}
+          </DataTableRow>
+        ))}
+      </DataTableBody>
+    </DataTable>
   );
 }
