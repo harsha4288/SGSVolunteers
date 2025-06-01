@@ -373,7 +373,7 @@ export function AssignmentsTable({
 
   return (
     <DataTable maxHeight="calc(100vh - 300px)">
-      <DataTableColGroup><DataTableCol width="180px" /> {/* Volunteer Name */}
+      <DataTableColGroup><DataTableCol width="180px" />{/* Volunteer Name */}
         {visibleTimeSlots.map((slot) => (
           <DataTableCol key={slot.id} width={selectedTimeSlotId ? "auto" : "120px"} />
         ))}
