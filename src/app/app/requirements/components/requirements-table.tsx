@@ -2,20 +2,20 @@
 "use client";
 
 import * as React from 'react';
-import { DataTable, DataTableHeader, DataTableBody, DataTableRow, DataTableHead, DataTableCell } from '@/components/ui/data-table';
+import { DataTable, DataTableHeader, DataTableBody, DataTableRow, DataTableHead, DataTableCell, DataTableColGroup, DataTableCol } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { RequirementsData } from '../hooks/use-requirements-data';
-import type { RequirementRow } from '../types';
+import type { RequirementsPageData } from '../hooks/use-requirements-data';
+import type { ProcessedRequirementRow } from '../types';
 import { RefreshCw, Save, AlertCircle } from 'lucide-react';
 
 interface RequirementsTableProps {
-  requirementsData: RequirementsData;
+  requirementsData: RequirementsPageData;
 }
 
 interface InlineCountEditorProps {
-  row: RequirementRow;
+  row: ProcessedRequirementRow;
   onSave: (newCount: number) => Promise<void>;
   isSavingExternal: boolean; 
 }
@@ -108,16 +108,40 @@ const InlineCountEditor: React.FC<InlineCountEditorProps> = ({ row, onSave, isSa
 
 export function RequirementsTable({ requirementsData }: RequirementsTableProps) {
   const {
-    requirementRows,
-    loadingInitial, 
+    loadingInitial,
     loadingRequirements,
-    error, 
-    currentSevaCategoryId, // Renamed from currentTaskId
-    updateRequirementCount,
-    sevaCategories, // Renamed from tasks
+    error,
+    userSevaCategoryIds,
+    updateRequirementsForCell,
+    displaySevaCategories,
+    gridData, // Now using gridData
   } = requirementsData;
+
+  // Derive currentSevaCategoryId from userSevaCategoryIds if it's meant to be a single selection
+  const currentSevaCategoryId = userSevaCategoryIds && userSevaCategoryIds.length > 0 ? userSevaCategoryIds[0] : undefined;
+
+  // Filter and flatten gridData to get the rows for this table, and map to ProcessedRequirementRow
+  const requirementRows: ProcessedRequirementRow[] = React.useMemo(() => {
+    if (!currentSevaCategoryId || !gridData) return [];
+    const flatRequirements: ProcessedRequirementRow[] = [];
+    gridData.forEach(row => {
+      row.forEach(cell => {
+        if (cell.sevaCategory.id === currentSevaCategoryId) {
+          cell.requirements_for_cell.forEach(req => {
+            flatRequirements.push({
+              ...req,
+              seva_category_name: req.seva_category?.category_name,
+              location_name: req.location?.name,
+              timeslot_name: req.timeslot?.slot_name,
+            });
+          });
+        }
+      });
+    });
+    return flatRequirements;
+  }, [gridData, currentSevaCategoryId]);
   
-  if (loadingInitial && !currentSevaCategoryId && sevaCategories.length === 0) { // Renamed from currentTaskId and tasks
+  if (loadingInitial && !currentSevaCategoryId && displaySevaCategories.length === 0) {
     return (
       <div className="space-y-2 mt-4">
         {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
@@ -125,34 +149,39 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
     );
   }
   
-  if (error && (!sevaCategories || sevaCategories.length === 0)) { // Renamed from tasks
+  if (error && (!displaySevaCategories || displaySevaCategories.length === 0)) {
      return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading essential data: {error}</p> </div>;
   }
 
-  if (!currentSevaCategoryId) { // Renamed from currentTaskId
-    return <p className="text-muted-foreground mt-4 text-center">Please select a Seva Category to view or define its volunteer requirements.</p>; // Updated text
+  if (!currentSevaCategoryId) {
+    return <p className="text-muted-foreground mt-4 text-center">Please select a Seva Category to view or define its volunteer requirements.</p>;
   }
   
   if (loadingRequirements && requirementRows.length === 0 && !error) {
      return (
       <div className="space-y-2 mt-4">
-        <p className="text-center text-muted-foreground">Loading requirements for selected Seva Category...</p> {/* Updated text */}
+        <p className="text-center text-muted-foreground">Loading requirements for selected Seva Category...</p>
         {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
       </div>
     );
   }
   
-  if (!loadingInitial && !loadingRequirements && requirementRows.length === 0 && currentSevaCategoryId && !error) { // Renamed from currentTaskId
-    return <p className="text-muted-foreground mt-4 text-center">No locations or timeslots found. Please set these up first, or requirements for this Seva Category have not been defined.</p>; // Updated text
+  if (!loadingInitial && !loadingRequirements && requirementRows.length === 0 && currentSevaCategoryId && !error) {
+    return <p className="text-muted-foreground mt-4 text-center">No locations or timeslots found. Please set these up first, or requirements for this Seva Category have not been defined.</p>;
   }
   
   if (error && requirementRows.length === 0) { 
-     return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading requirements for this Seva Category: {error}. Please try selecting the Seva Category again or refresh.</p> </div>; // Updated text
+     return <div className="flex items-center gap-2 text-destructive p-4 border border-destructive bg-destructive/10 rounded-md mt-4"> <AlertCircle className="h-5 w-5" /> <p>Error loading requirements for this Seva Category: {error}. Please try selecting the Seva Category again or refresh.</p> </div>;
   }
 
   return (
     <div className="mt-4">
-      <DataTable>
+      <DataTable maxHeight="calc(100vh - 400px)">
+        <DataTableColGroup>
+          <DataTableCol widthClass="w-[35%]" /> {/* Location */}
+          <DataTableCol widthClass="w-[35%]" /> {/* Timeslot */}
+          <DataTableCol widthClass="w-[30%]" /> {/* Required Volunteers */}
+        </DataTableColGroup>
         <DataTableHeader>
           <DataTableRow>
             <DataTableHead>Location</DataTableHead>
@@ -169,11 +198,10 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
                 <InlineCountEditor
                   row={row}
                   onSave={(newCount) =>
-                    updateRequirementCount(
-                      row.seva_category_id, // Changed from task_id
-                      row.location_id,
+                    updateRequirementsForCell( // Changed from updateRequirementCount
+                      row.seva_category_id,
                       row.timeslot_id,
-                      newCount
+                      [{ location_id: row.location_id, required_count: newCount }] // Pass as array of partial requirements
                     )
                   }
                   isSavingExternal={loadingRequirements} 

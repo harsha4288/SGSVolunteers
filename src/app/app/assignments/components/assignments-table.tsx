@@ -373,8 +373,8 @@ export function AssignmentsTable({
 
   return (
     <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={["120px", ...visibleTimeSlots.map(() => "84px")]}>
-      <DataTableColGroup><DataTableCol widthClass="w-[120px]" />{/* Volunteer Name */}
-        {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} widthClass="w-[60px] md:w-[84px]" />))}
+      <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
+        {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} />))}
       </DataTableColGroup>
 
       <DataTableHeader>
