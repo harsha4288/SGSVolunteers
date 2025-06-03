@@ -267,6 +267,7 @@ CREATE POLICY "Admins or Team Leaders can manage check-ins" ON public.volunteer_
   FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR role = 'team_leader')))
   WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR role = 'team_leader')));
 
+
 -- Default data seeding (example for T-shirt sizes)
 -- This should be run once after table creation if needed.
 -- INSERT INTO public.tshirt_inventory (size, initial_quantity, remaining_quantity) VALUES
@@ -280,4 +281,3 @@ CREATE POLICY "Admins or Team Leaders can manage check-ins" ON public.volunteer_
 -- Note: Initial data for volunteers will come from Google Forms sync.
 -- Ensure roles like 'admin' and 'team_leader' are assigned to appropriate users in the `profiles` table.
 -- Example: UPDATE public.profiles SET role = 'admin' WHERE email = 'admin_user@example.com';
-

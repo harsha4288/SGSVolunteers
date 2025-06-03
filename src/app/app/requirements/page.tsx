@@ -7,6 +7,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client'; // Import createClient
+import type { Database } from '@/lib/types/supabase'; // Import Database type
 
 import { useRequirementsData } from './hooks/use-requirements-data';
 import { FiltersBar } from './components/filters-bar';
@@ -20,9 +22,37 @@ const MOCK_USER_SEVA_CATEGORY_IDS: number[] = []; // For admin, this is not used
 
 export default function RequirementsPage() {
   const { toast } = useToast();
+  const supabase = createClient(); // Initialize Supabase client
   const [isFilterExpanded, setIsFilterExpanded] = React.useState(false);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedCellDataForModal, setSelectedCellDataForModal] = React.useState<RequirementCellData | null>(null);
+  const [profileId, setProfileId] = React.useState<string | null>(null); // State for profileId
+  const [selectedEvent, setSelectedEvent] = React.useState<string>("1"); // Placeholder for selectedEvent
+
+  React.useEffect(() => {
+    const getProfileAndEvent = async () => {
+      // Get profileId
+      const impersonatedId = localStorage.getItem('impersonatedProfileId');
+      if (impersonatedId) {
+        setProfileId(impersonatedId);
+      } else {
+        const { data: { user } = {} } = await supabase.auth.getUser();
+        if (user) {
+          setProfileId(user.id);
+        }
+      }
+
+      // Get selectedEvent
+      const storedEventId = localStorage.getItem("selectedEventId");
+      if (storedEventId) {
+        setSelectedEvent(storedEventId);
+      } else {
+        // Default to event ID "1" if no stored event
+        setSelectedEvent("1");
+      }
+    };
+    getProfileAndEvent();
+  }, [supabase]);
 
   const {
     displaySevaCategories,
@@ -185,6 +215,9 @@ export default function RequirementsPage() {
             onRequirementUpdate={handleRequirementUpdate}
             userRole={MOCK_USER_ROLE}
             isLoading={loadingInitial || loadingRequirements}
+            profileId={profileId} // Pass profileId
+            supabase={supabase} // Pass supabase client
+            selectedEvent={selectedEvent} // Pass selectedEvent
           />
         </CardContent>
       </Card>

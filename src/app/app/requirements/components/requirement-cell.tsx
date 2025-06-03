@@ -2,11 +2,14 @@
 "use client";
 
 import * as React from 'react';
-import type { RequirementCellData } from '../types'; // Assuming types.ts is in the parent directory
+import type { RequirementCellData, Timeslot } from '../types'; // Added Timeslot
 import { ClipboardList, UserCheck, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { AssignmentsTable } from '@/app/app/assignments/components/assignments-table'; // Import AssignmentsTable
+import { createClient } from '@/lib/supabase/client'; // Import createClient
+import type { Database } from '@/lib/types/supabase'; // Import Database type
 
 interface RequirementCellProps {
   required: number;
@@ -15,9 +18,31 @@ interface RequirementCellProps {
   isEditable: boolean;
   onClick: () => void;
   onRequiredChange?: (newValue: number) => void;
+  // New props for AssignmentsTable
+  sevaCategoryId: number;
+  timeslotId: number;
+  userRole: "admin" | "team_lead" | "volunteer";
+  profileId: string | null;
+  supabase: ReturnType<typeof createClient>;
+  selectedEvent: string;
+  allTimeslots: Timeslot[];
 }
 
-export function RequirementCell({ required, assigned, variance, isEditable, onClick, onRequiredChange }: RequirementCellProps) {
+export function RequirementCell({
+  required,
+  assigned,
+  variance,
+  isEditable,
+  onClick,
+  onRequiredChange,
+  sevaCategoryId, // Destructure new props
+  timeslotId,
+  userRole,
+  profileId,
+  supabase,
+  selectedEvent,
+  allTimeslots,
+}: RequirementCellProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [requiredValue, setRequiredValue] = React.useState<string>(required.toString());
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -239,6 +264,28 @@ export function RequirementCell({ required, assigned, variance, isEditable, onCl
             <span className="text-[11px]">{assigned}</span>
           </span>
         </div>
+        {isEditing && (
+          <>
+            {console.log("RequirementCell: isEditing is true")}
+            {console.log("RequirementCell: profileId:", profileId)}
+            {console.log("RequirementCell: allTimeslots:", allTimeslots)}
+            {console.log("RequirementCell: allTimeslots.length:", allTimeslots?.length)}
+            {profileId && allTimeslots && allTimeslots.length > 0 && (
+              <div className="w-full mt-2"> {/* Added w-full and mt-2 for spacing */}
+                <AssignmentsTable
+                  timeSlots={allTimeslots} // Pass allTimeslots for AssignmentsTable to filter
+                  userRole={userRole}
+                  profileId={profileId}
+                  supabase={supabase}
+                  selectedEvent={selectedEvent}
+                  selectedSevaId={sevaCategoryId} // Filter by current cell's seva category
+                  selectedTimeSlotId={timeslotId} // Filter by current cell's timeslot
+                />
+              </div>
+            )}
+          </>
+        )}
+
         {/* Row 2: Variance - Single responsive component */}
         <div className="flex items-center justify-center w-full h-full">
           <TooltipProvider>

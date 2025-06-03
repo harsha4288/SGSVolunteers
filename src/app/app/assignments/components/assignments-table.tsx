@@ -23,9 +23,9 @@ import {
 
 import { parseISO } from "date-fns";
 import { useDateOverride } from "@/components/providers/date-override-provider";
+import { useAssignments } from "../hooks/use-assignments"; // Import the new hook
 
 interface AssignmentsTableProps {
-  assignments: Assignment[];
   timeSlots: TimeSlot[];
   userRole: "admin" | "team_lead" | "volunteer";
   profileId: string;
@@ -36,7 +36,6 @@ interface AssignmentsTableProps {
 }
 
 export function AssignmentsTable({
-  assignments,
   timeSlots,
   userRole,
   profileId,
@@ -49,9 +48,22 @@ export function AssignmentsTable({
   const { theme } = useTheme();
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
 
+  // Use the custom hook for assignments
+  const { assignments, isLoading, error } = useAssignments({
+    supabase,
+    selectedEvent,
+    selectedSevaId,
+    selectedTimeSlotId,
+    userRole,
+    profileId,
+    timeSlots, // Pass timeSlots to the hook
+  });
+
   // Filter assignments based on selectedSevaId and selectedTimeSlotId
+  // This filtering is now handled within the useAssignments hook,
+  // but we keep this useMemo for consistency if additional client-side filtering is needed.
   const filteredAssignments = React.useMemo(() => {
-    let currentAssignments = assignments;
+    let currentAssignments = assignments; // Use assignments from the hook
 
     if (selectedSevaId) {
       currentAssignments = currentAssignments.filter(

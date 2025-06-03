@@ -17,10 +17,11 @@ export interface Location {
 
 export interface Timeslot {
   id: number;
-  name: string;
+  event_id: number; // Added for compatibility with AssignmentsTable's TimeSlot
   slot_name: string;
   start_time: string;
   end_time: string;
+  description: string | null; // Added for compatibility with AssignmentsTable's TimeSlot
 }
 
 export interface Requirement {

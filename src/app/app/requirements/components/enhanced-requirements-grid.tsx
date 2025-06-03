@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { RequirementCellData, SevaCategoryRef, Timeslot } from "../types";
 import { RequirementCell } from "./requirement-cell";
 import { SevaCategoryCell } from "./seva-category-cell";
+import { createClient } from '@/lib/supabase/client'; // Import createClient
+import type { Database } from '@/lib/types/supabase'; // Import Database type
 
 interface EnhancedRequirementsGridProps {
     sevaCategories: SevaCategoryRef[];
@@ -24,6 +26,10 @@ interface EnhancedRequirementsGridProps {
     onRequirementUpdate?: (cellData: RequirementCellData, newRequiredCount: number) => void;
     userRole: 'admin' | 'coordinator' | 'volunteer';
     isLoading: boolean;
+    // New props to pass to RequirementCell
+    profileId: string | null;
+    supabase: ReturnType<typeof createClient>;
+    selectedEvent: string;
 }
 
 export function EnhancedRequirementsGrid({
@@ -34,6 +40,9 @@ export function EnhancedRequirementsGrid({
     onRequirementUpdate,
     userRole,
     isLoading,
+    profileId, // Destructure new props
+    supabase,
+    selectedEvent,
 }: EnhancedRequirementsGridProps) {
     const isEditable = userRole === 'admin' || userRole === 'coordinator';
 
@@ -74,9 +83,9 @@ export function EnhancedRequirementsGrid({
                 columnWidths={[80, ...Array(filteredTimeslots.length).fill(120)]}
             >
                 <DataTableColGroup>
-                    <DataTableCol width="80px"/>{/*Seva Category column*/}
+                    <DataTableCol widthClass="w-[80px]"/>{/*Seva Category column*/}
                     {filteredTimeslots.map((timeslot) => (
-                        <DataTableCol key={timeslot.id} width="120px"/>
+                        <DataTableCol key={timeslot.id} widthClass="w-[120px]"/>
                     ))}
                 </DataTableColGroup>
                 <DataTableHeader>
@@ -121,6 +130,13 @@ export function EnhancedRequirementsGrid({
                                                     onRequirementUpdate(cellData, newValue);
                                                 }
                                             }}
+                                            sevaCategoryId={cellData.sevaCategory.id} // Pass sevaCategoryId
+                                            timeslotId={cellData.timeslot.id}       // Pass timeslotId
+                                            userRole={userRole as "admin" | "team_lead" | "volunteer"} // Cast userRole
+                                            profileId={profileId}
+                                            supabase={supabase}
+                                            selectedEvent={selectedEvent}
+                                            allTimeslots={timeslots} // Pass the timeslots prop from EnhancedRequirementsGrid
                                         />
                                     </DataTableCell>
                                 );
@@ -131,4 +147,4 @@ export function EnhancedRequirementsGrid({
             </DataTable>
         </div>
     );
-} 
+}
