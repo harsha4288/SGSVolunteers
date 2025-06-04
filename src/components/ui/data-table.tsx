@@ -80,8 +80,8 @@ interface DataTableHeadProps {
 
 // Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], defaultColumnWidth = "auto", ...props }, ref) => (
-    <DataTableContext.Provider value={{ frozenColumns, columnWidths, defaultColumnWidth }}>
+  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], ...props }, ref) => (
+    <DataTableContext.Provider value={{ frozenColumns, columnWidths }}>
       <div
         ref={ref}
         className={cn(
@@ -95,10 +95,11 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
             "overflow-auto custom-scrollbar", // Custom scrollbar with proper height
             "relative" // For sticky positioning context
           )}
-          style={{ maxHeight }}
+          style={{ maxHeight, paddingRight: "16px" }} // Add padding for scrollbar
         >
           <table className={cn(
-            "w-full border-collapse table-fixed" // Consistent table layout
+            "w-full border-collapse table-auto", // Remove table-fixed, use table-auto for flexible columns
+            "max-w-full"
           )}>
             {children}
           </table>
@@ -187,9 +188,9 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
         colSpan={colSpan}
         style={stickyStyle}
         className={cn(
-          "font-semibold py-1 px-1 relative", // Consistent header styling with better padding
+          "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
           "bg-muted/50", // Header background (removed backdrop-blur-sm)
-          "text-xs uppercase tracking-wide whitespace-nowrap overflow-hidden text-ellipsis", // Professional header text styling
+          "text-xs uppercase tracking-wide", // Professional header text styling
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
@@ -233,10 +234,10 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
         ref={ref}
         rowSpan={rowSpan}
         colSpan={colSpan}
-        style={stickyStyle}
+        style={{ ...stickyStyle, minWidth: colIndex === 0 ? "60px" : undefined }} // Adjust freeze column width
         className={cn(
-          "py-1 px-1", // Consistent cell padding
-          "text-sm whitespace-nowrap overflow-hidden text-ellipsis", // Consistent font size
+          "py-1 px-1", // Adjust inline grid spacing
+          "text-sm", // Consistent font size
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
