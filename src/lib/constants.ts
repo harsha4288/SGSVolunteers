@@ -6,6 +6,7 @@ import {
   Shirt,
   UserCog,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 
 export const SITE_CONFIG = {
@@ -34,6 +35,11 @@ export const APP_NAV_ITEMS: NavItem[] = [
     title: "T-Shirts",
     href: "/app/tshirts",
     icon: Shirt,
+  },
+  {
+    title: "AI Chatbot",
+    href: "/app/ai-chat",
+    icon: Sparkles,
   },
   {
     title: "User Management",

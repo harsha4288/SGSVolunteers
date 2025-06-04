@@ -206,7 +206,7 @@ describe('AssignmentsTable', () => {
       });
        expect(vi.mocked(defaultProps.refetchAssignments)).not.toHaveBeenCalled();
     });
-    
+
     it('should handle geolocation error gracefully', async () => {
       mockGeolocation.getCurrentPosition.mockImplementationOnce((success, error) => error?.({ code: 1, message: "User denied Geolocation" } as GeolocationPositionError));
       render(<AssignmentsTable {...defaultProps} />);
@@ -243,19 +243,19 @@ describe('AssignmentsTable', () => {
       // The mock DataTable structure makes this tricky without more specific cell content.
       // For now, let's simulate clicking a button that would trigger the dialog for the first row.
       // A better way would be to have specific test-ids on buttons within cells.
-      
+
       // Let's assume the columns definition creates an "Actions" cell,
       // and within that, for each row, there's an "Update" button.
       // We'll directly manipulate the state that shows the dialog for testing purposes.
       // This is a workaround due to the DataTable mock complexity.
-      
+
       // Find an "Update" button (assuming one exists and is identifiable)
       // This part is highly dependent on how columns are defined and rendered.
       // If your DataTable mock renders `col.cell({ row: { original: row } })`,
       // and that cell function for 'Actions' column renders a button:
       const updateButton = screen.getAllByTestId('mock-button-update')[0]; // Assuming test id is set in cell render
       fireEvent.click(updateButton);
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('mock-alert-dialog')).toBeInTheDocument();
         expect(screen.getByTestId('mock-alert-dialog-title')).toHaveTextContent(/Assign Task to/);
@@ -270,7 +270,7 @@ describe('AssignmentsTable', () => {
 
       const saveButton = screen.getByTestId('mock-alert-dialog-action'); // Assuming this is the "Save" button
       fireEvent.click(saveButton);
-      
+
       await waitFor(() => {
         expect(defaultProps.onAssign).toHaveBeenCalledWith(
           assignmentToUpdate.users.id, // volunteerId
@@ -294,7 +294,7 @@ describe('AssignmentsTable', () => {
       await waitFor(() => {
         expect(screen.getByTestId('mock-alert-dialog-title')).toHaveTextContent('Confirm Removal');
       });
-      
+
       const confirmRemoveButton = screen.getByTestId('mock-alert-dialog-action'); // Assuming this is "Confirm"
       fireEvent.click(confirmRemoveButton);
 
@@ -305,7 +305,7 @@ describe('AssignmentsTable', () => {
       await waitFor(() => expect(vi.mocked(defaultProps.refetchAssignments)).toHaveBeenCalled());
       await waitFor(() => expect(vi.mocked(Sonner.toast.success)).toHaveBeenCalledWith('Assignment removed successfully.'));
     });
-    
+
     it('should show error toast if onAssign fails', async () => {
       vi.mocked(defaultProps.onAssign).mockResolvedValueOnce({ error: { message: 'Assign failed' } });
       render(<AssignmentsTable {...defaultProps} />);
@@ -359,7 +359,7 @@ describe('AssignmentsTable', () => {
   describe('Loading State', () => {
     it('should disable check-in and action buttons when loading', () => {
       render(<AssignmentsTable {...defaultProps} loading={true} userRole="admin"/>); // Admin to have action buttons
-      
+
       // Check-in checkboxes
       mockAssignments.forEach(assign => {
         const checkbox = screen.getByTestId(`mock-checkbox-${assign.id}-check-in`);
@@ -393,7 +393,7 @@ describe('AssignmentsTable', () => {
     // Simulate selecting a volunteer
     const volunteerSelect = screen.getByTestId('mock-select-volunteer-select'); // Custom test ID for volunteer select
     fireEvent.change(volunteerSelect, { target: { value: mockVolunteers[0].id } }); // Select "Volunteer One"
-    
+
     // Simulate selecting a task
     const taskSelect = screen.getByTestId('mock-select-task-select');
     fireEvent.change(taskSelect, { target: { value: mockTasks[0].id } }); // Select "Task Alpha"
@@ -415,7 +415,7 @@ describe('AssignmentsTable', () => {
     await waitFor(() => expect(vi.mocked(Sonner.toast.success)).toHaveBeenCalledWith('Assignment created successfully.'));
     expect(vi.mocked(defaultProps.refetchAssignments)).toHaveBeenCalled();
   });
-  
+
   it('should not render global "Assign Task" button for volunteer role', () => {
     defaultProps.userRole = 'volunteer';
     render(<AssignmentsTable {...defaultProps} />);

@@ -337,7 +337,7 @@ describe('Assignments Actions', () => {
       expect(mockSupabase.order).toHaveBeenCalledWith('full_name', { ascending: true });
       expect(result).toEqual({ success: true, data: mockVolunteers });
     });
-    
+
     it('should fetch volunteers without a search query when query is null', async () => {
       const mockVolunteers = [{ id: '2', name: 'Another Volunteer' }];
       mockSupabase.order.mockResolvedValueOnce({ data: mockVolunteers, error: null });

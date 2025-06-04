@@ -149,7 +149,7 @@ describe('AssignmentsFilters', () => {
       // Also check if volunteer select becomes disabled
       expect(screen.getByTestId('mock-select-volunteer-filter')).toBeDisabled();
     });
-    
+
     it('should call onFiltersChange with profileId when toggled ON (event_manager)', () => {
       render(<AssignmentsFilters {...defaultProps} userRole="event_manager" />);
       const myAssignmentsSwitch = screen.getByTestId('mock-switch');
@@ -201,7 +201,7 @@ describe('AssignmentsFilters', () => {
     expect(screen.getByTestId('mock-select-seva-category-filter')).toHaveValue(initialFilters.sevaCategoryId);
     expect(screen.getByTestId('mock-select-volunteer-filter')).toHaveValue(initialFilters.volunteerId);
   });
-  
+
   it('should correctly initialize "My Assignments" switch if initialFilters.volunteerId matches profileId', () => {
     render(
       <AssignmentsFilters

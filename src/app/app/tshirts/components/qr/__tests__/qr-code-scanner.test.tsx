@@ -121,7 +121,7 @@ describe('QrCodeScanner', () => {
     expect(defaultProps.onSuccess).not.toHaveBeenCalled();
     expect(screen.getByText('Scan Again')).toBeInTheDocument();
   });
-  
+
   it('should show error toast on QrReader scan error', async () => {
     render(<QrCodeScanner {...defaultProps} />);
     const simulateScanErrorButton = screen.getByText('Simulate Scan Error');
@@ -136,6 +136,59 @@ describe('QrCodeScanner', () => {
     });
     // Depending on design, scanner might stay active or require reset
     expect(screen.getByTestId('mock-qr-reader')).toBeInTheDocument(); // Assuming it stays active or auto-resets
+  });
+
+  it('should show specific error toast if camera permission is denied', async () => {
+    // Simulate the onResult prop being called with a camera permission error
+    // In a real scenario, react-qr-reader might pass a specific error object.
+    // We'll simulate this by having a dedicated button in our mock, or by modifying the error passed.
+    // For this test, let's add a new button to the mock QrReader for this specific error.
+
+    // Modify the mock for this specific test if needed, or ensure 'Simulate Scan Error' can pass a specific error type.
+    // For simplicity, let's assume the existing "Simulate Scan Error" button can be used,
+    // and we'll check if the component's error handler for onResult distinguishes error types.
+    // The current component code for handleScanError does:
+    // `toast({ title: 'Scanning Error', description: `Error scanning QR code: ${error?.message || 'Unknown error'}. Please try again.`, variant: 'destructive' });`
+    // It doesn't specifically distinguish camera errors yet.
+    // To test this properly, the component's `handleScanError` would need to check `error.name` or `error.message`.
+
+    // Let's refine the mock QrReader to allow passing a specific error name.
+    vi.mock('react-qr-reader', () => ({
+      QrReader: vi.fn((props) => (
+        <div data-testid="mock-qr-reader">
+          <button onClick={() => props.onResult?.({ getText: () => 'scanned-qr-value' } as any, undefined, undefined)}>
+            Simulate Scan
+          </button>
+          <button onClick={() => props.onResult?.(null, { name: 'NotAllowedError', message: 'Permission denied' } as Error, undefined)}>
+            Simulate Camera Permission Denied
+          </button>
+          <button onClick={() => props.onResult?.(null, new Error('Generic Scan Error'), undefined)}>
+            Simulate Generic Scan Error
+          </button>
+           <button onClick={() => props.onResult?.(undefined, undefined, undefined)}>
+            Simulate Empty Scan
+          </button>
+        </div>
+      )),
+    }));
+
+    render(<QrCodeScanner {...defaultProps} />);
+    const simulatePermissionErrorButton = screen.getByText('Simulate Camera Permission Denied');
+    fireEvent.click(simulatePermissionErrorButton);
+
+    await waitFor(() => {
+       expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Camera Permission Denied',
+        description: "Camera access was denied. Please enable camera permissions in your browser settings to scan QR codes.",
+        variant: 'destructive',
+      }));
+    });
+    // Scanner should likely become inactive or show a clear message indicating permissions are needed.
+    // For now, check if the QrReader mock is still there (as per current logic, it might be).
+    // A more robust UI would hide it and show a "Enable Camera" prompt.
+    expect(screen.getByTestId('mock-qr-reader')).toBeInTheDocument();
+    // It might also show "Scan Again" button to allow user to retry after fixing permissions
+    expect(screen.getByText('Scan Again')).toBeInTheDocument();
   });
 
 
@@ -164,7 +217,7 @@ describe('QrCodeScanner', () => {
     fireEvent.click(screen.getByText('Scan Again'));
     await waitFor(() => expect(screen.getByTestId('mock-qr-reader')).toBeInTheDocument());
     expect(screen.queryByText('Scan QR Code')).toBeNull(); // Title might reappear or stay same
-    
+
     // Second scan
     mockRecordTshirtIssuanceByQr.mockResolvedValueOnce({ data: [{ id: 'issuance-456' }], error: null });
     fireEvent.click(screen.getByText('Simulate Scan'));
@@ -179,7 +232,7 @@ describe('QrCodeScanner', () => {
       }));
     });
   });
-  
+
   it('should display last scanned QR code after successful scan', async () => {
     mockRecordTshirtIssuanceByQr.mockResolvedValueOnce({ data: [{ id: 'issuance-123' }], error: null });
     render(<QrCodeScanner {...defaultProps} />);

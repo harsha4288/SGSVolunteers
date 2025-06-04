@@ -98,7 +98,7 @@ describe('TshirtTable', () => {
   it('should render DataTable with correct columns and data', () => {
     render(<TshirtTable {...defaultProps} />);
     expect(screen.getByTestId('mock-data-table')).toBeInTheDocument();
-    
+
     // Check for header presence (simplified check)
     expect(screen.getByText('Volunteer Name')).toBeInTheDocument();
     expect(screen.getByText('T-Shirt Size')).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('TshirtTable', () => {
     it('should open confirmation dialog and call onUndoIssue on confirm', async () => {
       render(<TshirtTable {...defaultProps} />);
       const firstRowUndoButton = screen.getAllByTestId('mock-button-undo')[0]; // Assuming test id set in cell render for Undo button
-      
+
       fireEvent.click(firstRowUndoButton);
 
       await waitFor(() => {
@@ -154,7 +154,7 @@ describe('TshirtTable', () => {
       render(<TshirtTable {...defaultProps} />);
       const firstRowUndoButton = screen.getAllByTestId('mock-button-undo')[0];
       fireEvent.click(firstRowUndoButton);
-      
+
       await waitFor(() => screen.getByTestId('mock-alert-dialog-action'));
       const confirmButton = screen.getByTestId('mock-alert-dialog-action');
       fireEvent.click(confirmButton);

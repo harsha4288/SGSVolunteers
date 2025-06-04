@@ -24,113 +24,162 @@ vi.mock('qrcode.react', () => ({
   )),
 }));
 
-describe('QrCodeDisplay', () => {
-  const defaultProps = {
-    value: 'test-qr-value',
-    size: 128,
-    volunteerName: 'Test Volunteer',
-    volunteerRole: 'Volunteer',
-    loading: false,
-  };
-  const mockQRCodeSVG = vi.mocked(require('qrcode.react').QRCodeSVG);
+// Note: The component internally fetches volunteer data and generates QR value.
+// The props like 'value', 'volunteerName', 'volunteerRole' are not directly passed.
+// Tests need to mock the Supabase client and its data fetching.
 
+describe('QrCodeDisplay', () => {
+  let mockSupabaseClient: any;
+  const mockVolunteerId = 'test-volunteer-id';
+  const mockEventId = 1;
+  const mockVolunteerData = {
+    id: mockVolunteerId,
+    first_name: 'TestF',
+    last_name: 'VolunteerL',
+    email: 'test@example.com',
+  };
+  const expectedQrValue = `${mockVolunteerData.email}|${mockVolunteerData.id}`;
+
+  const mockQRCodeSVG = vi.mocked(require('qrcode.react').QRCodeSVG);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabaseClient = {
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn(), // This will be configured per test
+    };
   });
 
-  it('should render QRCodeSVG with correct props when not loading and value is present', () => {
-    render(<QrCodeDisplay {...defaultProps} />);
+  it('should display loading state initially then render QRCodeSVG with fetched data', async () => {
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: mockVolunteerData, error: null });
+    render(<QrCodeDisplay volunteerId={mockVolunteerId} eventId={mockEventId} supabase={mockSupabaseClient as any} />);
 
-    expect(screen.getByTestId('mock-qrcode-svg')).toBeInTheDocument();
-    expect(mockQRCodeSVG).toHaveBeenCalledWith(
-      expect.objectContaining({
-        value: defaultProps.value,
-        size: defaultProps.size,
-        level: 'H', // Default level
-        imageSettings: expect.objectContaining({
-          src: expect.stringContaining('amrita_logo_black_bg_white.png'), // Check if logo path is included
-          height: defaultProps.size * 0.2, // Example: 20% of size
-          width: defaultProps.size * 0.2,
-          excavate: true,
-        }),
-      }),
-      expect.anything() // For ref or other internal props
-    );
-    expect(screen.getByText(defaultProps.volunteerName)).toBeInTheDocument();
-    expect(screen.getByText(defaultProps.volunteerRole)).toBeInTheDocument();
-    expect(screen.queryByText(/Loading QR Code/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/QR code value is missing/i)).not.toBeInTheDocument();
-  });
+    expect(screen.getByText(/Loading your QR code/i)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { hidden: true })).toBeInTheDocument(); // Skeleton
 
-  it('should display loading state when loading is true', () => {
-    render(<QrCodeDisplay {...defaultProps} loading={true} />);
-
-    expect(screen.getByText(/Loading QR Code/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
-    expect(screen.queryByText(defaultProps.volunteerName)).not.toBeInTheDocument();
-  });
-  
-  it('should display loading state when value is empty and not explicitly loading (initial state)', () => {
-    // This simulates the initial state where value might not be fetched yet.
-    // The component internally treats empty value as a loading-like state if not explicitly erroring.
-    render(<QrCodeDisplay {...defaultProps} value="" loading={false} />);
-
-    expect(screen.getByText(/Loading QR Code/i)).toBeInTheDocument(); // Or a specific "generating" message
-    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
-  });
-
-
-  it('should display error message when value is null after loading (explicit error)', () => {
-    // To test the explicit error for null/empty value post-loading,
-    // the component would need a state to differentiate initial load from a load-attempt-failed.
-    // Assuming the component shows "QR code value is missing" if loading=false and value is empty.
-    // The previous test covers empty value -> loading. This covers if parent explicitly says "not loading" but value is still bad.
-    // This might be a slightly redundant test depending on component's internal logic,
-    // but it ensures that if `loading` prop is definitively false and `value` is bad, an error is shown.
-    render(<QrCodeDisplay {...defaultProps} value={null as any} loading={false} />); // Cast null as any to satisfy type, then test runtime
-
-    expect(screen.getByText(/QR code value is missing or invalid/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
-  });
-  
-  it('should display error message when value is an empty string after loading (explicit error)', () => {
-    render(<QrCodeDisplay {...defaultProps} value="" loading={false} />);
-     // If value is empty string AND loading is false, it's treated as an error after attempting to load.
-    expect(screen.getByText(/QR code value is missing or invalid/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
-  });
-
-
-  it('should render without volunteer name and role if not provided', () => {
-    render(<QrCodeDisplay {...defaultProps} volunteerName={undefined} volunteerRole={undefined} />);
-
-    expect(screen.getByTestId('mock-qrcode-svg')).toBeInTheDocument();
-    expect(mockQRCodeSVG).toHaveBeenCalledWith(
-      expect.objectContaining({ value: defaultProps.value }),
-      expect.anything()
-    );
-    expect(screen.queryByText(defaultProps.volunteerName)).not.toBeInTheDocument();
-    expect(screen.queryByText(defaultProps.volunteerRole)).not.toBeInTheDocument();
-  });
-  
-  it('should pass correct imageSettings to QRCodeSVG', () => {
-    render(<QrCodeDisplay {...defaultProps} />);
-    const expectedImageHeight = defaultProps.size * 0.2; // Example: 20% of size
-    const expectedImageWidth = defaultProps.size * 0.2;
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-qrcode-svg')).toBeInTheDocument();
+    });
 
     expect(mockQRCodeSVG).toHaveBeenCalledWith(
       expect.objectContaining({
-        imageSettings: {
-          src: expect.stringContaining('amrita_logo_black_bg_white.png'),
-          height: expectedImageHeight,
-          width: expectedImageWidth,
-          excavate: true,
-          x: defaultProps.size / 2 - expectedImageWidth / 2, // Centered
-          y: defaultProps.size / 2 - expectedImageHeight / 2, // Centered
-        },
+        value: expectedQrValue,
+        size: 180, // Default size in component
+        level: 'H',
+        includeMargin: true,
       }),
       expect.anything()
     );
+    // The component does not display name/role directly, but uses them for QR or download filename.
+    // Card title is "Your QR Code"
+    expect(screen.getByText('Your QR Code')).toBeInTheDocument();
+  });
+
+  it('should show error message if volunteer data fetching fails', async () => {
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: null, error: { message: 'Fetch error' } });
+    render(<QrCodeDisplay volunteerId={mockVolunteerId} eventId={mockEventId} supabase={mockSupabaseClient as any} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load your QR code/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
+  });
+
+  it('should show error message if volunteer data is null after loading', async () => {
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: null, error: null }); // No error, but data is null
+    render(<QrCodeDisplay volunteerId={mockVolunteerId} eventId={mockEventId} supabase={mockSupabaseClient as any} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load your QR code/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('mock-qrcode-svg')).not.toBeInTheDocument();
+  });
+
+  describe('QR Code Download Functionality', () => {
+    let createElementSpy: any;
+    let serializeToStringSpy: any;
+    let toDataURLSpy: any;
+    let clickSpy: any;
+
+    beforeEach(() => {
+      clickSpy = vi.fn();
+      createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+        if (tagName === 'a') {
+          return { click: clickSpy, download: '', href: '' } as any;
+        }
+        if (tagName === 'canvas') {
+          // Mock canvas context and toDataURL
+          const mockCtx = { drawImage: vi.fn() };
+          toDataURLSpy = vi.fn().mockReturnValue('mock-png-data-url');
+          return { getContext: () => mockCtx, toDataURL: toDataURLSpy, width:0, height:0 } as any;
+        }
+        return document.createElement(tagName); // fallback for other elements if any
+      });
+      serializeToStringSpy = vi.spyOn(XMLSerializer.prototype, 'serializeToString');
+
+      // Mock Image onload
+      vi.spyOn(global, 'Image').mockImplementation(() => {
+        const img = {
+          onload: null as (() => void) | null,
+          src: '',
+          width: 200, // Mock width/height
+          height: 200,
+        };
+        // Trigger onload immediately after src is set
+        Object.defineProperty(img, 'src', {
+            set(value) {
+                this._src = value;
+                if (img.onload) {
+                    img.onload();
+                }
+            },
+            get() { return this._src; }
+        });
+        return img as HTMLImageElement;
+      });
+    });
+
+    afterEach(() => {
+      createElementSpy.mockRestore();
+      serializeToStringSpy.mockRestore();
+      if (toDataURLSpy) toDataURLSpy.mockRestore();
+      vi.restoreAllMocks(); // Cleans up Image mock
+    });
+
+    it('renders download button when QR code is displayed', async () => {
+      mockSupabaseClient.single.mockResolvedValueOnce({ data: mockVolunteerData, error: null });
+      render(<QrCodeDisplay volunteerId={mockVolunteerId} eventId={mockEventId} supabase={mockSupabaseClient as any} />);
+
+      await waitFor(() => expect(screen.getByTestId('mock-qrcode-svg')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /Download QR Code/i })).toBeInTheDocument();
+    });
+
+    it('triggers download with correct filename and data handling on button click', async () => {
+      mockSupabaseClient.single.mockResolvedValueOnce({ data: mockVolunteerData, error: null });
+      render(<QrCodeDisplay volunteerId={mockVolunteerId} eventId={mockEventId} supabase={mockSupabaseClient as any} />);
+
+      await waitFor(() => expect(screen.getByTestId('mock-qrcode-svg')).toBeInTheDocument());
+      const downloadButton = screen.getByRole('button', { name: /Download QR Code/i });
+      fireEvent.click(downloadButton);
+
+      await waitFor(() => {
+        expect(serializeToStringSpy).toHaveBeenCalled();
+        // Check if XMLSerializer was called with an SVGElement (or mock of it)
+        const firstArgToSerializer = serializeToStringSpy.mock.calls[0][0];
+        expect(firstArgToSerializer.tagName.toLowerCase()).toBe('svg'); // Check if it's an SVG
+      });
+
+      await waitFor(() => {
+        expect(toDataURLSpy).toHaveBeenCalledWith('image/png');
+      });
+
+      expect(createElementSpy).toHaveBeenCalledWith('a');
+      const link = createElementSpy.mock.results[0].value; // Get the mocked <a> element
+      expect(link.download).toBe(`qrcode-${mockVolunteerData.first_name}-${mockVolunteerData.last_name}.png`);
+      expect(link.href).toBe('mock-png-data-url');
+      expect(clickSpy).toHaveBeenCalled();
+    });
   });
 });

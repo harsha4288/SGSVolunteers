@@ -123,7 +123,7 @@ describe('AssignmentsDashboard', () => {
       expect.anything()
     );
   });
-  
+
   it('should render filters and table on successful data load for event_manager', async () => {
     const mockAssignments = [{ id: 'a1', task_id: 't1', user_id: 'u1', status: 'Confirmed', tasks: {id: 't1', name: 'Task Alpha'}, users: {id: 'u1', full_name: 'User Alpha'} }];
     const mockTasks = [{ id: 't1', name: 'Task Alpha', events: { name: 'Event Alpha'} }];
@@ -195,7 +195,7 @@ describe('AssignmentsDashboard', () => {
       "admin" // userRole
     );
   });
-  
+
    it('should call fetchAssignmentsAndTasks with profileId when userRole is volunteer and filters change', async () => {
     render(<AssignmentsDashboard profileId={mockProfileId} userRole="volunteer" supabase={mockSupabase} />);
 
@@ -208,7 +208,7 @@ describe('AssignmentsDashboard', () => {
     await waitFor(() => {
       expect(actions.fetchAssignmentsAndTasks).toHaveBeenCalledTimes(1);
     });
-    
+
     // Directly call the fetchData to simulate a refresh or filter change if the component structure allowed it
     // For instance, if there was a refresh button or if we directly invoke a method.
     // Since we are testing the passed parameters, we can check the initial call for volunteer.
