@@ -17,7 +17,7 @@ password = "W6gTwafhvfJ8.4?" # Replace with your actual password
 conn_str = f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
 # --- FILE SETTINGS ---
-EXCEL_PATH = "GoogleFormResponsesData.xlsx"
+EXCEL_PATH = "Guru Purṇima & Gītā Utsav 2025 - Seva Form (Responses).xlsx"
 SHEET_NAME = "Report Data" # As confirmed
 
 # --- EVENT CONFIGURATION ---

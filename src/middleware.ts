@@ -14,6 +14,7 @@ export async function middleware(req: NextRequest) {
   console.log("Middleware check:", {
     pathname,
     hasSession: !!session,
+    session: session ? "Session exists" : "No session", // More explicit logging
   });
 
   // If user is not logged in, and trying to access /app/*, redirect to /login
