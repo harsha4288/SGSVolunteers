@@ -80,8 +80,23 @@ interface DataTableHeadProps {
 
 // Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], ...props }, ref) => (
-    <DataTableContext.Provider value={{ frozenColumns, columnWidths }}>
+  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], defaultColumnWidth, ...props }, ref) => {
+    // Diagnostic logging
+    React.useEffect(() => {
+      if (typeof window !== 'undefined') {
+        console.log('[DataTable Diagnostic]',
+          '\nPath:', window.location.pathname,
+          '\nFrozen Columns:', JSON.stringify(frozenColumns),
+          '\nColumn Widths:', JSON.stringify(columnWidths),
+          '\nDefault Width:', defaultColumnWidth,
+          '\nHas Frozen:', frozenColumns.length > 0,
+          '\nHas Widths:', columnWidths.length > 0
+        );
+      }
+    }, [frozenColumns, columnWidths, defaultColumnWidth]);
+
+    return (
+    <DataTableContext.Provider value={{ frozenColumns, columnWidths, defaultColumnWidth }}>
       <div
         ref={ref}
         className={cn(
@@ -106,7 +121,8 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
         </div>
       </div>
     </DataTableContext.Provider>
-  )
+    );
+  }
 )
 DataTable.displayName = "DataTable"
 
@@ -213,6 +229,18 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
   ({ children, className, align = "left", border = true, rowSpan, colSpan, colIndex, ...props }, ref) => {
     // Get frozenColumns and columnWidths from context
     const { frozenColumns, columnWidths } = React.useContext(DataTableContext);
+    
+    // Diagnostic logging for frozen column issues
+    React.useEffect(() => {
+      if (typeof window !== 'undefined' && frozenColumns.length > 0 && typeof colIndex === 'undefined') {
+        console.warn('[DataTableCell Warning]', {
+          path: window.location.pathname,
+          message: 'Frozen columns configured but colIndex prop is missing',
+          frozenColumns,
+          hasColIndex: typeof colIndex !== 'undefined'
+        });
+      }
+    }, [frozenColumns, colIndex]);
     let stickyStyle = {};
     let stickyClass = "";
     if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
@@ -264,13 +292,31 @@ const DataTableColGroup = React.forwardRef<HTMLTableColElement, { children: Reac
 )
 DataTableColGroup.displayName = "DataTableColGroup"
 
-const DataTableCol = React.forwardRef<HTMLTableColElement, { widthClass?: string; className?: string }>(
-  ({ widthClass, className }, ref) => {
+const DataTableCol = React.forwardRef<HTMLTableColElement, { widthClass?: string; width?: string | number; className?: string }>(
+  ({ widthClass, width, className }, ref) => {
     const { defaultColumnWidth } = React.useContext(DataTableContext);
+    
+    // Diagnostic logging
+    React.useEffect(() => {
+      if (typeof window !== 'undefined' && (widthClass || width)) {
+        console.log('[DataTableCol Diagnostic]', {
+          path: window.location.pathname,
+          widthClass,
+          width,
+          defaultColumnWidth,
+          resolvedClass: widthClass || `w-${defaultColumnWidth}`
+        });
+      }
+    }, [widthClass, width, defaultColumnWidth]);
+    
+    // Handle both width and widthClass props for compatibility
+    const style = width ? { width: typeof width === 'number' ? `${width}px` : width } : undefined;
+    
     return (
       <col
         ref={ref}
-        className={cn(widthClass || `w-${defaultColumnWidth}`, className)}
+        className={cn(widthClass || (defaultColumnWidth && `w-${defaultColumnWidth}`), className)}
+        style={style}
       />
     );
   }
