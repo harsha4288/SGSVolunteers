@@ -187,7 +187,7 @@ export default function RequirementsPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-2">
+        <CardContent className="p-2 overflow-hidden"> {/* ADDED overflow-hidden */}
           {isFilterExpanded && (
             <div className="mb-4">
               <FiltersBar
