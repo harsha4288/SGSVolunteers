@@ -1,5 +1,6 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, shortenName } from "@/lib/utils" // Assuming shortenName is exported from utils
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge, BadgeProps as OriginalBadgeProps } from "./badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";
 
@@ -70,6 +71,7 @@ interface DataTableCellProps {
   colSpan?: number
   overflowHandling?: 'truncate' | 'wrap' | 'tooltip'
   tooltipContent?: React.ReactNode // Explicit content for tooltip
+  shortenForMobile?: boolean;
 }
 
 interface DataTableHeadProps {
@@ -241,9 +243,10 @@ DataTableHead.displayName = "DataTableHead"
 
 // Standardized table data cell
 const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps & { colIndex?: number }>(
-  ({ children, className, align = "left", vAlign = "middle", border = true, rowSpan, colSpan, colIndex, overflowHandling = 'truncate', tooltipContent, ...props }, ref) => {
+  ({ children, className, align = "left", vAlign = "middle", border = true, rowSpan, colSpan, colIndex, overflowHandling = 'truncate', tooltipContent, shortenForMobile, ...props }, ref) => {
     // Get frozenColumns, columnWidths, and density from context
     const { frozenColumns, columnWidths, density } = React.useContext(DataTableContext);
+    const isMobile = useIsMobile();
     
     // Diagnostic logging for frozen column issues
     React.useEffect(() => {
@@ -258,6 +261,15 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
     }, [frozenColumns, colIndex]);
     let stickyStyle = {};
     let stickyClass = "";
+
+    let displayContent = children;
+    if (shortenForMobile && isMobile && typeof children === 'string') {
+      displayContent = shortenName(children); // Default maxLength of shortenName will be used
+    }
+
+    const originalContentForTooltip = typeof children === 'string' ? children : null;
+    const actualTooltipContent = tooltipContent || originalContentForTooltip;
+
     if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
       // Calculate left offset by summing widths of previous frozen columns
       let left = 0;
@@ -277,7 +289,7 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
         ref={ref}
         rowSpan={rowSpan}
         colSpan={colSpan}
-        style={{ ...stickyStyle, minWidth: colIndex === 0 ? "60px" : undefined }} // Adjust freeze column width
+        style={{ ...stickyStyle }} // Adjust freeze column width
         className={cn(
           density === "compact" && "py-0.5 px-1",
           density === "default" && "py-1 px-2",
@@ -297,28 +309,29 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
         {...props} // vAlign is destructured and not in props
       >
         {overflowHandling === 'tooltip' ? (
-          <TooltipProvider> {/* Assuming TooltipProvider might be needed here if not global */}
+          <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                {/* For tooltip, content must be in a block or inline-block for truncate to work effectively */}
                 <span className="block truncate w-full">
-                  {children}
+                  {displayContent}
                 </span>
               </TooltipTrigger>
-              <TooltipContent>
-                {tooltipContent || (typeof children === 'string' ? children : <p>Use tooltipContent for complex nodes</p>)}
-              </TooltipContent>
+              {actualTooltipContent && (
+                <TooltipContent>
+                  {actualTooltipContent}
+                </TooltipContent>
+              )}
             </Tooltip>
           </TooltipProvider>
         ) : (
           <span className={cn(
-            "block w-full", // Make span take full width of cell for truncation
+            "block w-full",
             {
               "truncate": overflowHandling === 'truncate',
               "whitespace-normal": overflowHandling === 'wrap',
             }
           )}>
-            {children}
+            {displayContent}
           </span>
         )}
       </td>

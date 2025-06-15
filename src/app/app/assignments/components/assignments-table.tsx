@@ -25,6 +25,8 @@ import {
 import { parseISO } from "date-fns";
 import { useDateOverride } from "@/components/providers/date-override-provider";
 import { useAssignments } from "../hooks/use-assignments"; // Import the new hook
+import { useIsMobile } from '@/hooks/use-mobile';
+import { shortenName } from '@/lib/utils';
 
 interface AssignmentsTableProps {
   timeSlots: TimeSlot[];
@@ -48,6 +50,7 @@ export function AssignmentsTable({
   const { toast } = useToast();
   const { theme } = useTheme();
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
+  const isMobile = useIsMobile();
 
   // Use the custom hook for assignments
   const { assignments, isLoading, error } = useAssignments({
@@ -392,10 +395,10 @@ export function AssignmentsTable({
     <DataTable
       maxHeight="calc(100vh - 300px)"
       frozenColumns={[0]}
-      columnWidths={["90px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 100px
+      columnWidths={["70px", ...visibleTimeSlots.map(() => "84px")]}
       density="compact"
     >
-      <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
+      <DataTableColGroup><DataTableCol widthClass="w-[70px] sm:w-[150px] md:w-[200px] lg:w-[250px]" />{/* Volunteer Name */}
         {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} />))}
       </DataTableColGroup>
 
@@ -414,10 +417,14 @@ export function AssignmentsTable({
               colIndex={0}
               vAlign="middle"
               overflowHandling="tooltip"
-              tooltipContent={volunteerName}
+              tooltipContent={volunteerName} // Full name for tooltip
             ><div className="flex flex-col">
-                <span className="text-sm">{volunteerName}</span>
-                <span className="text-xs text-muted-foreground">{volunteerAssignments[volunteerName][0]?.volunteer.email}</span>
+                <span className="text-sm">
+                    {isMobile ? shortenName(volunteerName) : volunteerName}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                    {volunteerAssignments[volunteerName][0]?.volunteer.email}
+                </span>
               </div></DataTableCell>{/*NO WHITESPACE*/}
             {visibleTimeSlots.map((slot, index) => {
               const assignment = volunteerAssignments[volunteerName].find(
