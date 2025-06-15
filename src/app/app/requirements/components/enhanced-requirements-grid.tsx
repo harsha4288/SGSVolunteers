@@ -80,12 +80,12 @@ export function EnhancedRequirementsGrid({
                 maxHeight="calc(100vh - 20rem)" 
                 className="text-[11px] w-full"
                 frozenColumns={[0]}
-                columnWidths={[80, ...Array(filteredTimeslots.length).fill(120)]}
+                columnWidths={[80, ...Array(filteredTimeslots.length).fill(90)]}
             >
                 <DataTableColGroup>
                     <DataTableCol widthClass="w-[80px]"/>{/*Seva Category column*/}
                     {filteredTimeslots.map((timeslot) => (
-                        <DataTableCol key={timeslot.id} widthClass="w-[120px]"/>
+                        <DataTableCol key={timeslot.id} widthClass="w-[90px]"/>
                     ))}
                 </DataTableColGroup>
                 <DataTableHeader>
