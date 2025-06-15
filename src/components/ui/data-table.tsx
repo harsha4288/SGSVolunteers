@@ -1,5 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { Badge, BadgeProps as OriginalBadgeProps } from "./badge";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";
 
 /**
  * Standardized Data Table System
@@ -29,14 +31,16 @@ interface DataTableProps {
    * Can be 'auto', 'min-content', 'max-content', or a fixed value like '100px'.
    */
   defaultColumnWidth?: string;
+  density?: 'compact' | 'default' | 'spacious';
 }
 
-// Context to provide frozenColumns, columnWidths, and defaultColumnWidth to all descendants
+// Context to provide frozenColumns, columnWidths, defaultColumnWidth, and density to all descendants
 const DataTableContext = React.createContext<{
   frozenColumns: number[];
   columnWidths: (string | number)[];
   defaultColumnWidth?: string;
-}>({ frozenColumns: [], columnWidths: [], defaultColumnWidth: undefined });
+  density: 'compact' | 'default' | 'spacious';
+}>({ frozenColumns: [], columnWidths: [], defaultColumnWidth: undefined, density: 'default' });
 
 interface DataTableHeaderProps {
   children: React.ReactNode
@@ -53,15 +57,19 @@ interface DataTableRowProps {
   children: React.ReactNode
   className?: string
   hover?: boolean
+  rowStriping?: boolean
 }
 
 interface DataTableCellProps {
   children: React.ReactNode
   className?: string
   align?: "left" | "center" | "right"
+  verticalAlign?: "top" | "middle" | "bottom"
   border?: boolean
   rowSpan?: number
   colSpan?: number
+  overflowHandling?: 'truncate' | 'wrap' | 'tooltip'
+  tooltipContent?: React.ReactNode // Explicit content for tooltip
 }
 
 interface DataTableHeadProps {
@@ -80,7 +88,7 @@ interface DataTableHeadProps {
 
 // Main table container with standardized styling and proper sticky header support
 const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
-  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], defaultColumnWidth, ...props }, ref) => {
+  ({ children, className, maxHeight = "calc(100vh - 300px)", frozenColumns = [], columnWidths = [], defaultColumnWidth, density = 'default', ...props }, ref) => {
     // Diagnostic logging
     React.useEffect(() => {
       if (typeof window !== 'undefined') {
@@ -89,14 +97,15 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
           '\nFrozen Columns:', JSON.stringify(frozenColumns),
           '\nColumn Widths:', JSON.stringify(columnWidths),
           '\nDefault Width:', defaultColumnWidth,
+          '\nDensity:', density,
           '\nHas Frozen:', frozenColumns.length > 0,
           '\nHas Widths:', columnWidths.length > 0
         );
       }
-    }, [frozenColumns, columnWidths, defaultColumnWidth]);
+    }, [frozenColumns, columnWidths, defaultColumnWidth, density]);
 
     return (
-    <DataTableContext.Provider value={{ frozenColumns, columnWidths, defaultColumnWidth }}>
+    <DataTableContext.Provider value={{ frozenColumns, columnWidths, defaultColumnWidth, density }}>
       <div
         ref={ref}
         className={cn(
@@ -157,12 +166,13 @@ DataTableBody.displayName = "DataTableBody"
 
 // Standardized table row with consistent hover effects
 const DataTableRow = React.forwardRef<HTMLTableRowElement, DataTableRowProps>(
-  ({ children, className, hover = true, ...props }, ref) => (
+  ({ children, className, hover = true, rowStriping = true, ...props }, ref) => (
     <tr
       ref={ref}
       className={cn(
         "border-b border-accent/20", // Consistent row borders
         hover && "hover:bg-muted/30", // Consistent hover effect
+        rowStriping && "even:bg-muted/10", // Row striping
         className
       )}
       {...props}
@@ -176,8 +186,8 @@ DataTableRow.displayName = "DataTableRow"
 // Standardized table header cell
 const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>(
   ({ children, className, align = "left", border = true, sticky = false, rowSpan, colSpan, colIndex, ...props }, ref) => {
-    // Get frozenColumns and defaultColumnWidth from context for checking if this header is frozen
-    const { frozenColumns, columnWidths } = React.useContext(DataTableContext);
+    // Get frozenColumns, columnWidths, and density from context
+    const { frozenColumns, columnWidths, density } = React.useContext(DataTableContext);
     let stickyStyle = {};
     let stickyClass = "";
     
@@ -204,7 +214,10 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
         colSpan={colSpan}
         style={stickyStyle}
         className={cn(
-          "font-semibold py-2 px-2 relative", // Consistent header styling with better padding
+          "font-semibold relative", // Base styling
+          density === "compact" && "py-0.5 px-1",
+          density === "default" && "py-1 px-2", // Adjusted default padding
+          density === "spacious" && "py-2 px-3",
           "bg-muted/50", // Header background (removed backdrop-blur-sm)
           "text-xs uppercase tracking-wide", // Professional header text styling
           align === "left" && "text-left",
@@ -226,9 +239,9 @@ DataTableHead.displayName = "DataTableHead"
 
 // Standardized table data cell
 const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps & { colIndex?: number }>(
-  ({ children, className, align = "left", border = true, rowSpan, colSpan, colIndex, ...props }, ref) => {
-    // Get frozenColumns and columnWidths from context
-    const { frozenColumns, columnWidths } = React.useContext(DataTableContext);
+  ({ children, className, align = "left", verticalAlign = "middle", border = true, rowSpan, colSpan, colIndex, overflowHandling = 'truncate', tooltipContent, ...props }, ref) => {
+    // Get frozenColumns, columnWidths, and density from context
+    const { frozenColumns, columnWidths, density } = React.useContext(DataTableContext);
     
     // Diagnostic logging for frozen column issues
     React.useEffect(() => {
@@ -264,18 +277,48 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
         colSpan={colSpan}
         style={{ ...stickyStyle, minWidth: colIndex === 0 ? "60px" : undefined }} // Adjust freeze column width
         className={cn(
-          "py-1 px-1", // Adjust inline grid spacing
+          density === "compact" && "py-0.5 px-1",
+          density === "default" && "py-1 px-2",
+          density === "spacious" && "py-2 px-3",
           "text-sm", // Consistent font size
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
+          verticalAlign === "top" && "align-top",
+          verticalAlign === "middle" && "align-middle",
+          verticalAlign === "bottom" && "align-bottom",
+          // Overflow classes are applied to a child span, not the td itself, to ensure vertical alignment still works.
           border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
           stickyClass,
           className
         )}
         {...props}
       >
-        {children}
+        {overflowHandling === 'tooltip' ? (
+          <TooltipProvider> {/* Assuming TooltipProvider might be needed here if not global */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* For tooltip, content must be in a block or inline-block for truncate to work effectively */}
+                <span className="block truncate w-full">
+                  {children}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {tooltipContent || (typeof children === 'string' ? children : <p>Use tooltipContent for complex nodes</p>)}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className={cn(
+            "block w-full", // Make span take full width of cell for truncation
+            {
+              "truncate": overflowHandling === 'truncate',
+              "whitespace-normal": overflowHandling === 'wrap',
+            }
+          )}>
+            {children}
+          </span>
+        )}
       </td>
     );
   }
@@ -341,5 +384,19 @@ export {
   DataTableHead,
   DataTableCell,
   DataTableColGroup,
-  DataTableCol
+  DataTableCol,
+  DataTableBadge // Exporting the new Badge component
 }
+
+// Define props for DataTableBadge by extending original BadgeProps
+export interface DataTableBadgeProps extends OriginalBadgeProps {}
+
+// DataTableBadge component to be used within DataTableCell
+const DataTableBadge: React.FC<DataTableBadgeProps> = ({ className, variant, children, ...props }) => {
+  return (
+    <Badge className={className} variant={variant} {...props}>
+      {children}
+    </Badge>
+  );
+};
+DataTableBadge.displayName = "DataTableBadge";

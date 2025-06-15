@@ -19,6 +19,7 @@ import {
   DataTableCell,
   DataTableColGroup,
   DataTableCol,
+  DataTableBadge, // Import the new DataTableBadge
 } from "@/components/ui/data-table";
 
 import { parseISO } from "date-fns";
@@ -264,37 +265,32 @@ export function AssignmentsTable({
     // Volunteer: show task icon and status
     if (userRole === "volunteer") {
       return (
-        <div className="inline-flex flex-col items-center gap-1 py-1">
+        <div className="inline-flex flex-col items-center gap-1"> {/* Removed py-1, cell padding will handle */}
           <div className="flex items-center gap-1" title={taskName}>
             <SevaCategoryIcon categoryName={taskName} className="min-w-0" />
           </div>
 
           {/* Show check-in status for past or today's slots */}
           {(timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "checked_in" ? (
-            // Checked in - green check
-            <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-0.5">
-              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" aria-label="Present" />
-            </div>
+            <DataTableBadge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-transparent">
+              <Check className="h-3.5 w-3.5" aria-label="Present" />
+            </DataTableBadge>
           ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
-            // Absent - red X
-            <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-0.5">
-              <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-label="Absent" />
-            </div>
+            <DataTableBadge variant="outline" className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-transparent">
+              <X className="h-3.5 w-3.5" aria-label="Absent" />
+            </DataTableBadge>
           ) : timeSlotStatus === "past" ? (
-            // Past slot with no attendance - red clock
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-0.5">
-              <Clock className="h-3.5 w-3.5 text-red-500" aria-label="Not recorded" />
-            </div>
+            <DataTableBadge variant="outline" className="bg-red-50 dark:bg-red-900/20 text-red-500 border-transparent">
+              <Clock className="h-3.5 w-3.5" aria-label="Not recorded" />
+            </DataTableBadge>
           ) : timeSlotStatus === "today" ? (
-            // Today's slot with no attendance - orange clock
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-full p-0.5">
-              <Clock className="h-3.5 w-3.5 text-amber-500" aria-label="Pending" />
-            </div>
+            <DataTableBadge variant="outline" className="bg-amber-50 dark:bg-amber-900/20 text-amber-500 border-transparent">
+              <Clock className="h-3.5 w-3.5" aria-label="Pending" />
+            </DataTableBadge>
           ) : (
-            // Future slot - gray clock
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-full p-0.5">
-              <Clock className="h-3.5 w-3.5 text-gray-400" aria-label="Upcoming" />
-            </div>
+            <DataTableBadge variant="outline" className="bg-gray-50 dark:bg-gray-800/50 text-gray-400 border-transparent">
+              <Clock className="h-3.5 w-3.5" aria-label="Upcoming" />
+            </DataTableBadge>
           )}
         </div>
       );
@@ -302,7 +298,7 @@ export function AssignmentsTable({
 
     // Team Lead/Admin: show task icon and attendance controls based on time slot status
     return (
-      <div className="inline-flex flex-col items-center gap-1 py-1">
+      <div className="inline-flex flex-col items-center gap-1"> {/* Removed py-1, cell padding will handle */}
         <div className="flex items-center gap-1" title={taskName}>
           <SevaCategoryIcon categoryName={taskName} className="min-w-0" />
         </div>
@@ -312,12 +308,15 @@ export function AssignmentsTable({
           // If marked present - clickable green check to toggle back to pending
           <Button
             variant="ghost"
-            size="icon"
+            size="icon" // Keep size="icon" for button dimensions
             className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-800/50"
             aria-label="Present (click to undo)"
             onClick={() => handleUndoAttendance(assignment)}
           >
-            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+            {/* Using DataTableBadge inside button for consistent icon presentation, though button itself provides bg */}
+            <DataTableBadge variant="outline" className="bg-transparent text-green-600 dark:text-green-400 border-transparent p-0">
+              <Check className="h-3.5 w-3.5" />
+            </DataTableBadge>
           </Button>
         ) : (timeSlotStatus === "past" || timeSlotStatus === "today") && assignment.check_in_status === "absent" ? (
           // If marked absent - clickable red X to toggle back to pending
@@ -328,7 +327,9 @@ export function AssignmentsTable({
             aria-label="Absent (click to undo)"
             onClick={() => handleUndoAttendance(assignment)}
           >
-            <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+            <DataTableBadge variant="outline" className="bg-transparent text-red-600 dark:text-red-400 border-transparent p-0">
+              <X className="h-3.5 w-3.5" />
+            </DataTableBadge>
           </Button>
         ) : timeSlotStatus === "past" || timeSlotStatus === "today" ? (
           // Past/Today time slots without recorded attendance - just show check/x buttons for Admin/TL
@@ -340,7 +341,9 @@ export function AssignmentsTable({
               aria-label="Present"
               onClick={() => handleCheckInStatus(assignment, "checked_in")}
             >
-              <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+              <DataTableBadge variant="outline" className="bg-transparent text-green-600 dark:text-green-400 border-transparent p-0">
+                <Check className="h-3.5 w-3.5" />
+              </DataTableBadge>
             </Button>
             <Button
               variant="ghost"
@@ -349,14 +352,16 @@ export function AssignmentsTable({
               aria-label="Absent"
               onClick={() => handleCheckInStatus(assignment, "absent")}
             >
-              <X className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+              <DataTableBadge variant="outline" className="bg-transparent text-red-600 dark:text-red-400 border-transparent p-0">
+                <X className="h-3.5 w-3.5" />
+              </DataTableBadge>
             </Button>
           </div>
         ) : (
           // Future time slots - gray clock
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-full p-0.5">
-            <Clock className="h-3.5 w-3.5 text-gray-400" aria-label="Upcoming" />
-          </div>
+            <DataTableBadge variant="outline" className="bg-gray-50 dark:bg-gray-800/50 text-gray-400 border-transparent">
+              <Clock className="h-3.5 w-3.5" aria-label="Upcoming" />
+            </DataTableBadge>
         )}
       </div>
     );
@@ -384,18 +389,23 @@ export function AssignmentsTable({
   const volunteerNames = Object.keys(volunteerAssignments);
 
   return (
-    <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={["120px", ...visibleTimeSlots.map(() => "84px")]}>
+    <DataTable
+      maxHeight="calc(100vh - 300px)"
+      frozenColumns={[0]}
+      columnWidths={["120px", ...visibleTimeSlots.map(() => "84px")]}
+      density="compact" // Added density prop
+    >
       <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
         {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} />))}
       </DataTableColGroup>
 
       <DataTableHeader>
-        <DataTableRow hover={false}>
-          <DataTableHead align="left" className="px-3" colIndex={0}>
+        <DataTableRow hover={false}> {/* Assuming hover=false is intentional for header row */}
+          <DataTableHead align="left" className="px-3" colIndex={0}> {/* Keep px-3 for wider first column header */}
             Volunteer
           </DataTableHead>
           {visibleTimeSlots.map((slot, index) => (
-            <DataTableHead key={slot.id} align="center" className="py-2 px-2" colIndex={index + 1}>
+            <DataTableHead key={slot.id} align="center" colIndex={index + 1}> {/* Removed py-2 px-2, density handles padding */}
               {slot.slot_name}
             </DataTableHead>
           ))}
@@ -404,11 +414,17 @@ export function AssignmentsTable({
 
       <DataTableBody>
         {volunteerNames.map((volunteerName) => (
-          <DataTableRow key={volunteerName}>
-            <DataTableCell className="font-medium px-3" colIndex={0}>
+          <DataTableRow key={volunteerName}> {/* hover and rowStriping are true by default */}
+            <DataTableCell
+              className="font-medium px-3" // Keep px-3 for wider first column cell
+              colIndex={0}
+              verticalAlign="middle"
+              overflowHandling="tooltip"
+              tooltipContent={volunteerName}
+            >
               <div className="flex flex-col">
                 <span className="text-sm">
-                  {volunteerName}
+                  {volunteerName} {/* This will be truncated by DataTableCell's internal span */}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {volunteerAssignments[volunteerName][0]?.volunteer.email}
@@ -421,7 +437,13 @@ export function AssignmentsTable({
                 (a) => a.time_slot_id === slot.id
               );
               return (
-                <DataTableCell key={slot.id} align="center" className="py-1 px-1" colIndex={index + 1}>
+                <DataTableCell
+                  key={slot.id}
+                  align="center"
+                  colIndex={index + 1}
+                  verticalAlign="middle" // Added verticalAlign
+                  // Removed py-1 px-1, density handles padding
+                >
                   {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
                 </DataTableCell>
               );

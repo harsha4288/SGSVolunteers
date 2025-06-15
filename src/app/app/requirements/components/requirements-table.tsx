@@ -112,9 +112,9 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
     loadingRequirements,
     error,
     userSevaCategoryIds,
-    updateRequirementsForCell,
+    updateRequirementsForCell, // Note: This function name was updated in a previous step.
     displaySevaCategories,
-    gridData, // Now using gridData
+    gridData,
   } = requirementsData;
 
   // Derive currentSevaCategoryId from userSevaCategoryIds if it's meant to be a single selection
@@ -176,29 +176,33 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
 
   return (
     <div className="mt-4">
-      <DataTable maxHeight="calc(100vh - 400px)">
+      <DataTable maxHeight="calc(100vh - 400px)" density="compact">
         <DataTableColGroup>
           <DataTableCol widthClass="w-[35%]" /> {/* Location */}
           <DataTableCol widthClass="w-[35%]" /> {/* Timeslot */}
           <DataTableCol widthClass="w-[30%]" /> {/* Required Volunteers */}
         </DataTableColGroup>
         <DataTableHeader>
-          <DataTableRow>
-            <DataTableHead>Location</DataTableHead>
-            <DataTableHead>Timeslot</DataTableHead>
-            <DataTableHead align="center">Required Volunteers</DataTableHead>
+          <DataTableRow> {/* hover and rowStriping are true by default */}
+            <DataTableHead verticalAlign="middle">Location</DataTableHead>
+            <DataTableHead verticalAlign="middle">Timeslot</DataTableHead>
+            <DataTableHead align="center" verticalAlign="middle">Required Volunteers</DataTableHead>
           </DataTableRow>
         </DataTableHeader>
         <DataTableBody>
           {requirementRows.map((row) => (
             <DataTableRow key={`${row.location_id}-${row.timeslot_id}`}>
-              <DataTableCell>{row.location_name}</DataTableCell>
-              <DataTableCell>{row.timeslot_name}</DataTableCell>
-              <DataTableCell align="center">
+              <DataTableCell verticalAlign="middle" overflowHandling="tooltip" tooltipContent={row.location_name}>
+                {row.location_name}
+              </DataTableCell>
+              <DataTableCell verticalAlign="middle" overflowHandling="tooltip" tooltipContent={row.timeslot_name}>
+                {row.timeslot_name}
+              </DataTableCell>
+              <DataTableCell align="center" verticalAlign="middle">
                 <InlineCountEditor
                   row={row}
                   onSave={(newCount) =>
-                    updateRequirementsForCell( // Changed from updateRequirementCount
+                    updateRequirementsForCell(
                       row.seva_category_id,
                       row.timeslot_id,
                       [{ location_id: row.location_id, required_count: newCount }] // Pass as array of partial requirements

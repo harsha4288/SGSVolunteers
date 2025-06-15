@@ -16,7 +16,8 @@ import {
   DataTableHead,
   DataTableCell,
   DataTableColGroup,
-  DataTableCol
+  DataTableCol,
+  // DataTableBadge, // Not used directly in this table for now, InlineQuantityEditor is different
 } from "@/components/ui/data-table";
 import type { Volunteer } from "../types";
 
@@ -122,14 +123,14 @@ export function UnifiedTShirtTable({
       <DataTableHeader>
         <DataTableRow hover={false}>
           {/* Merged header cells for Volunteer, Max, Prefs */}
-          <DataTableHead rowSpan={2} align="left" className="px-3">
+          <DataTableHead rowSpan={2} align="left" className="px-3" verticalAlign="middle">
             Volunteer
           </DataTableHead>
-          <DataTableHead rowSpan={2} align="center">
+          <DataTableHead rowSpan={2} align="center" verticalAlign="middle">
             Max
           </DataTableHead>
           {isAdmin && (
-            <DataTableHead rowSpan={2} align="center">
+            <DataTableHead rowSpan={2} align="center" verticalAlign="middle">
               Prefs
             </DataTableHead>
           )}
@@ -146,7 +147,7 @@ export function UnifiedTShirtTable({
         <DataTableRow hover={false}>
           {/* Size columns with inventory badges */}
           {displaySizes.map((size) => (
-            <DataTableHead key={size.size_cd} align="center" border={false} className="py-0 px-1">
+            <DataTableHead key={size.size_cd} align="center" border={false} className="py-0 px-1" verticalAlign="middle">
               <div className="flex flex-col items-center gap-0">
                 <span className="text-xs font-medium">{size.size_cd}</span>
                 {isAdmin && (
@@ -169,7 +170,12 @@ export function UnifiedTShirtTable({
 
           return (
             <DataTableRow key={volunteer.id}>
-              <DataTableCell className="font-medium px-3">
+              <DataTableCell
+                className="font-medium px-3"
+                verticalAlign="middle"
+                overflowHandling="tooltip"
+                tooltipContent={`${volunteer.first_name} ${volunteer.last_name}`}
+              >
                 <div className="flex flex-col">
                   <span className={volunteer.id === currentVolunteerId ? "font-bold text-primary text-sm" : "text-sm"}>
                     {volunteer.first_name} {volunteer.last_name}
@@ -180,12 +186,12 @@ export function UnifiedTShirtTable({
                 </div>
               </DataTableCell>
 
-              <DataTableCell align="center" className="text-sm font-medium">
+              <DataTableCell align="center" className="text-sm font-medium" verticalAlign="middle">
                 {volunteer.requested_tshirt_quantity || 0}
               </DataTableCell>
 
               {isAdmin && (
-                <DataTableCell align="center">
+                <DataTableCell align="center" verticalAlign="middle">
                   <span className="text-xs text-muted-foreground">
                     {getPreferencesDisplay(volunteer.id)}
                   </span>
@@ -197,7 +203,7 @@ export function UnifiedTShirtTable({
                 const showControls = count > 0;
 
                 return (
-                  <DataTableCell key={size.size_cd} align="center" border={false} className="py-1 px-1">
+                  <DataTableCell key={size.size_cd} align="center" border={false} className="py-1 px-1" verticalAlign="middle">
                     {showControls ? (
                       <div className="flex items-center justify-center gap-0.5 bg-muted/30 rounded px-1 py-0.5 min-w-[50px]">
                         <Button
