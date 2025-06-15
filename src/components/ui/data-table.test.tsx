@@ -266,3 +266,87 @@ describe('DataTable Component Systems', () => {
     });
   });
 });
+
+describe('DataTable Component className precedence', () => {
+  test('DataTableCell className padding overrides density padding', () => {
+    render(
+      <DataTable density="compact"> {/* compact density: py-0.5 px-1 */}
+        <DataTableBody>
+          <DataTableRow>
+            <DataTableCell className="px-4 py-3">Cell</DataTableCell>
+          </DataTableRow>
+        </DataTableBody>
+      </DataTable>
+    );
+
+    const dataCell = screen.getByRole('cell');
+    // Check that compact classes are NOT dominant for padding
+    expect(dataCell).not.toHaveClass('px-1');
+    expect(dataCell).not.toHaveClass('py-0.5');
+    // Check that className prop classes ARE present and take precedence
+    expect(dataCell).toHaveClass('px-4');
+    expect(dataCell).toHaveClass('py-3');
+  });
+
+  test('DataTableHead className padding overrides density padding', () => {
+    render(
+      <DataTable density="compact"> {/* compact density: py-0.5 px-1 */}
+        <DataTableHeader>
+          <DataTableRow>
+            <DataTableHead className="px-5 py-2">Header</DataTableHead>
+          </DataTableRow>
+        </DataTableHeader>
+      </DataTable>
+    );
+
+    const headCell = screen.getByRole('columnheader');
+    // Check that compact classes are NOT dominant for padding
+    expect(headCell).not.toHaveClass('px-1');
+    expect(headCell).not.toHaveClass('py-0.5');
+    // Check that className prop classes ARE present and take precedence
+    expect(headCell).toHaveClass('px-5');
+    expect(headCell).toHaveClass('py-2');
+  });
+
+  test('DataTableCell className padding (partial) correctly merges with density padding', () => {
+    render(
+      <DataTable density="compact"> {/* compact density: py-0.5 px-1 */}
+        <DataTableBody>
+          <DataTableRow>
+            {/* Override only px, py should come from density */}
+            <DataTableCell className="px-4">Cell</DataTableCell>
+          </DataTableRow>
+        </DataTableBody>
+      </DataTable>
+    );
+
+    const dataCell = screen.getByRole('cell');
+    // Check that density's px-1 is NOT dominant
+    expect(dataCell).not.toHaveClass('px-1');
+    // Check that className prop's px-4 IS present
+    expect(dataCell).toHaveClass('px-4');
+    // Check that density's py-0.5 IS present (as it's not overridden)
+    expect(dataCell).toHaveClass('py-0.5');
+  });
+
+  test('DataTableHead className padding (partial) correctly merges with density padding', () => {
+    render(
+      <DataTable density="default"> {/* default density: py-1 px-2 */}
+        <DataTableHeader>
+          <DataTableRow>
+             {/* Override only py, px should come from density */}
+            <DataTableHead className="py-3">Header</DataTableHead>
+          </DataTableRow>
+        </DataTableHeader>
+      </DataTable>
+    );
+
+    const headCell = screen.getByRole('columnheader');
+    // Check that density's py-1 is NOT dominant
+    expect(headCell).not.toHaveClass('py-1');
+    // Check that className prop's py-3 IS present
+    expect(headCell).toHaveClass('py-3');
+    // Check that density's px-2 IS present (as it's not overridden)
+    expect(headCell).toHaveClass('px-2');
+  });
+});

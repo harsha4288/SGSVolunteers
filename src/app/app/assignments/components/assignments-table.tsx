@@ -401,11 +401,11 @@ export function AssignmentsTable({
 
       <DataTableHeader>
         <DataTableRow hover={false}> {/* Assuming hover=false is intentional for header row */}
-          <DataTableHead align="left" className="px-3" colIndex={0}> {/* Keep px-3 for wider first column header */}
+          <DataTableHead align="left" className="px-3" colIndex={0} verticalAlign="middle"> {/* Keep px-3 for wider first column header */}
             Volunteer
           </DataTableHead>
           {visibleTimeSlots.map((slot, index) => (
-            <DataTableHead key={slot.id} align="center" colIndex={index + 1}> {/* Removed py-2 px-2, density handles padding */}
+            <DataTableHead key={slot.id} align="center" colIndex={index + 1} verticalAlign="middle"> {/* Removed py-2 px-2, density handles padding */}
               {slot.slot_name}
             </DataTableHead>
           ))}
