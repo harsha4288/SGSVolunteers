@@ -59,6 +59,17 @@ Each primary feature or domain (e.g., "T-shirts", "Assignments", "User Managemen
     - **`types.ts`:** TypeScript type definitions and interfaces specific to the module.
     - **`__tests__/`:** Jest/React Testing Library tests for components, hooks, and services within the module.
 
+### 3.1. Reusability within the Vertical Slice Approach
+
+While the project organizes features into vertical slices to promote focus and contextual clarity (beneficial for AI-driven development), this does **not** imply or encourage unnecessary code duplication. The project's strategy for maintaining reusability and adhering to the DRY (Don't Repeat Yourself) principle involves:
+
+*   **Shared UI Components:** Extensive use of `src/components/ui/` (Shadcn UI) and custom components in `src/components/shared/` provides a common library of UI elements that are reused across different feature slices.
+*   **Global Hooks & Utilities:** Common business logic, state management patterns, or utility functions that are not specific to a single feature are placed in `src/hooks/` (for global hooks) and `src/lib/` (for utilities, Supabase client, etc.). These are imported and used by various slices as needed.
+*   **Module-Internal Reusability:** Within each feature slice/module, common patterns or components specific to that module but used in multiple places can still be created and reused (e.g., in the module's own `components/` or `utils/` sub-directories).
+*   **Focus of Slices:** The "slice" primarily dictates the organization and orchestration of these reusable parts to deliver a specific feature's functionality. It means that feature-specific logic and the unique combination of shared elements reside within the slice, while the shared elements themselves are centrally managed and maintained.
+
+AI assistants and developers should always prioritize using existing shared components and utilities. New shared elements should be created when a piece of UI or logic is identified as being broadly applicable across multiple features. Refer to `ai-docs/REUSABLE_COMPONENTS.MD` for discovering existing assets. This pragmatic approach ensures that we gain the benefits of vertical slices for feature development while upholding the critical goal of a maintainable and non-repetitive codebase.
+
 ## 4. UI Components
     - **Shadcn UI:** The project heavily relies on components from `src/components/ui/` which are based on Shadcn UI. These are pre-built, accessible, and customizable. Refer to `ai-docs/REUSABLE_COMPONENTS.md` for more details.
     - **Custom Shared Components:** Any custom components intended for use across multiple modules should reside in `src/components/` (outside `ui/`).
