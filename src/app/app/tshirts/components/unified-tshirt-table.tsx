@@ -113,7 +113,7 @@ export function UnifiedTShirtTable({
   }
 
   // Construct columnWidths array for DataTable prop
-  const colWidths: (string | number)[] = ["120px", "50px"]; // Changed from 140px
+  const colWidths: (string | number)[] = ["100px", "50px"]; // Changed from 120px
   if (isAdmin) {
     colWidths.push("80px");
   }
@@ -122,7 +122,7 @@ export function UnifiedTShirtTable({
   return (
     <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={colWidths}>
       <DataTableColGroup>
-        <DataTableCol width="120px" />{/* Volunteer - Changed from 140px */}
+        <DataTableCol width="100px" />{/* Volunteer - Changed from 120px */}
         <DataTableCol width="50px" />{/* Max */}
         {isAdmin && <DataTableCol width="80px" />}
         {displaySizes.map((size) => (
@@ -187,7 +187,7 @@ export function UnifiedTShirtTable({
                   </span>
                 </div></DataTableCell>
               <DataTableCell align="center" className="text-sm font-medium" vAlign="middle">
-                {volunteer.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0}
+                {volunteer.requested_tshirt_quantity || 0}
               </DataTableCell>
               {isAdmin && (
                 <DataTableCell align="center" vAlign="middle"><span className="text-xs text-muted-foreground">

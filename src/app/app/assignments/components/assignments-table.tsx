@@ -392,7 +392,7 @@ export function AssignmentsTable({
     <DataTable
       maxHeight="calc(100vh - 300px)"
       frozenColumns={[0]}
-      columnWidths={["100px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 110px
+      columnWidths={["90px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 100px
       density="compact"
     >
       <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
