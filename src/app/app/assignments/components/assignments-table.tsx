@@ -400,30 +400,26 @@ export function AssignmentsTable({
       </DataTableColGroup>
 
       <DataTableHeader>
-        <DataTableRow hover={false}> {/* Assuming hover=false is intentional for header row */}
-          <DataTableHead align="left" className="px-3" colIndex={0} vAlign="middle">Volunteer</DataTableHead>{visibleTimeSlots.map((slot, index) => (
+        <DataTableRow hover={false}>{/*NO WHITESPACE*/}<DataTableHead align="left" className="px-3" colIndex={0} vAlign="middle">Volunteer</DataTableHead>{/*NO WHITESPACE*/}
+          {visibleTimeSlots.map((slot, index) => (
             <DataTableHead key={slot.id} align="center" colIndex={index + 1} vAlign="middle">{slot.slot_name}</DataTableHead>
-          ))}
+          ))}{/*NO WHITESPACE*/}
         </DataTableRow>
       </DataTableHeader>
 
       <DataTableBody>
         {volunteerNames.map((volunteerName) => (
-          <DataTableRow key={volunteerName}>{/* hover and rowStriping are true by default */}
-            <DataTableCell
+          <DataTableRow key={volunteerName}>{/*NO WHITESPACE*/}<DataTableCell
               className="font-medium px-3" // Keep px-3 for wider first column cell
               colIndex={0}
               vAlign="middle"
               overflowHandling="tooltip"
               tooltipContent={volunteerName}
             ><div className="flex flex-col">
-                <span className="text-sm">
-                  {volunteerName} {/* This will be truncated by DataTableCell's internal span */}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {volunteerAssignments[volunteerName][0]?.volunteer.email}
-                </span>
-              </div></DataTableCell>{visibleTimeSlots.map((slot, index) => {
+                <span className="text-sm">{volunteerName}</span>
+                <span className="text-xs text-muted-foreground">{volunteerAssignments[volunteerName][0]?.volunteer.email}</span>
+              </div></DataTableCell>{/*NO WHITESPACE*/}
+            {visibleTimeSlots.map((slot, index) => {
               const assignment = volunteerAssignments[volunteerName].find(
                 (a) => a.time_slot_id === slot.id
               );
@@ -432,11 +428,10 @@ export function AssignmentsTable({
                   key={slot.id}
                   align="center"
                   colIndex={index + 1}
-                  vAlign="middle" // Changed from verticalAlign
-                  // Removed py-1 px-1, density handles padding
+                  vAlign="middle"
                 >{assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}</DataTableCell>
               );
-            })}
+            })}{/*NO WHITESPACE*/}
           </DataTableRow>
         ))}
       </DataTableBody>
