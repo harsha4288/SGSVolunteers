@@ -19,9 +19,10 @@ This document provides a starting point for AI assistants working on the Volunte
 *   **Reusable Components:** `ai-docs/REUSABLE_COMPONENTS.md` (Information on shared UI components and hooks.)
 *   **Data Models & Types:** `ai-docs/DATA_MODELS.md` (Guidance on finding data structures and types; links to DB documentation.)
 *   **Feature Specifications:** `specs/` (Contains detailed specifications for ongoing and new features. Use `specs/TEMPLATE_FEATURE_SPEC.md` for new features.)
+*   **Test Case Specifications:** `specs/TEST_CASES_COMPREHENSIVE.md` (Detailed test cases for modules.)
+*   **Project Backlog:** `specs/project-backlog/` (Contains `VolunteerVerse Pending Tasks.xml` and `tasks.csv` for high-level task tracking. Individual tasks should ideally be converted to feature specs in the main `specs/` directory.)
 *   **Prompt Templates:** `ai_prompts/` (Reusable prompts for common development tasks.)
 *   **Database Documentation:** `DB_Documentation.md` (Detailed information about the database schema.)
-*   **Pending Tasks:** `docs/VolunteerVerse Pending Taks.xml` (Overview of current project tasks.)
 
 ## Initial Setup & Verification:
 
