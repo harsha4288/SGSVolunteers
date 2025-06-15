@@ -75,7 +75,7 @@ export function EnhancedRequirementsGrid({
     );
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto"> {/* Added overflow-x-auto */}
             <DataTable 
                 maxHeight="calc(100vh - 20rem)" 
                 className="text-[11px] w-full"
