@@ -27,6 +27,7 @@ interface UnifiedTShirtTableProps {
   isAdmin: boolean;
   currentVolunteerId?: string;
   currentProfileId?: string;
+  eventSettings: { default_tshirt_allocation: number } | null; // Added eventSettings prop
 }
 
 /**
@@ -39,6 +40,7 @@ export function UnifiedTShirtTable({
   isAdmin,
   currentVolunteerId,
   currentProfileId,
+  eventSettings, // Destructure eventSettings
 }: UnifiedTShirtTableProps) {
   const {
     displaySizes,
@@ -56,6 +58,7 @@ export function UnifiedTShirtTable({
     volunteersToDisplay: volunteers,
     isAdmin,
     currentVolunteerId,
+    eventSettings, // Pass eventSettings to the hook
   });
 
   const getCount = (volunteerId: string, sizeCode: string): number => {
@@ -110,7 +113,7 @@ export function UnifiedTShirtTable({
   }
 
   // Construct columnWidths array for DataTable prop
-  const colWidths: (string | number)[] = ["140px", "50px"]; // Changed from 160px
+  const colWidths: (string | number)[] = ["120px", "50px"]; // Changed from 140px
   if (isAdmin) {
     colWidths.push("80px");
   }
@@ -119,8 +122,8 @@ export function UnifiedTShirtTable({
   return (
     <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={colWidths}>
       <DataTableColGroup>
-        <DataTableCol width="140px" /> {/* Volunteer - Changed from 160px */}
-        <DataTableCol width="50px" /> {/* Max */}
+        <DataTableCol width="120px" />{/* Volunteer - Changed from 140px */}
+        <DataTableCol width="50px" />{/* Max */}
         {isAdmin && <DataTableCol width="80px" />}
         {displaySizes.map((size) => (
           <DataTableCol key={size.size_cd} width="60px" />
@@ -183,7 +186,9 @@ export function UnifiedTShirtTable({
                     {volunteer.email}
                   </span>
                 </div></DataTableCell>
-              <DataTableCell align="center" className="text-sm font-medium" vAlign="middle">{volunteer.requested_tshirt_quantity || 0}</DataTableCell>
+              <DataTableCell align="center" className="text-sm font-medium" vAlign="middle">
+                {volunteer.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0}
+              </DataTableCell>
               {isAdmin && (
                 <DataTableCell align="center" vAlign="middle"><span className="text-xs text-muted-foreground">
                     {getPreferencesDisplay(volunteer.id)}

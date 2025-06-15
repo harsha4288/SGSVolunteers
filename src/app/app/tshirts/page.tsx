@@ -32,6 +32,7 @@ export default function TShirtsPage() {
   const [familyMembers, setFamilyMembers] = React.useState<Volunteer[]>([]);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [currentEventId, setCurrentEventId] = React.useState<number>(1); // Default to event ID 1
+  const [eventSettings, setEventSettings] = React.useState<{ id: number; default_tshirt_allocation: number } | null>(null);
   const [tshirtSizes, setTshirtSizes] = React.useState<TShirtSize[]>([]);
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [searchResults, setSearchResults] = React.useState<Volunteer[]>([]);
@@ -311,18 +312,23 @@ export default function TShirtsPage() {
         // Fetch current event
         const { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select('id')
-          .eq('id', 1)
+          .select('id, default_tshirt_allocation') // Fetch default_tshirt_allocation
+          .eq('id', currentEventId) // Use state currentEventId
           .single();
 
         if (eventError) {
-          console.warn("Error fetching event:", eventError);
-          // Continue with default event ID 1
+          console.warn("Error fetching event settings:", eventError);
+          // Potentially set a default event setting if needed, or handle error
+          setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 }); // Fallback default
         } else if (eventData) {
-          setCurrentEventId(eventData.id);
+          setEventSettings(eventData as { id: number; default_tshirt_allocation: number });
+          // setCurrentEventId(eventData.id); // Not needed if already set or using default
+        } else {
+          // No event data found, use fallback
+           setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 });
         }
       } catch (err) {
-        console.error("Error fetching user data:", err);
+        console.error("Error fetching user data or event settings:", err);
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         setLoading(false);
@@ -463,6 +469,7 @@ export default function TShirtsPage() {
               familyMembers={familyMembers}
               searchResults={searchResults}
               profileId={profileId}
+              eventSettings={eventSettings} // Pass eventSettings
             />
           </TabsContent>
 
@@ -493,6 +500,7 @@ export default function TShirtsPage() {
             familyMembers={familyMembers}
             searchResults={[]}
             profileId={profileId}
+            eventSettings={eventSettings} // Pass eventSettings
           />
         </div>
       )}

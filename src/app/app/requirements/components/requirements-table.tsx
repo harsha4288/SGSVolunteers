@@ -189,7 +189,7 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
         </DataTableColGroup>
         <DataTableHeader>
           <DataTableRow> {/* hover and rowStriping are true by default */}
-            <DataTableHead vAlign="middle" colIndex={0}>Location</DataTableHead> {/* Added colIndex */}
+            <DataTableHead vAlign="middle" colIndex={0} className="px-3">Location</DataTableHead> {/* Added colIndex and px-3 */}
             <DataTableHead vAlign="middle">Timeslot</DataTableHead>
             <DataTableHead align="center" vAlign="middle">Required Volunteers</DataTableHead>
           </DataTableRow>
@@ -197,7 +197,7 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
         <DataTableBody>
           {requirementRows.map((row) => (
             <DataTableRow key={`${row.location_id}-${row.timeslot_id}`}>
-              <DataTableCell vAlign="middle" overflowHandling="tooltip" tooltipContent={row.location_name} colIndex={0}> {/* Added colIndex */}
+              <DataTableCell vAlign="middle" overflowHandling="tooltip" tooltipContent={row.location_name} colIndex={0} className="px-3"> {/* Added colIndex and px-3 */}
                 {row.location_name}
               </DataTableCell>
               <DataTableCell vAlign="middle" overflowHandling="tooltip" tooltipContent={row.timeslot_name}>

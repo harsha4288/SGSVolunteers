@@ -392,7 +392,7 @@ export function AssignmentsTable({
     <DataTable
       maxHeight="calc(100vh - 300px)"
       frozenColumns={[0]}
-      columnWidths={["110px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 120px
+      columnWidths={["100px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 110px
       density="compact"
     >
       <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
@@ -409,25 +409,21 @@ export function AssignmentsTable({
 
       <DataTableBody>
         {volunteerNames.map((volunteerName) => (
-          <DataTableRow key={volunteerName}> {/* hover and rowStriping are true by default */}
+          <DataTableRow key={volunteerName}>{/* hover and rowStriping are true by default */}
             <DataTableCell
               className="font-medium px-3" // Keep px-3 for wider first column cell
               colIndex={0}
               vAlign="middle"
               overflowHandling="tooltip"
               tooltipContent={volunteerName}
-            >
-              <div className="flex flex-col">
+            ><div className="flex flex-col">
                 <span className="text-sm">
                   {volunteerName} {/* This will be truncated by DataTableCell's internal span */}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {volunteerAssignments[volunteerName][0]?.volunteer.email}
                 </span>
-              </div>
-            </DataTableCell>
-
-            {visibleTimeSlots.map((slot, index) => {
+              </div></DataTableCell>{visibleTimeSlots.map((slot, index) => {
               const assignment = volunteerAssignments[volunteerName].find(
                 (a) => a.time_slot_id === slot.id
               );
@@ -438,9 +434,7 @@ export function AssignmentsTable({
                   colIndex={index + 1}
                   vAlign="middle" // Changed from verticalAlign
                   // Removed py-1 px-1, density handles padding
-                >
-                  {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}
-                </DataTableCell>
+                >{assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}</DataTableCell>
               );
             })}
           </DataTableRow>

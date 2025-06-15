@@ -16,6 +16,7 @@ interface TShirtTableProps {
   familyMembers: Volunteer[];
   searchResults: Volunteer[];
   profileId: string;
+  eventSettings: { default_tshirt_allocation: number } | null; // Added eventSettings prop
 }
 
 /**
@@ -30,7 +31,8 @@ export function TShirtTable({
   volunteer,
   familyMembers,
   searchResults,
-  profileId
+  profileId,
+  eventSettings // Destructure eventSettings
 }: TShirtTableProps) {
   // Determine which volunteers to display
   const volunteersToDisplay = React.useMemo(() => {
@@ -55,6 +57,7 @@ export function TShirtTable({
       isAdmin={isAdmin}
       currentVolunteerId={volunteer?.id}
       currentProfileId={profileId}
+      eventSettings={eventSettings} // Pass eventSettings down
     />
   );
 }

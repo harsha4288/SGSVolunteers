@@ -177,9 +177,7 @@ const DataTableRow = React.forwardRef<HTMLTableRowElement, DataTableRowProps>(
         className
       )}
       {...props}
-    >
-      {children}
-    </tr>
+    >{children}</tr>
   )
 )
 DataTableRow.displayName = "DataTableRow"
@@ -332,39 +330,25 @@ DataTableCell.displayName = "DataTableCell"
 // Column group for consistent column widths
 const DataTableColGroup = React.forwardRef<HTMLTableColElement, { children: React.ReactNode }>(
   ({ children }, ref) => (
-    <colgroup ref={ref}>
-      {children}
-    </colgroup>
+    <colgroup ref={ref}>{children}</colgroup>
   )
 )
 DataTableColGroup.displayName = "DataTableColGroup"
 
-const DataTableCol = React.forwardRef<HTMLTableColElement, { widthClass?: string; width?: string | number; className?: string }>(
-  ({ widthClass, width, className }, ref) => {
-    const { defaultColumnWidth } = React.useContext(DataTableContext);
-    
-    // Diagnostic logging
-    React.useEffect(() => {
-      if (typeof window !== 'undefined' && (widthClass || width)) {
-        console.log('[DataTableCol Diagnostic]', {
-          path: window.location.pathname,
-          widthClass,
-          width,
-          defaultColumnWidth,
-          resolvedClass: widthClass || `w-${defaultColumnWidth}`
-        });
-      }
-    }, [widthClass, width, defaultColumnWidth]);
-    
-    // Handle both width and widthClass props for compatibility
+// DataTableCol component: width prop is primarily for direct style, className for Tailwind width utilities.
+// columnWidths on DataTable is used for sticky calculations and can override these if table-layout: fixed is used by DataTable.
+// For now, this component just renders a col with given style/class.
+const DataTableCol = React.forwardRef<HTMLTableColElement, { width?: string | number; className?: string }>(
+  ({ width, className }, ref) => {
     const style = width ? { width: typeof width === 'number' ? `${width}px` : width } : undefined;
-    
+    // Removed defaultColumnWidth logic here as it's complex and an explicit width or className (like w-xx) from parent is clearer.
+    // DataTable's columnWidths prop is the primary source for widths used in frozen calculations.
     return (
       <col
         ref={ref}
-        className={cn(widthClass || (defaultColumnWidth && `w-${defaultColumnWidth}`), className)}
+        className={cn(className)} // Pass className directly
         style={style}
-      />
+      /> // Ensure no whitespace
     );
   }
 )
