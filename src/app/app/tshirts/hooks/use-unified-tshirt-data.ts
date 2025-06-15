@@ -150,7 +150,7 @@ export function useUnifiedTShirtData({
           const confirmed = window.confirm(
             `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
             `Volunteer: ${volunteerName}\n` +
-            `Allocation Limit: ${effectiveAllocation}\n` +
+            `Allocation Limit: ${effectiveAllocation}\n` + // Use effectiveAllocation
             `Current Total: ${currentTotal}\n` +
             `Attempting to add: ${quantity} ${sizeCode} T-shirt(s)\n` +
             `New Total: ${newTotal}\n\n` +
@@ -166,45 +166,14 @@ export function useUnifiedTShirtData({
           // Hard stop for volunteers - show toast and return
           toast({
             title: "Allocation Limit Exceeded",
-            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${effectiveAllocation}).`,
+            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${effectiveAllocation}).`, // Use effectiveAllocation
             variant: "destructive",
           });
           return;
         }
       }
     }
-
-      if (newTotal > allocation) {
-        if (isAdmin) {
-          // Show admin override dialog
-          const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
-
-          const confirmed = window.confirm(
-            `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
-            `Volunteer: ${volunteerName}\n` +
-            `Allocation Limit: ${allocation}\n` +
-            `Current Total: ${currentTotal}\n` +
-            `Attempting to add: ${quantity} ${sizeCode} T-shirt(s)\n` +
-            `New Total: ${newTotal}\n\n` +
-            `This will exceed the volunteer's allocation limit.\n\n` +
-            `Do you want to proceed anyway?`
-          );
-
-          if (!confirmed) {
-            return; // Admin chose not to override
-          }
-          allowOverride = true; // Set override for DB call
-        } else {
-          // Hard stop for volunteers - show toast and return
-          toast({
-            title: "Allocation Limit Exceeded",
-            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${allocation}).`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-    }
+    // Removed duplicated and malformed if-block and its closing brace that was here.
 
     try {
       await tshirtService.addPreference(volunteerId, sizeCode, quantity, toast, setSaving, allowOverride);
