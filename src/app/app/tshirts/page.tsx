@@ -92,7 +92,7 @@ export default function TShirtsPage() {
     try {
       const { data, error } = await supabase
         .from('volunteers')
-        .select('*')
+        .select('id, first_name, last_name, email, phone, profile_id, requested_tshirt_quantity, tshirt_size_preference')
         .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
         .order('last_name', { ascending: true });
 
@@ -243,7 +243,7 @@ export default function TShirtsPage() {
             // Fetch all volunteers with this email
             const { data: volunteers, error: volunteersError } = await supabase
               .from('volunteers')
-              .select('*')
+              .select('id, first_name, last_name, email, phone, profile_id, requested_tshirt_quantity, tshirt_size_preference')
               .eq('email', impersonatedEmail);
 
             if (volunteersError) {

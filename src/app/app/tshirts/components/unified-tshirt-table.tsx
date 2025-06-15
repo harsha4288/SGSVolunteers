@@ -109,11 +109,18 @@ export function UnifiedTShirtTable({
     );
   }
 
+  // Construct columnWidths array for DataTable prop
+  const colWidths: (string | number)[] = ["140px", "50px"]; // Changed from 160px
+  if (isAdmin) {
+    colWidths.push("80px");
+  }
+  displaySizes.forEach(() => colWidths.push("60px"));
+
   return (
-    <DataTable maxHeight="calc(100vh - 300px)">
+    <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={colWidths}>
       <DataTableColGroup>
-        <DataTableCol width="160px" />
-        <DataTableCol width="50px" />
+        <DataTableCol width="140px" /> {/* Volunteer - Changed from 160px */}
+        <DataTableCol width="50px" /> {/* Max */}
         {isAdmin && <DataTableCol width="80px" />}
         {displaySizes.map((size) => (
           <DataTableCol key={size.size_cd} width="60px" />
@@ -123,16 +130,10 @@ export function UnifiedTShirtTable({
       <DataTableHeader>
         <DataTableRow hover={false}>
           {/* Merged header cells for Volunteer, Max, Prefs */}
-          <DataTableHead rowSpan={2} align="left" className="px-3" verticalAlign="middle">
-            Volunteer
-          </DataTableHead>
-          <DataTableHead rowSpan={2} align="center" verticalAlign="middle">
-            Max
-          </DataTableHead>
+          <DataTableHead rowSpan={2} align="left" className="px-3" vAlign="middle" colIndex={0}>Volunteer</DataTableHead>
+          <DataTableHead rowSpan={2} align="center" vAlign="middle">Max</DataTableHead>
           {isAdmin && (
-            <DataTableHead rowSpan={2} align="center" verticalAlign="middle">
-              Prefs
-            </DataTableHead>
+            <DataTableHead rowSpan={2} align="center" vAlign="middle">Prefs</DataTableHead>
           )}
           {/* Reduced height for Issued/Preferences header */}
           <DataTableHead
@@ -147,8 +148,7 @@ export function UnifiedTShirtTable({
         <DataTableRow hover={false}>
           {/* Size columns with inventory badges */}
           {displaySizes.map((size) => (
-            <DataTableHead key={size.size_cd} align="center" border={false} className="py-0 px-1" verticalAlign="middle">
-              <div className="flex flex-col items-center gap-0">
+            <DataTableHead key={size.size_cd} align="center" border={false} className="py-0 px-1" vAlign="middle"><div className="flex flex-col items-center gap-0">
                 <span className="text-xs font-medium">{size.size_cd}</span>
                 {isAdmin && (
                   <InventoryBadge
@@ -158,8 +158,7 @@ export function UnifiedTShirtTable({
                     className="text-xs"
                   />
                 )}
-              </div>
-            </DataTableHead>
+              </div></DataTableHead>
           ))}
         </DataTableRow>
       </DataTableHeader>
@@ -172,39 +171,30 @@ export function UnifiedTShirtTable({
             <DataTableRow key={volunteer.id}>
               <DataTableCell
                 className="font-medium px-3"
-                verticalAlign="middle"
+                vAlign="middle"
                 overflowHandling="tooltip"
                 tooltipContent={`${volunteer.first_name} ${volunteer.last_name}`}
-              >
-                <div className="flex flex-col">
+                colIndex={0} // Added colIndex for the frozen column
+              ><div className="flex flex-col">
                   <span className={volunteer.id === currentVolunteerId ? "font-bold text-primary text-sm" : "text-sm"}>
                     {volunteer.first_name} {volunteer.last_name}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {volunteer.email}
                   </span>
-                </div>
-              </DataTableCell>
-
-              <DataTableCell align="center" className="text-sm font-medium" verticalAlign="middle">
-                {volunteer.requested_tshirt_quantity || 0}
-              </DataTableCell>
-
+                </div></DataTableCell>
+              <DataTableCell align="center" className="text-sm font-medium" vAlign="middle">{volunteer.requested_tshirt_quantity || 0}</DataTableCell>
               {isAdmin && (
-                <DataTableCell align="center" verticalAlign="middle">
-                  <span className="text-xs text-muted-foreground">
+                <DataTableCell align="center" vAlign="middle"><span className="text-xs text-muted-foreground">
                     {getPreferencesDisplay(volunteer.id)}
-                  </span>
-                </DataTableCell>
+                  </span></DataTableCell>
               )}
-
               {displaySizes.map((size) => {
                 const count = getCount(volunteer.id, size.size_cd);
                 const showControls = count > 0;
 
                 return (
-                  <DataTableCell key={size.size_cd} align="center" border={false} className="py-1 px-1" verticalAlign="middle">
-                    {showControls ? (
+                  <DataTableCell key={size.size_cd} align="center" border={false} className="py-1 px-1" vAlign="middle">{showControls ? (
                       <div className="flex items-center justify-center gap-0.5 bg-muted/30 rounded px-1 py-0.5 min-w-[50px]">
                         <Button
                           variant="ghost"

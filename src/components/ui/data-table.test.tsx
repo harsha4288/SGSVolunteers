@@ -123,7 +123,7 @@ describe('DataTable Component Systems', () => {
           <DataTable>
             <DataTableBody>
               <DataTableRow>
-                <DataTableCell verticalAlign={name}>Cell</DataTableCell>
+                <DataTableCell vAlign={name}>Cell</DataTableCell>
               </DataTableRow>
             </DataTableBody>
           </DataTable>

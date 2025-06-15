@@ -64,7 +64,7 @@ interface DataTableCellProps {
   children: React.ReactNode
   className?: string
   align?: "left" | "center" | "right"
-  verticalAlign?: "top" | "middle" | "bottom"
+  vAlign?: "top" | "middle" | "bottom" // Renamed from verticalAlign
   border?: boolean
   rowSpan?: number
   colSpan?: number
@@ -76,6 +76,7 @@ interface DataTableHeadProps {
   children: React.ReactNode
   className?: string
   align?: "left" | "center" | "right"
+  vAlign?: "top" | "middle" | "bottom" // Renamed from verticalAlign
   border?: boolean
   rowSpan?: number
   colSpan?: number
@@ -185,7 +186,7 @@ DataTableRow.displayName = "DataTableRow"
 
 // Standardized table header cell
 const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>(
-  ({ children, className, align = "left", border = true, sticky = false, rowSpan, colSpan, colIndex, ...props }, ref) => {
+  ({ children, className, align = "left", vAlign = "middle", border = true, sticky = false, rowSpan, colSpan, colIndex, ...props }, ref) => {
     // Get frozenColumns, columnWidths, and density from context
     const { frozenColumns, columnWidths, density } = React.useContext(DataTableContext);
     let stickyStyle = {};
@@ -223,12 +224,15 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
+          vAlign === "top" && "align-top",
+          vAlign === "middle" && "align-middle",
+          vAlign === "bottom" && "align-bottom",
           border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
           sticky && "sticky top-0 z-50 bg-muted/90", // Individual cell stickiness with higher z-index
           stickyClass, // Apply frozen column classes if applicable
           className
         )}
-        {...props}
+        {...props} // vAlign is destructured and not in props
       >
         {children}
       </th>
@@ -239,7 +243,7 @@ DataTableHead.displayName = "DataTableHead"
 
 // Standardized table data cell
 const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps & { colIndex?: number }>(
-  ({ children, className, align = "left", verticalAlign = "middle", border = true, rowSpan, colSpan, colIndex, overflowHandling = 'truncate', tooltipContent, ...props }, ref) => {
+  ({ children, className, align = "left", vAlign = "middle", border = true, rowSpan, colSpan, colIndex, overflowHandling = 'truncate', tooltipContent, ...props }, ref) => {
     // Get frozenColumns, columnWidths, and density from context
     const { frozenColumns, columnWidths, density } = React.useContext(DataTableContext);
     
@@ -284,15 +288,15 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
           align === "left" && "text-left",
           align === "center" && "text-center",
           align === "right" && "text-right",
-          verticalAlign === "top" && "align-top",
-          verticalAlign === "middle" && "align-middle",
-          verticalAlign === "bottom" && "align-bottom",
+          vAlign === "top" && "align-top",
+          vAlign === "middle" && "align-middle",
+          vAlign === "bottom" && "align-bottom",
           // Overflow classes are applied to a child span, not the td itself, to ensure vertical alignment still works.
           border && "border-r border-accent/20 last:border-r-0", // Consistent borders, no border on last column
           stickyClass,
           className
         )}
-        {...props}
+        {...props} // vAlign is destructured and not in props
       >
         {overflowHandling === 'tooltip' ? (
           <TooltipProvider> {/* Assuming TooltipProvider might be needed here if not global */}

@@ -392,8 +392,8 @@ export function AssignmentsTable({
     <DataTable
       maxHeight="calc(100vh - 300px)"
       frozenColumns={[0]}
-      columnWidths={["120px", ...visibleTimeSlots.map(() => "84px")]}
-      density="compact" // Added density prop
+      columnWidths={["110px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 120px
+      density="compact"
     >
       <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
         {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} />))}
@@ -401,13 +401,8 @@ export function AssignmentsTable({
 
       <DataTableHeader>
         <DataTableRow hover={false}> {/* Assuming hover=false is intentional for header row */}
-          <DataTableHead align="left" className="px-3" colIndex={0} verticalAlign="middle"> {/* Keep px-3 for wider first column header */}
-            Volunteer
-          </DataTableHead>
-          {visibleTimeSlots.map((slot, index) => (
-            <DataTableHead key={slot.id} align="center" colIndex={index + 1} verticalAlign="middle"> {/* Removed py-2 px-2, density handles padding */}
-              {slot.slot_name}
-            </DataTableHead>
+          <DataTableHead align="left" className="px-3" colIndex={0} vAlign="middle">Volunteer</DataTableHead>{visibleTimeSlots.map((slot, index) => (
+            <DataTableHead key={slot.id} align="center" colIndex={index + 1} vAlign="middle">{slot.slot_name}</DataTableHead>
           ))}
         </DataTableRow>
       </DataTableHeader>
@@ -418,7 +413,7 @@ export function AssignmentsTable({
             <DataTableCell
               className="font-medium px-3" // Keep px-3 for wider first column cell
               colIndex={0}
-              verticalAlign="middle"
+              vAlign="middle"
               overflowHandling="tooltip"
               tooltipContent={volunteerName}
             >
@@ -441,7 +436,7 @@ export function AssignmentsTable({
                   key={slot.id}
                   align="center"
                   colIndex={index + 1}
-                  verticalAlign="middle" // Added verticalAlign
+                  vAlign="middle" // Changed from verticalAlign
                   // Removed py-1 px-1, density handles padding
                 >
                   {assignment ? renderAssignmentCell(assignment, slot.id) : <Minus className="h-5 w-5 text-muted-foreground inline-block" />}

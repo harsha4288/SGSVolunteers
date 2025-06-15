@@ -176,29 +176,34 @@ export function RequirementsTable({ requirementsData }: RequirementsTableProps) 
 
   return (
     <div className="mt-4">
-      <DataTable maxHeight="calc(100vh - 400px)" density="compact">
+      <DataTable
+        maxHeight="calc(100vh - 400px)"
+        density="compact"
+        frozenColumns={[0]} // Freeze the first column
+        columnWidths={["200px", "200px", "150px"]} // Define column widths
+      >
         <DataTableColGroup>
-          <DataTableCol widthClass="w-[35%]" /> {/* Location */}
-          <DataTableCol widthClass="w-[35%]" /> {/* Timeslot */}
-          <DataTableCol widthClass="w-[30%]" /> {/* Required Volunteers */}
+          <DataTableCol /> {/* Location - width controlled by columnWidths prop on DataTable */}
+          <DataTableCol /> {/* Timeslot */}
+          <DataTableCol /> {/* Required Volunteers */}
         </DataTableColGroup>
         <DataTableHeader>
           <DataTableRow> {/* hover and rowStriping are true by default */}
-            <DataTableHead verticalAlign="middle">Location</DataTableHead>
-            <DataTableHead verticalAlign="middle">Timeslot</DataTableHead>
-            <DataTableHead align="center" verticalAlign="middle">Required Volunteers</DataTableHead>
+            <DataTableHead vAlign="middle" colIndex={0}>Location</DataTableHead> {/* Added colIndex */}
+            <DataTableHead vAlign="middle">Timeslot</DataTableHead>
+            <DataTableHead align="center" vAlign="middle">Required Volunteers</DataTableHead>
           </DataTableRow>
         </DataTableHeader>
         <DataTableBody>
           {requirementRows.map((row) => (
             <DataTableRow key={`${row.location_id}-${row.timeslot_id}`}>
-              <DataTableCell verticalAlign="middle" overflowHandling="tooltip" tooltipContent={row.location_name}>
+              <DataTableCell vAlign="middle" overflowHandling="tooltip" tooltipContent={row.location_name} colIndex={0}> {/* Added colIndex */}
                 {row.location_name}
               </DataTableCell>
-              <DataTableCell verticalAlign="middle" overflowHandling="tooltip" tooltipContent={row.timeslot_name}>
+              <DataTableCell vAlign="middle" overflowHandling="tooltip" tooltipContent={row.timeslot_name}>
                 {row.timeslot_name}
               </DataTableCell>
-              <DataTableCell align="center" verticalAlign="middle">
+              <DataTableCell align="center" vAlign="middle">
                 <InlineCountEditor
                   row={row}
                   onSave={(newCount) =>
