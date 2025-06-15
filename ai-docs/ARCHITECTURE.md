@@ -47,28 +47,53 @@ The project follows a structure typical for Next.js applications using the App R
     └── next.config.ts
     ```
 
-## 3. Module-Based Architecture (Vertical Slices variation)
+## 3. Primary Architectural Pattern: Vertical Slices with Layering
 
-Each primary feature or domain (e.g., "T-shirts", "Assignments", "User Management") is organized into its own module directory under `src/app/app/`. This approach is a form of Vertical Slice Architecture, where all aspects of a feature (UI, state management, data access, types) are grouped together.
+The VolunteerVerse project employs a blended architectural strategy that combines **Vertical Slices** for feature organization with **Layering** for separation of concerns both within slices and for shared, cross-cutting functionality.
 
-- **Module Contents:**
-    - **`page.tsx`:** The main Next.js page component for the module.
-    - **`components/`:** React components specific to this module.
-    - **`hooks/`:** Custom React hooks for managing state, side effects, and business logic related to the module (e.g., `useUnifiedTShirtData`). These hooks often interact with services.
-    - **`services/`:** TypeScript files/classes that encapsulate data fetching and external API interactions, primarily with Supabase (e.g., `unified-tshirt-service.ts`). They use the Supabase client and may call database functions (RPC).
-    - **`types.ts`:** TypeScript type definitions and interfaces specific to the module.
-    - **`__tests__/`:** Jest/React Testing Library tests for components, hooks, and services within the module.
+### 3.1. Vertical Slice Architecture for Features
 
-### 3.1. Reusability within the Vertical Slice Approach
+The primary method for organizing application features is Vertical Slice Architecture. This means that code related to a distinct business domain or feature set (e.g., "T-shirt Management," "Volunteer Assignments," "User Profile") is grouped into its own module directory, typically found under `src/app/app/`.
 
-While the project organizes features into vertical slices to promote focus and contextual clarity (beneficial for AI-driven development), this does **not** imply or encourage unnecessary code duplication. The project's strategy for maintaining reusability and adhering to the DRY (Don't Repeat Yourself) principle involves:
+*   **Slice Contents:** Each feature module (or "slice") aims to be largely self-contained for that feature. It typically includes:
+    *   **`page.tsx` / `layout.tsx`:** Next.js entry points, routing, and layout specific to the feature.
+    *   **`components/`:** React components that are primarily or exclusively used within this feature slice.
+    *   **`hooks/`:** Custom React hooks that manage state, side effects, and business logic pertinent to the feature slice.
+    *   **`services/`:** Service files/functions that encapsulate data fetching logic and interactions with the backend (e.g., Supabase) specifically for this feature.
+    *   **`types.ts`:** TypeScript definitions and interfaces relevant to the feature slice's data structures.
+*   **Benefits for AI Collaboration:** This slicing approach helps in providing focused context to AI assistants, as most of the code relevant to a specific feature change will be located within that feature's slice.
 
-*   **Shared UI Components:** Extensive use of `src/components/ui/` (Shadcn UI) and custom components in `src/components/shared/` provides a common library of UI elements that are reused across different feature slices.
-*   **Global Hooks & Utilities:** Common business logic, state management patterns, or utility functions that are not specific to a single feature are placed in `src/hooks/` (for global hooks) and `src/lib/` (for utilities, Supabase client, etc.). These are imported and used by various slices as needed.
-*   **Module-Internal Reusability:** Within each feature slice/module, common patterns or components specific to that module but used in multiple places can still be created and reused (e.g., in the module's own `components/` or `utils/` sub-directories).
-*   **Focus of Slices:** The "slice" primarily dictates the organization and orchestration of these reusable parts to deliver a specific feature's functionality. It means that feature-specific logic and the unique combination of shared elements reside within the slice, while the shared elements themselves are centrally managed and maintained.
+### 3.2. Layering within Vertical Slices
 
-AI assistants and developers should always prioritize using existing shared components and utilities. New shared elements should be created when a piece of UI or logic is identified as being broadly applicable across multiple features. Refer to `ai-docs/REUSABLE_COMPONENTS.MD` for discovering existing assets. This pragmatic approach ensures that we gain the benefits of vertical slices for feature development while upholding the critical goal of a maintainable and non-repetitive codebase.
+Within each vertical feature slice, a clear separation of concerns is maintained through an internal, layered structure:
+
+*   **Presentation Layer:** Consists of `page.tsx` and components in the slice's `components/` directory. These are responsible for UI rendering and user interaction.
+*   **Application Logic / State Management Layer:** Primarily handled by custom hooks in the slice's `hooks/` directory. These hooks manage UI state, orchestrate calls to services, and contain presentation logic.
+*   **Data Access Layer:** Implemented by services in the slice's `services/` directory, which abstract direct interactions with the backend (e.g., Supabase database queries, RPC calls).
+
+### 3.3. Shared Horizontal Layers
+
+To complement the vertical slices and promote reusability across the application, several shared horizontal layers are utilized:
+
+*   **Shared UI Layer (`src/components/ui/`, `src/components/shared/`):**
+    *   `src/components/ui/`: Contains the Shadcn UI component library, providing a foundational set of reusable, accessible UI primitives (buttons, forms, cards, etc.).
+    *   `src/components/shared/`: Houses custom UI components designed for reuse across multiple feature slices.
+    *   This layer aligns with principles of Atomic Design for UI reusability.
+*   **Shared Libraries & Utilities Layer (`src/lib/`, global `src/hooks/`):**
+    *   `src/lib/`: Contains common utilities (e.g., `utils.ts`), Supabase client configuration (`supabase/`), global type definitions (`types/`), and other foundational code shared by all features.
+    *   Global `src/hooks/`: For custom React hooks that provide cross-cutting functionality applicable to multiple feature slices (e.g., `useToast`, `useUserRole`).
+*   **API Layer (`src/app/api/`):**
+    *   Next.js API routes reside here, handling server-side API logic. These form a distinct backend layer that feature slices can interact with for operations requiring server-side processing.
+
+### 3.4. Achieving Reusability and Avoiding Duplication
+
+This blended approach allows for feature-focused development (via Vertical Slices) while systematically promoting code reuse and separation of concerns:
+
+*   **Prioritize Shared Layers:** Developers and AI assistants should first look to shared horizontal layers (UI, libraries, global hooks) for existing solutions before creating new code within a slice.
+*   **Identify New Shared Code:** If functionality being developed within a slice is identified as being broadly applicable, it should be refactored into an appropriate shared layer.
+*   **Slice-Specific Code:** Code that is truly unique to a feature's business logic or UI orchestration resides within that feature's slice.
+
+By understanding this interplay between vertical feature organization and horizontal shared layers, development can remain focused and efficient, while the codebase remains maintainable and DRY. AI assistants should be guided to operate primarily within a single feature slice for specific tasks but should always leverage and contribute to the shared horizontal layers appropriately. Refer to `ai-docs/REUSABLE_COMPONENTS.MD` for discovering existing reusable assets.
 
 ## 4. UI Components
     - **Shadcn UI:** The project heavily relies on components from `src/components/ui/` which are based on Shadcn UI. These are pre-built, accessible, and customizable. Refer to `ai-docs/REUSABLE_COMPONENTS.md` for more details.
