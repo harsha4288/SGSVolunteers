@@ -392,17 +392,18 @@ export function AssignmentsTable({
     <DataTable
       maxHeight="calc(100vh - 300px)"
       frozenColumns={[0]}
-      columnWidths={["90px", ...visibleTimeSlots.map(() => "84px")]} // Changed from 100px
       density="compact"
     >
-      <DataTableColGroup><DataTableCol />{/* Volunteer Name */}
+      <DataTableColGroup><DataTableCol />{/* Volunteer Name - flexible width */}
         {visibleTimeSlots.map((slot) => (<DataTableCol key={slot.id} />))}
       </DataTableColGroup>
 
       <DataTableHeader>
         <DataTableRow hover={false}>{/*NO WHITESPACE*/}<DataTableHead align="left" className="px-3" colIndex={0} vAlign="middle">Volunteer</DataTableHead>{/*NO WHITESPACE*/}
           {visibleTimeSlots.map((slot, index) => (
-            <DataTableHead key={slot.id} align="center" colIndex={index + 1} vAlign="middle">{slot.slot_name}</DataTableHead>
+            <DataTableHead key={slot.id} align="center" colIndex={index + 1} vAlign="middle" className="min-w-0">
+              <span className="text-xs">{slot.slot_name}</span>
+            </DataTableHead>
           ))}{/*NO WHITESPACE*/}
         </DataTableRow>
       </DataTableHeader>
@@ -410,14 +411,12 @@ export function AssignmentsTable({
       <DataTableBody>
         {volunteerNames.map((volunteerName) => (
           <DataTableRow key={volunteerName}>{/*NO WHITESPACE*/}<DataTableCell
-              className="font-medium px-3" // Keep px-3 for wider first column cell
+              className="font-medium px-3 w-48 max-w-48"
               colIndex={0}
               vAlign="middle"
-              overflowHandling="tooltip"
-              tooltipContent={volunteerName}
             ><div className="flex flex-col">
-                <span className="text-sm">{volunteerName}</span>
-                <span className="text-xs text-muted-foreground">{volunteerAssignments[volunteerName][0]?.volunteer.email}</span>
+                <span className="text-sm truncate">{volunteerName}</span>
+                <span className="text-xs text-muted-foreground truncate">{volunteerAssignments[volunteerName][0]?.volunteer.email}</span>
               </div></DataTableCell>{/*NO WHITESPACE*/}
             {visibleTimeSlots.map((slot, index) => {
               const assignment = volunteerAssignments[volunteerName].find(

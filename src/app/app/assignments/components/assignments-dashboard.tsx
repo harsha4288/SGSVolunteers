@@ -252,7 +252,7 @@ export function AssignmentsDashboard({
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="overflow-hidden">
+        <div className="overflow-x-auto">
           <AssignmentsTable
             // assignments={assignments} // AssignmentsTable will now fetch its own data via hook
             timeSlots={timeSlots}

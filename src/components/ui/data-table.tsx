@@ -123,7 +123,7 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
           style={{ maxHeight, paddingRight: "16px" }} // Add padding for scrollbar
         >
           <table className={cn(
-            "w-full border-collapse table-auto", // Remove table-fixed, use table-auto for flexible columns
+            "w-full border-collapse table-auto", // Always use table-auto for flexible layout
             "max-w-full"
           )}>
             {children}
@@ -192,18 +192,26 @@ const DataTableHead = React.forwardRef<HTMLTableCellElement, DataTableHeadProps>
     
     // Apply freezing logic for columns if colIndex is provided and it's in frozenColumns
     if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
-      // Calculate left offset based on previous frozen columns
-      let left = 0;
-      for (let i = 0; i < colIndex; ++i) {
-        if (frozenColumns.includes(i)) {
-          const width = columnWidths[i];
-          if (typeof width === "number") left += width;
-          else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
-          else if (typeof width === "string") left += parseInt(width); // fallback
+      // Only apply sticky positioning if we have explicit column widths
+      // Without columnWidths, browser handles table-auto layout naturally
+      if (columnWidths.length > 0) {
+        // Calculate left offset based on previous frozen columns
+        let left = 0;
+        for (let i = 0; i < colIndex; ++i) {
+          if (frozenColumns.includes(i)) {
+            const width = columnWidths[i];
+            if (typeof width === "number") left += width;
+            else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
+            else if (typeof width === "string") left += parseInt(width); // fallback
+          }
         }
+        stickyStyle = { left };
+        stickyClass = `sticky left-0 z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`;
+      } else {
+        // For natural table-auto layout, use simpler sticky positioning
+        stickyStyle = { left: 0 };
+        stickyClass = `sticky left-0 z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`;
       }
-      stickyStyle = { left };
-      stickyClass = `sticky left-0 z-[51] bg-muted shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`;
     }
 
     return (
@@ -259,25 +267,32 @@ const DataTableCell = React.forwardRef<HTMLTableCellElement, DataTableCellProps 
     let stickyStyle = {};
     let stickyClass = "";
     if (typeof colIndex === "number" && frozenColumns.includes(colIndex)) {
-      // Calculate left offset by summing widths of previous frozen columns
-      let left = 0;
-      for (let i = 0; i < colIndex; ++i) {
-        if (frozenColumns.includes(i)) {
-          const width = columnWidths[i];
-          if (typeof width === "number") left += width;
-          else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
-          else if (typeof width === "string") left += parseInt(width); // fallback
+      // Only apply complex sticky positioning if we have explicit column widths
+      if (columnWidths.length > 0) {
+        // Calculate left offset by summing widths of previous frozen columns
+        let left = 0;
+        for (let i = 0; i < colIndex; ++i) {
+          if (frozenColumns.includes(i)) {
+            const width = columnWidths[i];
+            if (typeof width === "number") left += width;
+            else if (typeof width === "string" && width.endsWith("px")) left += parseInt(width);
+            else if (typeof width === "string") left += parseInt(width); // fallback
+          }
         }
+        stickyStyle = { left };
+        stickyClass = `sticky z-[35] bg-gray-100 dark:bg-neutral-800`;
+      } else {
+        // For natural table-auto layout, use simpler sticky positioning
+        stickyStyle = { left: 0 };
+        stickyClass = `sticky z-[35] bg-gray-100 dark:bg-neutral-800`;
       }
-      stickyStyle = { left };
-      stickyClass = `sticky z-[35] bg-gray-100 dark:bg-neutral-800`;
     }
     return (
       <td
         ref={ref}
         rowSpan={rowSpan}
         colSpan={colSpan}
-        style={{ ...stickyStyle, minWidth: colIndex === 0 ? "60px" : undefined }} // Adjust freeze column width
+        style={stickyStyle}
         className={cn(
           density === "compact" && "py-0.5 px-1",
           density === "default" && "py-1 px-2",

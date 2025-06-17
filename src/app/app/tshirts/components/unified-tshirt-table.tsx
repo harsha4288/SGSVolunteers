@@ -112,21 +112,14 @@ export function UnifiedTShirtTable({
     );
   }
 
-  // Construct columnWidths array for DataTable prop
-  const colWidths: (string | number)[] = ["100px", "50px"]; // Changed from 120px
-  if (isAdmin) {
-    colWidths.push("80px");
-  }
-  displaySizes.forEach(() => colWidths.push("60px"));
-
   return (
-    <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]} columnWidths={colWidths}>
+    <DataTable maxHeight="calc(100vh - 300px)" frozenColumns={[0]}>
       <DataTableColGroup>
-        <DataTableCol width="100px" />{/* Volunteer - Changed from 120px */}
-        <DataTableCol width="50px" />{/* Max */}
-        {isAdmin && <DataTableCol width="80px" />}
+        <DataTableCol />{/* Volunteer - flexible width */}
+        <DataTableCol />{/* Max */}
+        {isAdmin && <DataTableCol />}
         {displaySizes.map((size) => (
-          <DataTableCol key={size.size_cd} width="60px" />
+          <DataTableCol key={size.size_cd} />
         ))}
       </DataTableColGroup>
 
@@ -173,11 +166,9 @@ export function UnifiedTShirtTable({
           return (
             <DataTableRow key={volunteer.id}>
               <DataTableCell
-                className="font-medium px-3"
+                className="font-medium px-3" // No width constraints - let content determine size
                 vAlign="middle"
-                overflowHandling="tooltip"
-                tooltipContent={`${volunteer.first_name} ${volunteer.last_name}`}
-                colIndex={0} // Added colIndex for the frozen column
+                colIndex={0}
               ><div className="flex flex-col">
                   <span className={volunteer.id === currentVolunteerId ? "font-bold text-primary text-sm" : "text-sm"}>
                     {volunteer.first_name} {volunteer.last_name}
