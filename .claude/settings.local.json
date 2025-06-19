@@ -10,6 +10,14 @@
       "Bash(grep:*)",
       "Bash(find:*)"
     ],
+	{
+	  "allowed_commands": ["infinite", "project:infinite"],
+	  "permissions": {
+		"write_files": true,
+		"read_files": true,
+		"execute_commands": false
+	  }
+	},
     "deny": []
   }
 }
