@@ -1,0 +1,242 @@
+/* Solution 7: Context-Aware Responsive DataTable Styles */
+
+.contextual-datatable {
+  --content-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --expansion-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Content-aware truncation */
+.contextual-datatable td[data-long-content="true"] {
+  max-width: 200px;
+  position: relative;
+}
+
+.contextual-datatable td[data-long-content="true"] > span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: var(--content-transition);
+}
+
+.contextual-datatable td[data-long-content="true"]:hover > span {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  position: absolute;
+  z-index: 50;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+/* Condensed layout styles */
+.contextual-condensed {
+  --row-spacing: 0.5rem;
+}
+
+.contextual-condensed table {
+  table-layout: fixed;
+}
+
+.contextual-condensed td,
+.contextual-condensed th {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.contextual-condensed .expandable-row {
+  cursor: pointer;
+  transition: var(--expansion-transition);
+}
+
+.contextual-condensed .expandable-row:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.contextual-condensed .expansion-button {
+  transition: transform 0.2s ease;
+}
+
+.contextual-condensed .expansion-button[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+/* Expanded content area */
+.contextual-condensed .expanded-content {
+  background: hsl(var(--muted) / 0.3);
+  border-top: 1px solid hsl(var(--border));
+  animation: expandContent 0.3s ease-out;
+}
+
+@keyframes expandContent {
+  from {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+/* Column grouping */
+.contextual-condensed .column-group {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.contextual-condensed .column-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.contextual-condensed .column-group-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.contextual-condensed .column-group-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.contextual-condensed .field-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+.contextual-condensed .field-item:last-child {
+  border-bottom: none;
+}
+
+.contextual-condensed .field-label {
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.contextual-condensed .field-value {
+  font-size: 0.875rem;
+  text-align: right;
+  max-width: 150px;
+}
+
+/* Layout mode indicator */
+.contextual-datatable .layout-indicator {
+  background: linear-gradient(90deg, 
+    hsl(var(--primary) / 0.1) 0%, 
+    hsl(var(--primary) / 0.05) 100%);
+  border-bottom: 1px solid hsl(var(--primary) / 0.2);
+}
+
+.contextual-datatable .layout-toggle {
+  transition: all 0.2s ease;
+}
+
+.contextual-datatable .layout-toggle:hover {
+  background: hsl(var(--primary) / 0.1);
+  transform: translateY(-1px);
+}
+
+/* Content metrics display */
+.contextual-datatable .content-metrics {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground) / 0.8);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .contextual-condensed .column-group-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .contextual-condensed .field-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .contextual-condensed .field-value {
+    text-align: left;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .contextual-datatable {
+    font-size: 0.8125rem;
+  }
+  
+  .contextual-condensed td,
+  .contextual-condensed th {
+    padding: 0.125rem 0.25rem;
+  }
+  
+  .contextual-condensed .column-group {
+    padding: 0.75rem;
+  }
+}
+
+/* Accessibility improvements */
+.contextual-datatable [data-long-content="true"]:focus-within > span {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--ring));
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  position: absolute;
+  z-index: 50;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+/* Smooth scrolling for content areas */
+.contextual-datatable .overflow-auto {
+  scroll-behavior: smooth;
+}
+
+.contextual-datatable .overflow-auto::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.contextual-datatable .overflow-auto::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 3px;
+}
+
+.contextual-datatable .overflow-auto::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.contextual-datatable .overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}

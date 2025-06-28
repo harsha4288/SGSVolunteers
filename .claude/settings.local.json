@@ -1,23 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rg:*)",
-      "Bash(npm run dev:*)",
-      "Bash(lsof:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npx next build:*)",
+      "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(rg:*)",
+      "Bash(cp:*)"
     ],
-	{
-	  "allowed_commands": ["infinite", "project:infinite"],
-	  "permissions": {
-		"write_files": true,
-		"read_files": true,
-		"execute_commands": false
-	  }
-	},
     "deny": []
   }
 }

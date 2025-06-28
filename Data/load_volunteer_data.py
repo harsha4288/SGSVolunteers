@@ -2,6 +2,7 @@ import pandas as pd
 from supabase import create_client, Client
 import os
 import re
+import argparse
 
 # Supabase connection details
 SUPABASE_URL = "https://itnuxwdxpzdjlfwlvjyz.supabase.co"
@@ -10,16 +11,16 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# List of Excel files to process
-EXCEL_FILES = [
-    "Data/2025.xlsx"
+# Default Excel files to process (can be overridden by parameters)
+DEFAULT_EXCEL_FILES = [
+    "2025.xlsx"
 ]
-SHEET_NAME = "Report Data"
+DEFAULT_SHEET_NAME = "Report Data"
 
 # Define column mapping from Excel to Supabase table fields
 COLUMN_MAPPING = {
     "Seva": "seva",
-    "Email": "email",
+    "Email Address": "email",  # Updated from "Email" to "Email Address"
     "First Name": "first_name",
     "Last Name": "last_name",
     "Phone": "phone",
@@ -27,30 +28,36 @@ COLUMN_MAPPING = {
     "Region": "region",
     "Association": "association",
     "Gender": "gender",
-    "Total": "total"
+    "Total": "total",
+    # "Batch": "batch",  # Column exists in Excel but not in database table yet
+    "Year": "year"
 }
 
-def load_data_to_supabase():
+def extract_year_from_filename(filename):
+    """Extract year from filename if it contains a 4-digit year (e.g., 2025)"""
+    year_match = re.search(r'(20\d{2})', filename)
+    if year_match:
+        return int(year_match.group(1))
+    return None
+
+def load_data_to_supabase(excel_files=None, sheet_name=None):
     print("Starting data migration to Supabase...")
-
-    for file_path in EXCEL_FILES:
+    
+    # Use provided parameters or defaults
+    files_to_process = excel_files if excel_files else DEFAULT_EXCEL_FILES
+    sheet_to_use = sheet_name if sheet_name else DEFAULT_SHEET_NAME
+    
+    for file_path in files_to_process:
         try:
-            # Extract year from filename
             file_name = os.path.basename(file_path)
-            year_match = re.search(r'(\d{4})\.xlsx', file_name)
-            if not year_match:
-                print(f"Skipping {file_path}: Could not extract year from filename.")
-                continue
-            year = int(year_match.group(1))
-
-            print(f"Processing file: {file_path} for year {year}")
+            print(f"Processing file: {file_path}")
 
             # Read the Excel sheet
             try:
-                df = pd.read_excel(file_path, sheet_name=SHEET_NAME)
+                df = pd.read_excel(file_path, sheet_name=sheet_to_use)
             except ValueError as ve:
-                if "Worksheet named 'Report Data' not found" in str(ve):
-                    print(f"Sheet '{SHEET_NAME}' not found in {file_path}. Attempting to list available sheets...")
+                if "Worksheet named" in str(ve) and "not found" in str(ve):
+                    print(f"Sheet '{sheet_to_use}' not found in {file_path}. Attempting to list available sheets...")
                     xls = pd.ExcelFile(file_path)
                     available_sheets = xls.sheet_names
                     print(f"Available sheets in {file_path}: {available_sheets}")
@@ -71,12 +78,21 @@ def load_data_to_supabase():
             # Rename columns
             df = df.rename(columns=COLUMN_MAPPING)
 
-            # Add the 'year' column
-            df['year'] = year
+            # Check for 'year' column and auto-populate if missing
+            if 'year' not in df.columns:
+                print(f"Warning: 'year' column not found in {file_path}.")
+                # Try to extract year from filename
+                extracted_year = extract_year_from_filename(file_name)
+                if extracted_year:
+                    print(f"Auto-populating year field with {extracted_year} from filename.")
+                    df['year'] = extracted_year
+                else:
+                    print(f"No year found in filename. Skipping this file.")
+                    continue
 
             # Robust cleaning for all columns to handle NaN, inf, -inf, and ensure JSON compliance
             for col in df.columns:
-                # Skip 'year' column from this general numeric cleaning as it's already an integer
+                # Skip 'year' column from this general numeric cleaning as it's already present
                 if col == 'year':
                     continue
 
@@ -93,20 +109,58 @@ def load_data_to_supabase():
                 elif df[col].dtype == 'object':
                     df[col] = df[col].apply(lambda x: None if isinstance(x, float) and (pd.isna(x) or x == float('inf') or x == float('-inf')) else x)
 
-
-            # The 'total' column specific handling for integer conversion
-            # This should now be safe as all numeric columns are cleaned.
-            df['total'] = df['total'].apply(lambda x: int(x) if pd.notna(x) and isinstance(x, (int, float)) and x == int(x) else (None if pd.isna(x) else x))
+            # The 'total' and 'year' columns specific handling for integer conversion
+            def safe_int(val):
+                if pd.isna(val):
+                    return None
+                if isinstance(val, int):
+                    return val
+                if isinstance(val, float):
+                    return int(val) if val.is_integer() else None
+                if isinstance(val, str):
+                    val_strip = val.strip()
+                    try:
+                        f = float(val_strip)
+                        if f.is_integer():
+                            return int(f)
+                        else:
+                            return None
+                    except Exception:
+                        return None
+                return None
+            for col in ['total', 'year']:
+                if col in df.columns:
+                    df[col] = df[col].apply(safe_int)
+                    # Explicitly cast to nullable integer dtype to enforce int/None
+                    df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
             # The final df.where(pd.notna(df), None) is a good safeguard, but should be less necessary now.
+            df = df.replace([float('inf'), float('-inf')], None)
             df = df.where(pd.notna(df), None)
 
             # Select only the columns that exist in our Supabase table
-            target_columns = list(COLUMN_MAPPING.values()) + ['year']
+            target_columns = list(COLUMN_MAPPING.values())
             df_to_insert = df[df.columns.intersection(target_columns)]
 
             # Convert DataFrame to a list of dictionaries (JSON records)
             records = df_to_insert.to_dict(orient='records')
+            # Remove any remaining out-of-range float values from records
+            import math
+            def clean_json_record(record):
+                for k, v in record.items():
+                    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                        record[k] = None
+                return record
+            records = [clean_json_record(r) for r in records]
+
+            # Final check: remove any records where 'total' or 'year' is still a string (should not happen)
+            cleaned_records = []
+            for rec in records:
+                if (isinstance(rec.get('total'), str) and rec.get('total')) or (isinstance(rec.get('year'), str) and rec.get('year')):
+                    print(f"Warning: Skipping record with invalid integer value: {rec}")
+                    continue
+                cleaned_records.append(rec)
+            records = cleaned_records
 
             # Filter out any records where 'email' is missing or empty
             records_to_insert = [
@@ -118,22 +172,25 @@ def load_data_to_supabase():
                 print(f"No valid records found in {file_path} to insert after filtering.")
                 continue
 
-            # Insert data into Supabase using upsert on (email, year)
+            # Insert data into Supabase
+            print(f"Attempting to insert {len(records_to_insert)} records...")
             response = supabase.table('volunteer_data_historical').insert(records_to_insert).execute()
 
             inserted_count = 0
-            error_details = None
             if response.data:
                 inserted_count = len(response.data)
                 print(f"Successfully inserted {inserted_count} records from {file_path}.")
-            elif response.error:
-                error_details = response.error
-                print(f"Error inserting data from {file_path}:")
-                print(f"  Message: {error_details.get('message', 'N/A')}")
-                print(f"  Code: {error_details.get('code', 'N/A')}")
-                print(f"  Hint: {error_details.get('hint', 'N/A')}")
-                print(f"  Details: {error_details.get('details', 'N/A')}")
-                print(f"  No records were inserted from {file_path} due to the error.")
+                
+                # Check year distribution of inserted records
+                year_counts = {}
+                for record in response.data:
+                    year = record.get('year')
+                    year_counts[year] = year_counts.get(year, 0) + 1
+                print(f"Inserted records by year:")
+                for year, count in sorted(year_counts.items()):
+                    print(f"  {year}: {count} records")
+            else:
+                print(f"No data returned from insert operation for {file_path}.")
 
         except FileNotFoundError:
             print(f"Error: Excel file not found at {file_path}. Skipping.")
@@ -145,4 +202,13 @@ def load_data_to_supabase():
     print("Data migration process completed.")
 
 if __name__ == "__main__":
-    load_data_to_supabase()
+    parser = argparse.ArgumentParser(description='Load volunteer data to Supabase')
+    parser.add_argument('--file', '-f', type=str, help='Excel file name to process')
+    parser.add_argument('--sheet', '-s', type=str, help='Sheet name to process')
+    
+    args = parser.parse_args()
+    
+    excel_files = [args.file] if args.file else None
+    sheet_name = args.sheet if args.sheet else None
+    
+    load_data_to_supabase(excel_files=excel_files, sheet_name=sheet_name)
