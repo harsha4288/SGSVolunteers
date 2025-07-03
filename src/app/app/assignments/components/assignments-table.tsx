@@ -50,7 +50,7 @@ export function AssignmentsTable({
   const [checkInLoading, setCheckInLoading] = React.useState<Record<string, boolean>>({});
 
   // Use the custom hook for assignments
-  const { assignments, isLoading, error } = useAssignments({
+  const { assignments, isLoading, error, refreshAssignments } = useAssignments({
     supabase,
     selectedEvent,
     selectedSevaId,
@@ -167,6 +167,9 @@ export function AssignmentsTable({
         title: status === "checked_in" ? "Checked In" : "Marked as Absent",
         description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name} has been ${status === "checked_in" ? "checked in" : "marked as absent"}.`
       });
+
+      // Refresh assignments to update UI
+      await refreshAssignments();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -201,6 +204,9 @@ export function AssignmentsTable({
         title: "Attendance Reverted",
         description: `${assignment.volunteer.first_name} ${assignment.volunteer.last_name}'s attendance has been reverted to pending.`
       });
+
+      // Refresh assignments to update UI
+      await refreshAssignments();
     } catch (error: any) {
       toast({
         title: "Error",

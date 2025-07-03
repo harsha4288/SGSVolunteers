@@ -260,7 +260,7 @@ export const TShirtsTableDemo: React.FC = () => {
           enableContentMeasurement: true,
           firstColumnMaxWidth: 300,
           firstColumnMinWidth: 200,
-          otherColumnsMinWidth: 60,
+          otherColumnsMinWidth: 70,
           measurementDebounce: 100
         }}
         frozenColumns={[0]}
@@ -275,7 +275,7 @@ export const TShirtsTableDemo: React.FC = () => {
             <DataTableHead align="center" colIndex={1} rowSpan={2} className="font-semibold text-xs">
               Max
             </DataTableHead>
-            <DataTableHead align="center" colSpan={7} className="font-semibold text-xs border-b">
+            <DataTableHead align="center" colIndex={2} colSpan={7} className="font-semibold text-xs border-b">
               Issued
             </DataTableHead>
           </DataTableRow>
@@ -316,8 +316,8 @@ export const TShirtsTableDemo: React.FC = () => {
                   ) : (index + sizeIndex) % 7 === 0 ? (
                     <span className="font-medium text-sm">2</span>
                   ) : (
-                    <button className="w-6 h-6 rounded border border-dashed border-muted-foreground/50 hover:border-primary hover:bg-primary/10 transition-colors">
-                      <span className="text-xs">👕</span>
+                    <button className="w-7 h-7 rounded border border-dashed border-muted-foreground/50 hover:border-primary hover:bg-primary/10 transition-colors flex items-center justify-center">
+                      <span className="text-sm leading-none">👕</span>
                     </button>
                   )}
                 </DataTableCell>

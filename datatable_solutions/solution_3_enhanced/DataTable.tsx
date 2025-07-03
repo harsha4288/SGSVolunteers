@@ -310,10 +310,15 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
         );
         
         if (columnCells.length > 0) {
-          // Use the browser's natural width calculation after KISS approach
-          const firstCell = columnCells[0] as HTMLElement;
-          const naturalWidth = firstCell.offsetWidth || firstCell.getBoundingClientRect().width;
-          cumulativeOffset += naturalWidth || 150; // Minimal fallback only
+          const maxWidth = Math.max(
+            ...columnCells.map(cell => {
+              const element = cell as HTMLElement;
+              // Get actual computed width, fallback to reasonable defaults
+              const computedWidth = element.getBoundingClientRect().width;
+              return computedWidth || (columnIndex === 0 ? 200 : 70);
+            })
+          );
+          cumulativeOffset += maxWidth;
         }
       });
 
@@ -325,9 +330,7 @@ const DataTable = React.forwardRef<HTMLDivElement, DataTableProps>(
         if (frozenColumns.includes(columnIndex)) {
           cellElement.style.position = 'sticky';
           cellElement.style.left = `${frozenColumnOffsets[columnIndex]}px`;
-          // Headers need higher z-index to prevent overlap with frozen columns
-          const isHeader = cellElement.tagName.toLowerCase() === 'th';
-          cellElement.style.zIndex = isHeader ? '51' : (columnIndex === 0 ? '51' : '50');
+          cellElement.style.zIndex = columnIndex === 0 ? '51' : '50';
           cellElement.style.backgroundColor = 'hsl(var(--background))';
           cellElement.style.borderRight = '1px solid hsl(var(--border))';
           cellElement.classList.add('sticky-column');

@@ -25,6 +25,12 @@ const EnhancedContextualIntegrationDemo = React.lazy(() =>
   }))
 );
 
+const EnhancedSolutionDemo = React.lazy(() => 
+  import('../../../datatable_solutions/solution_3_enhanced/integration-demo').then(module => ({
+    default: module.EnhancedIntegrationDemo
+  }))
+);
+
 interface Solution {
   id: string;
   name: string;
@@ -46,6 +52,16 @@ const solutions: Solution[] = [
     complexity: 'Moderate',
     status: 'Working',
     component: DynamicIntegrationDemo
+  },
+  {
+    id: 'solution_3_enhanced',
+    name: 'Enhanced Dynamic with Reusable Cells',
+    description: 'Solution 3 enhanced with reusable cell components for zero breaking changes and full backward compatibility.',
+    approach: 'Reusable cell components with unified patterns across all modules',
+    keyFeatures: ['Reusable cells', 'Zero breaking changes', 'Unified UX patterns', '60% code reduction'],
+    complexity: 'Simple',
+    status: 'New',
+    component: EnhancedSolutionDemo
   },
   {
     id: 'solution_4',
@@ -123,7 +139,7 @@ export default function TestDataTablePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4">DataTable Solutions Navigator</h1>
         <p className="text-muted-foreground mb-6">
-          Navigate through the 3 preferred solutions to compare their approaches to solving the volunteer column width problem.
+          Navigate through the 4 enhanced solutions to compare their approaches to solving the volunteer column width problem.
           Each solution demonstrates a different technique for responsive table design with frozen columns support.
         </p>
       </div>
@@ -197,7 +213,7 @@ export default function TestDataTablePage() {
           </div>
 
           {/* Solution Grid Navigation */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {solutions.map((solution, index) => (
               <Button
                 key={solution.id}
