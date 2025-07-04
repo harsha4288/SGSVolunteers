@@ -92,9 +92,10 @@ export function useRequirementsData({ userRole, userSevaCategoryIds = [] }: UseR
         );
 
         const total_required_count = requirementsForCell.reduce((sum, r) => sum + r.required_count, 0);
-        // Calculate total_assigned_count by aggregating all assignment counts in this cell
-        // Note: Each requirement may have its own assigned_count based on location
-        const total_assigned_count = requirementsForCell.reduce((sum, r) => sum + (r.assigned_count || 0), 0);
+        // Calculate total_assigned_count - since assignments are per seva_category + timeslot (not per location),
+        // all requirements in this cell should have the same assigned_count, so we take it from the first requirement
+        // to avoid double-counting the same volunteers across multiple location-based requirements
+        const total_assigned_count = requirementsForCell.length > 0 ? (requirementsForCell[0].assigned_count || 0) : 0;
 
         const variance = total_assigned_count - total_required_count;
         const fulfillment_rate = total_required_count > 0 ? (total_assigned_count / total_required_count) * 100 : 0;
