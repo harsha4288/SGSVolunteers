@@ -9,6 +9,7 @@ import {
   ListChecks,
   BarChart2,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 
 export const SITE_CONFIG = {
@@ -37,6 +38,12 @@ export const APP_NAV_ITEMS: NavItem[] = [
     title: "T-Shirts",
     href: "/app/tshirts",
     icon: Shirt,
+  },
+  {
+    title: "Volunteers",
+    href: "/app/volunteers",
+    icon: Users,
+    adminOnly: true,
   },
   {
     title: "Ask AI",

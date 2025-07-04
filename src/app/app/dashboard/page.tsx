@@ -1,74 +1,90 @@
 // src/app/app/dashboard/page.tsx
 "use client";
 
-import * as React from 'react';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatCard } from './components/stat-card';
-import { AlertsFaqsPanel } from './components/alerts-faqs-panel';
-import { useDashboardStats } from './hooks/use-dashboard-stats';
-import { Users, ListChecks, BarChartHorizontal, AlertCircle } from 'lucide-react'; // Added AlertCircle
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added Alert components
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { RoleBasedDashboard } from "./components/role-based-dashboard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function DashboardPage() {
-  const { stats, loading: loadingStats, error: statsError } = useDashboardStats(); // Added error state
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  return (
-    <div className="container mx-auto py-3 px-2 space-y-4">
-      {/* Header Card (Optional, can be part of layout) */}
-      <Card className="mb-4">
-        <CardHeader>
-            <CardTitle>Volunteer Dashboard</CardTitle>
-            <CardDescription>Overview of volunteer activities and system status.</CardDescription>
-        </CardHeader>
-      </Card>
+  useEffect(() => {
+    async function fetchProfileId() {
+      try {
+        const supabase = createClient();
+        
+        // Check for impersonation first (like in profile page)
+        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
+        
+        if (impersonatedProfileId) {
+          setProfileId(impersonatedProfileId);
+          return;
+        }
 
-      {/* Display error if stats fetching failed */}
-      {statsError && (
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          throw new Error("User not authenticated");
+        }
+
+        // Get profile ID from profiles table using auth_user_id
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("auth_user_id", user.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error("Profile not found");
+        }
+
+        setProfileId(profile.id);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setError(err instanceof Error ? err.message : "Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfileId();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-3 px-2 space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (error || !profileId) {
+    return (
+      <div className="container mx-auto py-3 px-2">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Stats</AlertTitle>
-          <AlertDescription>{statsError}</AlertDescription>
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error || "Failed to load dashboard"}</AlertDescription>
         </Alert>
-      )}
-
-      {/* Grid for StatCards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Total Volunteers"
-          value={stats.totalVolunteers}
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          description="Registered and active"
-          loading={loadingStats}
-        />
-        <StatCard
-          title="Tasks Filled"
-          value={`${stats.tasksFilledPercentage}%`}
-          icon={<ListChecks className="h-4 w-4 text-muted-foreground" />}
-          description="Percentage of required spots filled"
-          loading={loadingStats}
-        />
-        <StatCard
-          title="Overall Attendance"
-          value={`${stats.overallAttendancePercentage}%`}
-          icon={<BarChartHorizontal className="h-4 w-4 text-muted-foreground" />}
-          description="Attendance rate across all tasks"
-          loading={loadingStats}
-        />
-        {/* Add more StatCards as needed */}
       </div>
+    );
+  }
 
-      {/* Alerts and FAQs Panel */}
-      <div>
-        <AlertsFaqsPanel />
-      </div>
-      
-      {/* Placeholder for more dashboard components */}
-      {/* 
-      <Card>
-        <CardHeader><CardTitle>Activity Feed</CardTitle></CardHeader>
-        <CardContent><p className="text-muted-foreground">Future location for activity logs or charts...</p></CardContent>
-      </Card>
-      */}
+  return (
+    <div className="container mx-auto py-3 px-2">
+      <RoleBasedDashboard profileId={profileId} />
     </div>
   );
 }
