@@ -86,22 +86,44 @@ export async function POST(req: NextRequest) {
             break;
           }
 
-          const commitmentsQuery = supabase
-            .from('volunteer_commitments')
-            .select('volunteer_id', { count: 'exact', head: parsedResult.countOnly });
-
-          commitmentsQuery.eq('seva_category_id', sevaCatData.id);
-
-          if (!parsedResult.countOnly) {
-            // If we need details, this becomes more complex, requiring a join with volunteers table
-            // For now, let's return count or a message indicating details require more setup.
-            const { data: commitData, error: commitErr, count } = await commitmentsQuery;
-             if (commitErr) throw commitErr;
-            data = `There are ${count} commitments for ${parsedResult.sevaCategory}. Fetching detailed list is not fully supported yet by Ask AI.`;
+          if (parsedResult.countOnly) {
+            // Get unique volunteer count for this seva category
+            const { data: commitData, error: commitErr } = await supabase
+              .from('volunteer_commitments')
+              .select('volunteer_id')
+              .eq('seva_category_id', sevaCatData.id);
+            
+            if (commitErr) throw commitErr;
+            
+            const uniqueVolunteers = new Set(commitData?.map(c => c.volunteer_id) || []);
+            data = `There are ${uniqueVolunteers.size} volunteers assigned to ${parsedResult.sevaCategory}.`;
           } else {
-             const { count, error: commitErr } = await commitmentsQuery;
-             if (commitErr) throw commitErr;
-             data = `There are ${count} volunteers assigned to ${parsedResult.sevaCategory}.`;
+            // Get volunteer details for this seva category
+            const { data: commitData, error: commitErr } = await supabase
+              .from('volunteer_commitments')
+              .select(`
+                volunteer_id,
+                volunteers!inner(first_name, last_name, email)
+              `)
+              .eq('seva_category_id', sevaCatData.id);
+            
+            if (commitErr) throw commitErr;
+            
+            if (commitData && commitData.length > 0) {
+              // Get unique volunteers
+              const uniqueVolunteers = new Map();
+              commitData.forEach((commitment: any) => {
+                const volunteer = commitment.volunteers;
+                if (volunteer) {
+                  uniqueVolunteers.set(volunteer.email, `${volunteer.first_name} ${volunteer.last_name}`);
+                }
+              });
+              
+              const volunteerList = Array.from(uniqueVolunteers.values()).join(', ');
+              data = `Volunteers assigned to ${parsedResult.sevaCategory}: ${volunteerList}`;
+            } else {
+              data = `No volunteers found for ${parsedResult.sevaCategory}.`;
+            }
           }
 
         } else { // General volunteer stats without specific seva
@@ -111,28 +133,32 @@ export async function POST(req: NextRequest) {
             !parsedResult.studentBatch;
 
           if (isSevaBreakdownRequest) {
-            // Get volunteer count by seva category
+            // Get volunteer count by seva category using a more efficient query
             const { data: sevaData, error: sevaError } = await supabase
               .from('volunteer_commitments')
               .select(`
-                seva_category_id,
+                volunteer_id,
                 seva_categories!inner(category_name)
               `);
 
             if (sevaError) throw sevaError;
 
             if (sevaData && sevaData.length > 0) {
-              // Count volunteers by seva category
-              const sevaCounts: { [key: string]: number } = {};
+              // Count unique volunteers by seva category
+              const sevaCounts: { [key: string]: Set<string> } = {};
               sevaData.forEach((commitment: any) => {
                 const sevaName = commitment.seva_categories?.category_name;
                 if (sevaName) {
-                  sevaCounts[sevaName] = (sevaCounts[sevaName] || 0) + 1;
+                  if (!sevaCounts[sevaName]) {
+                    sevaCounts[sevaName] = new Set();
+                  }
+                  sevaCounts[sevaName].add(commitment.volunteer_id);
                 }
               });
 
               const sevaBreakdown = Object.entries(sevaCounts)
-                .map(([seva, count]) => `${seva}: ${count}`)
+                .map(([seva, volunteerSet]) => `${seva}: ${volunteerSet.size}`)
+                .sort((a, b) => b.split(': ')[1] - a.split(': ')[1])
                 .join('\n');
 
               data = `Volunteer count by seva category:\n${sevaBreakdown}`;
@@ -167,20 +193,80 @@ export async function POST(req: NextRequest) {
         break;
 
       case 'CHECK_IN_STATS':
-        // This also requires careful handling of dates (e.g., 'today', 'yesterday')
-        // For simplicity, we'll assume a YYYY-MM-DD format or pass it through.
-        // A robust solution would convert 'today', 'yesterday' to actual dates.
+        // Handle date parsing for 'today', 'yesterday', and ISO dates
         let checkInQuery = supabase.from('volunteer_check_ins').select('*', { count: 'exact' });
         if (parsedResult.date) {
-          // This is a simplified date handling. Needs improvement for 'today', 'yesterday'.
-          // E.g., if date is 'today', convert to YYYY-MM-DD.
-          // For now, assumes date is directly queryable if provided.
-          // checkInQuery = checkInQuery.gte('check_in_time', `${parsedResult.date}T00:00:00Z`)
-          //                        .lte('check_in_time', `${parsedResult.date}T23:59:59Z`);
-           data = "Querying check-ins by specific date is not fully implemented yet. Try asking for general check-in counts.";
+          // Convert 'today', 'yesterday' to ISO date format
+          let targetDate: string;
+          const today = new Date();
+          
+          if (parsedResult.date.toLowerCase() === 'today') {
+            targetDate = today.toISOString().split('T')[0];
+          } else if (parsedResult.date.toLowerCase() === 'yesterday') {
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            targetDate = yesterday.toISOString().split('T')[0];
+          } else {
+            // Assume it's already in YYYY-MM-DD format or similar
+            targetDate = parsedResult.date;
+          }
+          
+          // Query for check-ins on the specific date
+          checkInQuery = checkInQuery
+            .gte('check_in_time', `${targetDate}T00:00:00Z`)
+            .lte('check_in_time', `${targetDate}T23:59:59Z`);
+            
+          if (parsedResult.countOnly) {
+            const { count, error } = await checkInQuery;
+            if (error) throw error;
+            data = `There are ${count} check-ins for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}.`;
+          } else {
+            const { data: checkInData, error } = await checkInQuery
+              .select('*, volunteers(first_name, last_name)')
+              .order('check_in_time', { ascending: false })
+              .limit(10);
+            if (error) throw error;
+            if (checkInData && checkInData.length > 0) {
+              const checkInList = checkInData.map((checkin: any) => 
+                `${checkin.volunteers?.first_name || 'Unknown'} ${checkin.volunteers?.last_name || 'Volunteer'} - ${new Date(checkin.check_in_time).toLocaleTimeString()}`
+              ).join('\n');
+              data = `Check-ins for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}:\n${checkInList}`;
+            } else {
+              data = `No check-ins found for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}.`;
+            }
+          }
         } else if (parsedResult.volunteerName) {
-          // Requires joining with 'volunteers' table by name
-          data = `Checking status for ${parsedResult.volunteerName} is not fully supported yet.`;
+          // Find volunteer by name and get their check-ins
+          const { data: volunteerData, error: volunteerError } = await supabase
+            .from('volunteers')
+            .select('id, first_name, last_name')
+            .or(`first_name.ilike.%${parsedResult.volunteerName}%,last_name.ilike.%${parsedResult.volunteerName}%`)
+            .limit(1);
+            
+          if (volunteerError) throw volunteerError;
+          
+          if (volunteerData && volunteerData.length > 0) {
+            const volunteer = volunteerData[0];
+            const { data: checkInData, error: checkInError } = await supabase
+              .from('volunteer_check_ins')
+              .select('check_in_time, check_out_time')
+              .eq('volunteer_id', volunteer.id)
+              .order('check_in_time', { ascending: false })
+              .limit(5);
+              
+            if (checkInError) throw checkInError;
+            
+            if (checkInData && checkInData.length > 0) {
+              const recentCheckIns = checkInData.map(checkin => 
+                `${new Date(checkin.check_in_time).toLocaleString()}${checkin.check_out_time ? ' - ' + new Date(checkin.check_out_time).toLocaleString() : ' (still checked in)'}`
+              ).join('\n');
+              data = `Recent check-ins for ${volunteer.first_name} ${volunteer.last_name}:\n${recentCheckIns}`;
+            } else {
+              data = `No check-in records found for ${volunteer.first_name} ${volunteer.last_name}.`;
+            }
+          } else {
+            data = `Could not find volunteer with name "${parsedResult.volunteerName}".`;
+          }
         } else {
            if (parsedResult.countOnly) {
             const { count, error } = await checkInQuery;
@@ -200,7 +286,25 @@ export async function POST(req: NextRequest) {
 
       case 'UNRECOGNIZED':
       default:
-        data = "I'm sorry, I didn't understand that. Could you please rephrase your question? I can help with T-shirt inventory, volunteer statistics, and check-in information.";
+        data = `I'm sorry, I didn't understand that question. Here's what I can help you with:
+
+📦 **T-shirt Inventory**
+• "How many large T-shirts are left?"
+• "What's the stock for M size t-shirts?"
+• "Show me all t-shirt inventory"
+
+👥 **Volunteer Statistics**
+• "How many volunteers do we have?"
+• "Give me volunteer count by seva category"
+• "List volunteers in Registration seva"
+• "How many GM family volunteers are there?"
+
+✅ **Check-in Information**
+• "How many volunteers checked in today?"
+• "Who checked in yesterday?"
+• "Check-in status for John Smith"
+
+Try asking your question in a different way, or use one of these examples!`;
         break;
     }
 
@@ -208,8 +312,20 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Error in Ask AI API:', error);
-    // More specific error handling based on error type if needed
-    const reply = "Sorry, I encountered an error while processing your request. " + (error.message || "");
+    
+    // Provide user-friendly error messages based on error type
+    let reply = "Sorry, I encountered an error while processing your request. ";
+    
+    if (error.message?.includes('API key')) {
+      reply += "The AI service may be temporarily unavailable. Please try again later.";
+    } else if (error.message?.includes('PGRST')) {
+      reply += "There was an issue accessing the database. Please try again.";
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      reply += "There was a network issue. Please check your connection and try again.";
+    } else {
+      reply += "Please try rephrasing your question or contact support if the issue persists.";
+    }
+    
     return NextResponse.json({ reply }, { status: 500 });
   }
 }

@@ -13,7 +13,19 @@ interface Message {
 }
 
 export default function AiChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      text: `Welcome to Ask AI! I can help you with:
+
+📦 **T-shirt Inventory** - Check stock levels and availability
+👥 **Volunteer Statistics** - Get counts and lists by seva category
+✅ **Check-in Information** - View check-in data and status
+
+Try asking: "How many volunteers do we have?" or "Show me t-shirt inventory"`,
+      sender: 'bot'
+    }
+  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
