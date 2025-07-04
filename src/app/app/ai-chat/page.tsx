@@ -5,25 +5,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  TShirtInventoryResponse,
+  VolunteerStatsResponse,
+  SevaCategoryStatsResponse,
+  CheckInResponse,
+  ErrorResponse,
+  HelpResponse
+} from './components/response-formatters';
 
 interface Message {
   id: string;
-  text: string;
+  text?: string;
+  content?: React.ReactNode;
   sender: "user" | "bot";
+  type?: string;
+  data?: any;
 }
 
 export default function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
-      text: `Welcome to Ask AI! I can help you with:
-
-📦 **T-shirt Inventory** - Check stock levels and availability
-👥 **Volunteer Statistics** - Get counts and lists by seva category
-✅ **Check-in Information** - View check-in data and status
-
-Try asking: "How many volunteers do we have?" or "Show me t-shirt inventory"`,
-      sender: 'bot'
+      content: <HelpResponse />,
+      sender: 'bot',
+      type: 'help'
     }
   ]);
   const [input, setInput] = useState('');
@@ -51,20 +57,81 @@ Try asking: "How many volunteers do we have?" or "Show me t-shirt inventory"`,
         throw new Error(errorData.reply || `Error: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      
+      // Create rich bot message based on response type
       const botMessage: Message = {
         id: Date.now().toString() + '-bot',
-        text: data.reply,
-        sender: "bot"
+        sender: "bot",
+        type: responseData.type || 'text',
+        data: responseData.data
       };
+
+      // Set content based on response type
+      switch (responseData.type) {
+        case 'tshirt_inventory':
+          botMessage.content = (
+            <TShirtInventoryResponse 
+              data={responseData.data.data}
+              title={responseData.data.title}
+            />
+          );
+          break;
+        case 'volunteer_stats':
+          botMessage.content = (
+            <VolunteerStatsResponse 
+              data={responseData.data.data}
+              stats={responseData.data.stats}
+              title={responseData.data.title}
+            />
+          );
+          break;
+        case 'seva_category_stats':
+          botMessage.content = (
+            <SevaCategoryStatsResponse 
+              data={responseData.data.data}
+              title={responseData.data.title}
+            />
+          );
+          break;
+        case 'check_in_stats':
+          botMessage.content = (
+            <CheckInResponse 
+              data={responseData.data.data}
+              title={responseData.data.title}
+              dateContext={responseData.data.dateContext}
+            />
+          );
+          break;
+        case 'error':
+          botMessage.content = (
+            <ErrorResponse 
+              message={responseData.data.message}
+              suggestions={responseData.data.suggestions}
+            />
+          );
+          break;
+        case 'help':
+          botMessage.content = <HelpResponse />;
+          break;
+        default:
+          botMessage.text = responseData.reply || responseData.data;
+      }
+
       setMessages(prevMessages => [...prevMessages, botMessage]);
     } catch (error: any) {
       console.error("Failed to send message:", error);
       const errorMessageText = error.message || "Sorry, I couldn't get a response. Please try again.";
       const errorMessage: Message = {
         id: Date.now().toString() + '-error',
-        text: errorMessageText,
-        sender: "bot"
+        content: (
+          <ErrorResponse 
+            message={errorMessageText}
+            suggestions={['Check your internet connection', 'Try asking a different question', 'Contact support if the issue persists']}
+          />
+        ),
+        sender: "bot",
+        type: 'error'
       };
       setMessages(prevMessages => [...prevMessages, errorMessage]);
     } finally {
@@ -81,15 +148,24 @@ Try asking: "How many volunteers do we have?" or "Show me t-shirt inventory"`,
         <CardContent className="flex-grow overflow-hidden">
           <ScrollArea className="h-full pr-4">
             {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`mb-3 p-3 rounded-lg max-w-[80%] ${
-                  msg.sender === 'user'
-                    ? 'bg-blue-500 text-white self-end ml-auto'
-                    : 'bg-gray-200 text-gray-800 self-start mr-auto'
-                }`}
-              >
-                {msg.text}
+              <div key={msg.id} className="mb-4">
+                {msg.sender === 'user' ? (
+                  <div className="flex justify-end">
+                    <div className="bg-blue-500 text-white p-3 rounded-lg max-w-[80%]">
+                      {msg.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-start">
+                    <div className="max-w-[95%] w-full">
+                      {msg.content ? msg.content : (
+                        <div className="bg-gray-200 text-gray-800 p-3 rounded-lg">
+                          {msg.text}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </ScrollArea>

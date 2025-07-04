@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
 
     // Initialize Supabase client
     const supabase = await createSupabaseServerClient();
-    let data: any = null;
+    let responseData: any = null;
+    let responseType: string = 'text';
     let errorMessage: string | null = null;
 
     // 2. Execute database query based on parsed intent
@@ -38,27 +39,44 @@ export async function POST(req: NextRequest) {
         if (size) {
           const { data: inventoryData, error } = await supabase
             .from('tshirt_inventory')
-            .select('size_cd, quantity_on_hand')
+            .select('size_cd, quantity_on_hand, sort_order')
             .eq('size_cd', size)
             .eq('event_id', 1); // Assuming event_id 1 for now, make dynamic if needed
           if (error) throw error;
           if (inventoryData && inventoryData.length > 0) {
-            data = `We have ${inventoryData[0].quantity_on_hand} of ${inventoryData[0].size_cd} T-shirts remaining.`;
+            responseType = 'tshirt_inventory';
+            responseData = {
+              data: inventoryData,
+              title: `T-Shirt Inventory - Size ${size}`,
+              message: `We have ${inventoryData[0].quantity_on_hand} of ${inventoryData[0].size_cd} T-shirts remaining.`
+            };
           } else {
-            data = `Sorry, I couldn't find inventory information for size ${size}.`;
+            responseType = 'error';
+            responseData = {
+              message: `Sorry, I couldn't find inventory information for size ${size}.`,
+              suggestions: ['Try asking for "Show me t-shirt inventory"', 'Check available sizes: XS, S, M, L, XL, 2XL, 3XL']
+            };
           }
         } else {
            const { data: inventoryData, error } = await supabase
             .from('tshirt_inventory')
-            .select('size_cd, quantity_on_hand')
+            .select('size_cd, quantity_on_hand, sort_order')
             .eq('event_id', 1) // Assuming event_id 1
             .order('sort_order');
           if (error) throw error;
           if (inventoryData && inventoryData.length > 0) {
-            const inventoryList = inventoryData.map(item => `${item.size_cd}: ${item.quantity_on_hand}`).join('\n');
-            data = `Here's the current T-shirt inventory:\n${inventoryList}`;
+            responseType = 'tshirt_inventory';
+            responseData = {
+              data: inventoryData,
+              title: 'T-Shirt Inventory - All Sizes',
+              message: `Here's the current T-shirt inventory across ${inventoryData.length} sizes.`
+            };
           } else {
-            data = 'Sorry, I could not retrieve the T-shirt inventory at the moment.';
+            responseType = 'error';
+            responseData = {
+              message: 'Sorry, I could not retrieve the T-shirt inventory at the moment.',
+              suggestions: ['Please try again later', 'Contact support if the issue persists']
+            };
           }
         }
         break;
@@ -96,7 +114,8 @@ export async function POST(req: NextRequest) {
             if (commitErr) throw commitErr;
             
             const uniqueVolunteers = new Set(commitData?.map(c => c.volunteer_id) || []);
-            data = `There are ${uniqueVolunteers.size} volunteers assigned to ${parsedResult.sevaCategory}.`;
+            responseType = 'text';
+            responseData = `There are ${uniqueVolunteers.size} volunteers assigned to ${parsedResult.sevaCategory}.`;
           } else {
             // Get volunteer details for this seva category
             const { data: commitData, error: commitErr } = await supabase
@@ -156,14 +175,25 @@ export async function POST(req: NextRequest) {
                 }
               });
 
-              const sevaBreakdown = Object.entries(sevaCounts)
-                .map(([seva, volunteerSet]) => `${seva}: ${volunteerSet.size}`)
-                .sort((a, b) => b.split(': ')[1] - a.split(': ')[1])
-                .join('\n');
+              const sevaStatsData = Object.entries(sevaCounts)
+                .map(([category_name, volunteerSet]) => ({
+                  category_name,
+                  volunteer_count: volunteerSet.size
+                }))
+                .sort((a, b) => b.volunteer_count - a.volunteer_count);
 
-              data = `Volunteer count by seva category:\n${sevaBreakdown}`;
+              responseType = 'seva_category_stats';
+              responseData = {
+                data: sevaStatsData,
+                title: 'Volunteer Count by Seva Category',
+                message: `Found ${sevaStatsData.length} seva categories with volunteers.`
+              };
             } else {
-              data = "No volunteer commitments found.";
+              responseType = 'error';
+              responseData = {
+                message: "No volunteer commitments found.",
+                suggestions: ['Try asking for general volunteer statistics', 'Check if volunteers are properly assigned to seva categories']
+              };
             }
           } else {
             // Regular volunteer stats
@@ -177,15 +207,30 @@ export async function POST(req: NextRequest) {
             if (parsedResult.countOnly) {
               const { count, error } = await query;
               if (error) throw error;
-              data = `There are ${count} volunteers matching your criteria.`;
+              responseType = 'text';
+              responseData = `There are ${count} volunteers matching your criteria.`;
             } else {
               const { data: volunteerData, error } = await query.limit(10); // Limit results for lists
               if (error) throw error;
               if (volunteerData && volunteerData.length > 0) {
-                const names = volunteerData.map((v: any) => `${v.first_name} ${v.last_name}`).join(', ');
-                data = `Some volunteers matching: ${names}. (List limited to 10)`;
+                const stats = {
+                  total: volunteerData.length,
+                  gmFamily: volunteerData.filter(v => v.gm_family).length,
+                  nonGmFamily: volunteerData.filter(v => !v.gm_family).length
+                };
+                responseType = 'volunteer_stats';
+                responseData = {
+                  data: volunteerData,
+                  stats,
+                  title: 'Volunteer List',
+                  message: `Found ${volunteerData.length} volunteers (limited to 10 results).`
+                };
               } else {
-                data = "No volunteers found matching your criteria.";
+                responseType = 'error';
+                responseData = {
+                  message: "No volunteers found matching your criteria.",
+                  suggestions: ['Try broadening your search criteria', 'Check if volunteers are properly registered']
+                };
               }
             }
           }
@@ -216,10 +261,13 @@ export async function POST(req: NextRequest) {
             .gte('check_in_time', `${targetDate}T00:00:00Z`)
             .lte('check_in_time', `${targetDate}T23:59:59Z`);
             
+          const dateContext = parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate;
+          
           if (parsedResult.countOnly) {
             const { count, error } = await checkInQuery;
             if (error) throw error;
-            data = `There are ${count} check-ins for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}.`;
+            responseType = 'text';
+            responseData = `There are ${count} check-ins for ${dateContext}.`;
           } else {
             const { data: checkInData, error } = await checkInQuery
               .select('*, volunteers(first_name, last_name)')
@@ -227,12 +275,27 @@ export async function POST(req: NextRequest) {
               .limit(10);
             if (error) throw error;
             if (checkInData && checkInData.length > 0) {
-              const checkInList = checkInData.map((checkin: any) => 
-                `${checkin.volunteers?.first_name || 'Unknown'} ${checkin.volunteers?.last_name || 'Volunteer'} - ${new Date(checkin.check_in_time).toLocaleTimeString()}`
-              ).join('\n');
-              data = `Check-ins for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}:\n${checkInList}`;
+              const formattedCheckIns = checkInData.map((checkin: any) => ({
+                id: checkin.id,
+                volunteer_name: `${checkin.volunteers?.first_name || 'Unknown'} ${checkin.volunteers?.last_name || 'Volunteer'}`,
+                check_in_time: checkin.check_in_time,
+                check_out_time: checkin.check_out_time,
+                status: checkin.check_out_time ? 'present' : 'pending'
+              }));
+              
+              responseType = 'check_in_stats';
+              responseData = {
+                data: formattedCheckIns,
+                title: `Check-ins for ${dateContext}`,
+                dateContext,
+                message: `Found ${formattedCheckIns.length} check-ins for ${dateContext}.`
+              };
             } else {
-              data = `No check-ins found for ${parsedResult.date === 'today' ? 'today' : parsedResult.date === 'yesterday' ? 'yesterday' : targetDate}.`;
+              responseType = 'error';
+              responseData = {
+                message: `No check-ins found for ${dateContext}.`,
+                suggestions: ['Try asking for a different date', 'Check if any volunteers have checked in recently']
+              };
             }
           }
         } else if (parsedResult.volunteerName) {
@@ -257,58 +320,88 @@ export async function POST(req: NextRequest) {
             if (checkInError) throw checkInError;
             
             if (checkInData && checkInData.length > 0) {
-              const recentCheckIns = checkInData.map(checkin => 
-                `${new Date(checkin.check_in_time).toLocaleString()}${checkin.check_out_time ? ' - ' + new Date(checkin.check_out_time).toLocaleString() : ' (still checked in)'}`
-              ).join('\n');
-              data = `Recent check-ins for ${volunteer.first_name} ${volunteer.last_name}:\n${recentCheckIns}`;
+              const formattedCheckIns = checkInData.map((checkin: any) => ({
+                id: checkin.id || `${volunteer.id}-${checkin.check_in_time}`,
+                volunteer_name: `${volunteer.first_name} ${volunteer.last_name}`,
+                check_in_time: checkin.check_in_time,
+                check_out_time: checkin.check_out_time,
+                status: checkin.check_out_time ? 'present' : 'pending'
+              }));
+              
+              responseType = 'check_in_stats';
+              responseData = {
+                data: formattedCheckIns,
+                title: `Check-ins for ${volunteer.first_name} ${volunteer.last_name}`,
+                message: `Found ${formattedCheckIns.length} recent check-ins for ${volunteer.first_name} ${volunteer.last_name}.`
+              };
             } else {
-              data = `No check-in records found for ${volunteer.first_name} ${volunteer.last_name}.`;
+              responseType = 'error';
+              responseData = {
+                message: `No check-in records found for ${volunteer.first_name} ${volunteer.last_name}.`,
+                suggestions: ['Try asking for a different volunteer', 'Check if the volunteer has checked in recently']
+              };
             }
           } else {
-            data = `Could not find volunteer with name "${parsedResult.volunteerName}".`;
+            responseType = 'error';
+            responseData = {
+              message: `Could not find volunteer with name "${parsedResult.volunteerName}".`,
+              suggestions: ['Try using the full name', 'Check the spelling of the volunteer name']
+            };
           }
         } else {
            if (parsedResult.countOnly) {
             const { count, error } = await checkInQuery;
             if (error) throw error;
-            data = `There are a total of ${count} check-in records.`;
+            responseType = 'text';
+            responseData = `There are a total of ${count} check-in records.`;
           } else {
-            const { data: checkInData, error } = await checkInQuery.limit(10).order('check_in_time', { ascending: false });
+            const { data: checkInData, error } = await checkInQuery
+              .select('*, volunteers(first_name, last_name)')
+              .limit(10)
+              .order('check_in_time', { ascending: false });
             if (error) throw error;
-             if (checkInData && checkInData.length > 0) {
-                data = `Found ${checkInData.length} recent check-ins. (List limited to 10, details not fully displayed yet).`;
-             } else {
-                data = "No check-in records found.";
-             }
+            if (checkInData && checkInData.length > 0) {
+              const formattedCheckIns = checkInData.map((checkin: any) => ({
+                id: checkin.id,
+                volunteer_name: `${checkin.volunteers?.first_name || 'Unknown'} ${checkin.volunteers?.last_name || 'Volunteer'}`,
+                check_in_time: checkin.check_in_time,
+                check_out_time: checkin.check_out_time,
+                status: checkin.check_out_time ? 'present' : 'pending'
+              }));
+              
+              responseType = 'check_in_stats';
+              responseData = {
+                data: formattedCheckIns,
+                title: 'Recent Check-ins',
+                message: `Found ${formattedCheckIns.length} recent check-ins (limited to 10 results).`
+              };
+            } else {
+              responseType = 'error';
+              responseData = {
+                message: "No check-in records found.",
+                suggestions: ['Try asking for check-ins for a specific date', 'Check if volunteers have been checking in']
+              };
+            }
           }
         }
         break;
 
       case 'UNRECOGNIZED':
       default:
-        data = `I'm sorry, I didn't understand that question. Here's what I can help you with:
-
-📦 **T-shirt Inventory**
-• "How many large T-shirts are left?"
-• "What's the stock for M size t-shirts?"
-• "Show me all t-shirt inventory"
-
-👥 **Volunteer Statistics**
-• "How many volunteers do we have?"
-• "Give me volunteer count by seva category"
-• "List volunteers in Registration seva"
-• "How many GM family volunteers are there?"
-
-✅ **Check-in Information**
-• "How many volunteers checked in today?"
-• "Who checked in yesterday?"
-• "Check-in status for John Smith"
-
-Try asking your question in a different way, or use one of these examples!`;
+        responseType = 'help';
+        responseData = {
+          message: "I'm sorry, I didn't understand that question.",
+          originalQuery: userQuery
+        };
         break;
     }
 
-    return NextResponse.json({ reply: data });
+    return NextResponse.json({ 
+      type: responseType,
+      data: responseData,
+      // Legacy support for existing frontend
+      reply: typeof responseData === 'string' ? responseData : responseData?.message || 'Response processed successfully.'
+    });
 
   } catch (error: any) {
     console.error('Error in Ask AI API:', error);
@@ -326,6 +419,13 @@ Try asking your question in a different way, or use one of these examples!`;
       reply += "Please try rephrasing your question or contact support if the issue persists.";
     }
     
-    return NextResponse.json({ reply }, { status: 500 });
+    return NextResponse.json({ 
+      type: 'error',
+      data: {
+        message: reply,
+        suggestions: ['Please try again later', 'Contact support if the issue persists']
+      },
+      reply // Legacy support
+    }, { status: 500 });
   }
 }
