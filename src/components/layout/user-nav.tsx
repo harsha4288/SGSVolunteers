@@ -189,7 +189,7 @@ export function UserNav() {
   }
 
   if (isImpersonating && impersonatedEmail) {
-    const initial = impersonatedDisplayName?.charAt(0).toUpperCase() || impersonatedEmail.charAt(0).toUpperCase() || <UserIcon/>;
+    const initial = impersonatedDisplayName?.charAt(0).toUpperCase() || impersonatedEmail.charAt(0).toUpperCase() || "U";
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -240,7 +240,7 @@ export function UserNav() {
 
   // Regular logged-in user display
   const userEmail = user.email || "No email";
-  const userNameInitial = user.email?.charAt(0).toUpperCase() || <UserIcon/>;
+  const userNameInitial = user.email?.charAt(0).toUpperCase() || "U";
   const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || "User";
 
   return (

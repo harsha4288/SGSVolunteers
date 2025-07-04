@@ -3,6 +3,7 @@ import * as React from "react";
 import { SITE_CONFIG } from "@/lib/constants";
 import { MainNav } from "@/components/layout/main-nav";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SidebarBranding } from "@/components/layout/branding";
 import { UserNav } from "@/components/layout/user-nav"; // For sidebar footer example
 import { ThemeToggle } from "@/components/layout/theme-toggle"; // For sidebar footer example
 import {
@@ -25,23 +26,11 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const LogoIcon = SITE_CONFIG.logo;
-
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="inset" collapsible="icon" side="left">
         <SidebarHeader className="p-4">
-            <Link href="/app/dashboard" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-lg bg-primary text-primary-foreground group-hover:bg-primary/90">
-                <LogoIcon className="h-6 w-6" />
-              </Button>
-              <h1 className={cn(
-                "text-xl font-semibold tracking-tight text-primary whitespace-nowrap duration-200 ease-linear",
-                "group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:opacity-0"
-                )}>
-                {SITE_CONFIG.name}
-              </h1>
-            </Link>
+          <SidebarBranding />
         </SidebarHeader>
         <SidebarContent>
           <MainNav />
