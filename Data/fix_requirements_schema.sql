@@ -146,7 +146,7 @@ LEFT JOIN (
     FROM public.volunteer_commitments vc
     WHERE vc.commitment_type = 'ASSIGNED_TASK'
     GROUP BY vc.seva_category_id, vc.timeslot_id
-) asgn ON r.seva_category_id = asgn.seva_category_id AND r.timeslot_id = asgn.time_slot_id
+) asgn ON r.seva_category_id = asgn.seva_category_id AND r.timeslot_id = asgn.timeslot_id
 GROUP BY r.seva_category_id, sc.category_name, r.timeslot_id, ts.slot_name, asgn.assigned_volunteers_count;
 
 COMMENT ON VIEW public.vw_requirements_vs_assignments IS

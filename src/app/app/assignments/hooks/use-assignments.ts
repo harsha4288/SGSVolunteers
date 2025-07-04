@@ -77,8 +77,7 @@ export function useAssignments({
     fetchVolunteerData();
   }, [supabase, userRole, profileId]); // Depend on supabase, userRole, profileId
 
-  React.useEffect(() => {
-    const fetchAssignments = async () => {
+  const fetchAssignments = React.useCallback(async () => {
       if (!selectedEvent || timeSlots.length === 0) { // Add timeSlots.length check
         setAssignments([]);
         setIsLoading(false);
@@ -200,8 +199,9 @@ export function useAssignments({
       } finally {
         setIsLoading(false);
       }
-    };
+  }, [supabase, selectedEvent, selectedSevaId, selectedTimeSlotId, userRole, profileId, familyMemberIds, timeSlots, toast]);
 
+  React.useEffect(() => {
     // Only fetch assignments if timeSlots are available and selectedEvent is present,
     // and if familyMemberIds is populated for volunteer role, or if not a volunteer.
     if (selectedEvent && timeSlots.length > 0 && (userRole !== "volunteer" || familyMemberIds.length > 0)) {
@@ -211,7 +211,13 @@ export function useAssignments({
       setAssignments([]);
       setIsLoading(false);
     }
-  }, [supabase, selectedEvent, selectedSevaId, selectedTimeSlotId, userRole, profileId, familyMemberIds, timeSlots, toast]); // Added timeSlots to dependencies
+  }, [fetchAssignments, selectedEvent, timeSlots, userRole, familyMemberIds]); // Added timeSlots to dependencies
 
-  return { assignments, isLoading, error };
+  const refreshAssignments = React.useCallback(async () => {
+    if (selectedEvent && timeSlots.length > 0 && (userRole !== "volunteer" || familyMemberIds.length > 0)) {
+      await fetchAssignments();
+    }
+  }, [fetchAssignments, selectedEvent, timeSlots, userRole, familyMemberIds]);
+
+  return { assignments, isLoading, error, refreshAssignments };
 }

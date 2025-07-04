@@ -21,6 +21,7 @@ interface UseUnifiedTShirtDataProps {
   volunteersToDisplay: Volunteer[];
   isAdmin: boolean;
   currentVolunteerId?: string;
+  eventSettings: { default_tshirt_allocation: number } | null; // Added eventSettings prop
 }
 
 /**
@@ -32,6 +33,7 @@ export function useUnifiedTShirtData({
   volunteersToDisplay,
   isAdmin,
   currentVolunteerId: _currentVolunteerId,
+  eventSettings, // Destructure eventSettings
 }: UseUnifiedTShirtDataProps) {
   const [state, setState] = React.useState<UnifiedTShirtState>({
     volunteers: [],
@@ -72,7 +74,7 @@ export function useUnifiedTShirtData({
           const volunteerIds = volunteersToDisplay.map(v => v.id);
           const allocations: Record<string, number> = {};
           volunteersToDisplay.forEach(v => {
-            allocations[v.id] = v.requested_tshirt_quantity || 0;
+            allocations[v.id] = v.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0;
           });
 
           // Load T-shirt data (preferences and issuances) using client-side service
@@ -133,13 +135,14 @@ export function useUnifiedTShirtData({
   // Action handlers
   const handleAddPreference = async (volunteerId: string, sizeCode: string, quantity: number = 1, allowOverride: boolean = false) => {
     // Frontend validation first - check allocation limits before DB call
+    const volunteer = state.volunteers.find(v => v.id === volunteerId);
+    const effectiveAllocation = volunteer?.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0;
+
     if (!allowOverride) {
-      const volunteer = state.volunteers.find(v => v.id === volunteerId);
-      const allocation = volunteer?.requested_tshirt_quantity || 0;
       const currentTotal = getTotalPreferences(volunteerId);
       const newTotal = currentTotal + quantity;
 
-      if (newTotal > allocation) {
+      if (newTotal > effectiveAllocation) {
         if (isAdmin) {
           // Show admin override dialog
           const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
@@ -147,7 +150,7 @@ export function useUnifiedTShirtData({
           const confirmed = window.confirm(
             `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
             `Volunteer: ${volunteerName}\n` +
-            `Allocation Limit: ${allocation}\n` +
+            `Allocation Limit: ${effectiveAllocation}\n` + // Use effectiveAllocation
             `Current Total: ${currentTotal}\n` +
             `Attempting to add: ${quantity} ${sizeCode} T-shirt(s)\n` +
             `New Total: ${newTotal}\n\n` +
@@ -163,13 +166,14 @@ export function useUnifiedTShirtData({
           // Hard stop for volunteers - show toast and return
           toast({
             title: "Allocation Limit Exceeded",
-            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${allocation}).`,
+            description: `Cannot add ${quantity} T-shirt(s). This would exceed your allocation limit (${effectiveAllocation}).`, // Use effectiveAllocation
             variant: "destructive",
           });
           return;
         }
       }
     }
+    // Removed duplicated and malformed if-block and its closing brace that was here.
 
     try {
       await tshirtService.addPreference(volunteerId, sizeCode, quantity, toast, setSaving, allowOverride);
@@ -200,13 +204,14 @@ export function useUnifiedTShirtData({
     allowOverride: boolean = false
   ) => {
     // Frontend validation first - check allocation limits before DB call
+    const volunteer = state.volunteers.find(v => v.id === volunteerId);
+    const effectiveAllocation = volunteer?.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0;
+
     if (!allowOverride) {
-      const volunteer = state.volunteers.find(v => v.id === volunteerId);
-      const allocation = volunteer?.requested_tshirt_quantity || 0;
       const currentTotal = getTotalIssuances(volunteerId);
       const newTotal = currentTotal + quantity;
 
-      if (newTotal > allocation) {
+      if (newTotal > effectiveAllocation) {
         if (isAdmin) {
           // Show admin override dialog
           const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
@@ -214,7 +219,7 @@ export function useUnifiedTShirtData({
           const confirmed = window.confirm(
             `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
             `Volunteer: ${volunteerName}\n` +
-            `Allocation Limit: ${allocation}\n` +
+            `Allocation Limit: ${effectiveAllocation}\n` +
             `Current Total: ${currentTotal}\n` +
             `Attempting to issue: ${quantity} ${sizeCode} T-shirt(s)\n` +
             `New Total: ${newTotal}\n\n` +
@@ -230,7 +235,7 @@ export function useUnifiedTShirtData({
           // This shouldn't happen for issuances since only admins can issue
           toast({
             title: "Allocation Limit Exceeded",
-            description: `Cannot issue ${quantity} T-shirt(s). This would exceed allocation limit (${allocation}).`,
+            description: `Cannot issue ${quantity} T-shirt(s). This would exceed allocation limit (${effectiveAllocation}).`,
             variant: "destructive",
           });
           return;
@@ -275,14 +280,15 @@ export function useUnifiedTShirtData({
     }
 
     // Frontend validation first - check allocation limits before DB call
+    const volunteer = state.volunteers.find(v => v.id === volunteerId);
+    const effectiveAllocation = volunteer?.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0;
+
     if (!allowOverride && newQuantity > currentQuantity) {
-      const volunteer = state.volunteers.find(v => v.id === volunteerId);
-      const allocation = volunteer?.requested_tshirt_quantity || 0;
       const currentTotal = isAdmin ? getTotalIssuances(volunteerId) : getTotalPreferences(volunteerId);
       const currentSizeQuantity = isAdmin ? getIssuanceCount(volunteerId, sizeCode) : getPreferenceCount(volunteerId, sizeCode);
       const newTotal = currentTotal - currentSizeQuantity + newQuantity;
 
-      if (newTotal > allocation) {
+      if (newTotal > effectiveAllocation) {
         if (isAdmin) {
           // Show admin override dialog
           const volunteerName = volunteer ? `${volunteer.first_name} ${volunteer.last_name}` : 'this volunteer';
@@ -290,7 +296,7 @@ export function useUnifiedTShirtData({
           const confirmed = window.confirm(
             `⚠️ ALLOCATION LIMIT EXCEEDED\n\n` +
             `Volunteer: ${volunteerName}\n` +
-            `Allocation Limit: ${allocation}\n` +
+            `Allocation Limit: ${effectiveAllocation}\n` +
             `Current Total: ${currentTotal}\n` +
             `Attempting to set ${sizeCode} to: ${newQuantity}\n` +
             `New Total: ${newTotal}\n\n` +
@@ -306,7 +312,7 @@ export function useUnifiedTShirtData({
           // Hard stop for volunteers - show toast and return
           toast({
             title: "Allocation Limit Exceeded",
-            description: `Cannot set quantity to ${newQuantity}. This would exceed your T-shirt allocation limit (${allocation}).`,
+            description: `Cannot set quantity to ${newQuantity}. This would exceed your T-shirt allocation limit (${effectiveAllocation}).`,
             variant: "destructive",
           });
           return;
@@ -386,7 +392,9 @@ export function useUnifiedTShirtData({
   };
 
   const getRemainingAllocation = (volunteerId: string): number => {
-    const allocated = state.allocations[volunteerId] || 0;
+    // Use effective allocation for this calculation
+    const volunteer = state.volunteers.find(v => v.id === volunteerId);
+    const allocated = volunteer?.requested_tshirt_quantity || eventSettings?.default_tshirt_allocation || 0;
     const used = isAdmin ? getTotalIssuances(volunteerId) : getTotalPreferences(volunteerId);
     return Math.max(0, allocated - used);
   };
