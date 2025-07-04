@@ -14,6 +14,50 @@ export async function POST(req: NextRequest) {
     // Test the query parser flow
     const parsedResult = await chatQueryParserFlow(message);
 
+    // If this is a volunteer stats test, return static data
+    if (parsedResult.intent === 'VOLUNTEER_STATS' && testMode) {
+      const staticVolunteerData = [
+        {
+          id: 'v1',
+          first_name: 'John',
+          last_name: 'Smith',
+          email: 'john.smith@example.com',
+          seva_category: 'Hospitality',
+          gm_family: true
+        },
+        {
+          id: 'v2',
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: 'jane.doe@example.com',
+          seva_category: 'Hospitality',
+          gm_family: false
+        },
+        {
+          id: 'v3',
+          first_name: 'Bob',
+          last_name: 'Johnson',
+          email: 'bob.johnson@example.com',
+          seva_category: 'Hospitality',
+          gm_family: true
+        }
+      ];
+
+      return NextResponse.json({
+        type: 'volunteer_stats',
+        data: {
+          data: staticVolunteerData,
+          stats: {
+            total: 3,
+            gmFamily: 2,
+            nonGmFamily: 1
+          },
+          title: 'Static Test - Volunteers in Hospitality',
+          message: 'This is static test data for the DataTable component.'
+        }
+      });
+    }
+
     const response = {
       originalQuery: message,
       parsedIntent: parsedResult,

@@ -100,7 +100,11 @@ export async function POST(req: NextRequest) {
             .single();
 
           if (sevaCatError || !sevaCatData) {
-            data = `Could not find seva category: ${parsedResult.sevaCategory}`;
+            responseType = 'error';
+            responseData = {
+              message: `Could not find seva category: ${parsedResult.sevaCategory}`,
+              suggestions: ['Try asking for available seva categories', 'Check the spelling of the seva category name']
+            };
             break;
           }
 
@@ -122,26 +126,52 @@ export async function POST(req: NextRequest) {
               .from('volunteer_commitments')
               .select(`
                 volunteer_id,
-                volunteers!inner(first_name, last_name, email)
+                volunteers!inner(id, first_name, last_name, email, gm_family)
               `)
               .eq('seva_category_id', sevaCatData.id);
             
             if (commitErr) throw commitErr;
             
             if (commitData && commitData.length > 0) {
-              // Get unique volunteers
+              // Get unique volunteers with full details
               const uniqueVolunteers = new Map();
               commitData.forEach((commitment: any) => {
                 const volunteer = commitment.volunteers;
                 if (volunteer) {
-                  uniqueVolunteers.set(volunteer.email, `${volunteer.first_name} ${volunteer.last_name}`);
+                  uniqueVolunteers.set(volunteer.email, volunteer);
                 }
               });
               
-              const volunteerList = Array.from(uniqueVolunteers.values()).join(', ');
-              data = `Volunteers assigned to ${parsedResult.sevaCategory}: ${volunteerList}`;
+              // Convert to volunteer stats format with proper structure
+              const volunteerData = Array.from(uniqueVolunteers.values()).map((volunteer: any) => ({
+                id: volunteer.id,
+                first_name: volunteer.first_name || '',
+                last_name: volunteer.last_name || '',
+                email: volunteer.email,
+                seva_category: parsedResult.sevaCategory,
+                gm_family: volunteer.gm_family || false
+              }));
+              
+              const gmFamilyCount = volunteerData.filter(v => v.gm_family).length;
+              const nonGmFamilyCount = volunteerData.length - gmFamilyCount;
+              
+              responseType = 'volunteer_stats';
+              responseData = {
+                data: volunteerData,
+                stats: {
+                  total: volunteerData.length,
+                  gmFamily: gmFamilyCount,
+                  nonGmFamily: nonGmFamilyCount
+                },
+                title: `Volunteers in ${parsedResult.sevaCategory}`,
+                message: `Found ${volunteerData.length} volunteers in ${parsedResult.sevaCategory}.`
+              };
             } else {
-              data = `No volunteers found for ${parsedResult.sevaCategory}.`;
+              responseType = 'error';
+              responseData = {
+                message: `No volunteers found for ${parsedResult.sevaCategory}.`,
+                suggestions: ['Try asking for a different seva category', 'Check if volunteers are assigned to this category']
+              };
             }
           }
 
@@ -210,20 +240,32 @@ export async function POST(req: NextRequest) {
               responseType = 'text';
               responseData = `There are ${count} volunteers matching your criteria.`;
             } else {
+              // Get total count first
+              const { count: totalCount, error: countError } = await query;
+              if (countError) throw countError;
+              
+              // Get actual data with limit
               const { data: volunteerData, error } = await query.limit(10); // Limit results for lists
               if (error) throw error;
               if (volunteerData && volunteerData.length > 0) {
+                // Calculate stats from all volunteers for accurate counts
+                const { data: allVolunteersForStats, error: allVolError } = await supabase
+                  .from('volunteers')
+                  .select('gm_family');
+                if (allVolError) throw allVolError;
+                
                 const stats = {
-                  total: volunteerData.length,
-                  gmFamily: volunteerData.filter(v => v.gm_family).length,
-                  nonGmFamily: volunteerData.filter(v => !v.gm_family).length
+                  total: totalCount || 0,
+                  gmFamily: allVolunteersForStats?.filter(v => v.gm_family).length || 0,
+                  nonGmFamily: allVolunteersForStats?.filter(v => !v.gm_family).length || 0
                 };
+                
                 responseType = 'volunteer_stats';
                 responseData = {
                   data: volunteerData,
                   stats,
                   title: 'Volunteer List',
-                  message: `Found ${volunteerData.length} volunteers (limited to 10 results).`
+                  message: `Found ${volunteerData.length} volunteers (showing first 10 of ${totalCount} total).`
                 };
               } else {
                 responseType = 'error';
@@ -299,12 +341,99 @@ export async function POST(req: NextRequest) {
             }
           }
         } else if (parsedResult.volunteerName) {
-          // Find volunteer by name and get their check-ins
-          const { data: volunteerData, error: volunteerError } = await supabase
+          // Find volunteer by name using fuzzy matching
+          const nameParts = parsedResult.volunteerName.trim().split(/\s+/);
+          
+          // Get all volunteers first for fuzzy matching
+          const { data: allVolunteers, error: allVolunteersError } = await supabase
             .from('volunteers')
-            .select('id, first_name, last_name')
-            .or(`first_name.ilike.%${parsedResult.volunteerName}%,last_name.ilike.%${parsedResult.volunteerName}%`)
-            .limit(1);
+            .select('id, first_name, last_name');
+            
+          if (allVolunteersError) throw allVolunteersError;
+          
+          let bestMatch = null;
+          let bestScore = 0;
+          
+          // Simple fuzzy matching function
+          const fuzzyMatch = (str1: string, str2: string): number => {
+            const s1 = str1.toLowerCase();
+            const s2 = str2.toLowerCase();
+            
+            // Exact match
+            if (s1 === s2) return 1;
+            
+            // Contains match
+            if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+            
+            // Levenshtein distance based similarity
+            const maxLen = Math.max(s1.length, s2.length);
+            const distance = levenshteinDistance(s1, s2);
+            return Math.max(0, (maxLen - distance) / maxLen);
+          };
+          
+          // Levenshtein distance function
+          const levenshteinDistance = (str1: string, str2: string): number => {
+            const matrix = [];
+            for (let i = 0; i <= str2.length; i++) {
+              matrix[i] = [i];
+            }
+            for (let j = 0; j <= str1.length; j++) {
+              matrix[0][j] = j;
+            }
+            for (let i = 1; i <= str2.length; i++) {
+              for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                  matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                  matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                  );
+                }
+              }
+            }
+            return matrix[str2.length][str1.length];
+          };
+          
+          // Find best matching volunteer
+          if (allVolunteers && allVolunteers.length > 0) {
+            for (const volunteer of allVolunteers) {
+              const fullName = `${volunteer.first_name} ${volunteer.last_name}`;
+              let score = 0;
+              
+              if (nameParts.length === 1) {
+                // Single name - check against first name, last name, and full name
+                const firstNameScore = fuzzyMatch(volunteer.first_name, nameParts[0]);
+                const lastNameScore = fuzzyMatch(volunteer.last_name, nameParts[0]);
+                const fullNameScore = fuzzyMatch(fullName, nameParts[0]);
+                score = Math.max(firstNameScore, lastNameScore, fullNameScore);
+              } else if (nameParts.length >= 2) {
+                // Multiple names - match against full name and individual parts
+                const firstName = nameParts[0];
+                const lastName = nameParts[nameParts.length - 1];
+                const inputFullName = nameParts.join(' ');
+                
+                const fullNameScore = fuzzyMatch(fullName, inputFullName);
+                const firstNameScore = fuzzyMatch(volunteer.first_name, firstName);
+                const lastNameScore = fuzzyMatch(volunteer.last_name, lastName);
+                
+                // Combine scores with weights
+                score = Math.max(
+                  fullNameScore,
+                  (firstNameScore + lastNameScore) / 2
+                );
+              }
+              
+              if (score > bestScore && score > 0.5) { // Minimum threshold for matches
+                bestScore = score;
+                bestMatch = volunteer;
+              }
+            }
+          }
+          
+          const volunteerData = bestMatch ? [bestMatch] : [];
+          const volunteerError = null;
             
           if (volunteerError) throw volunteerError;
           

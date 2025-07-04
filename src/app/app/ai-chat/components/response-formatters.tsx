@@ -1,11 +1,20 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { 
+  DataTable,
+  DataTableHeader,
+  DataTableBody,
+  DataTableRow,
+  DataTableHead,
+  DataTableCell,
+  DataTableColGroup,
+  DataTableCol,
+  DataTableBadge
+} from '@/components/ui/data-table';
 import { StatusBadgeCell } from '@/components/ui/data-table/cells/StatusBadgeCell';
 // import { StatsCards } from '@/app/app/dashboard/components/shared/stats-cards';
 import { getTaskIconConfig } from '@/lib/task-icons';
-import { ColumnDef } from '@tanstack/react-table';
 import { Shirt, Users, Clock, AlertCircle, LucideIcon } from 'lucide-react';
 
 // Simple StatCard component for AI chat responses
@@ -73,33 +82,6 @@ export const TShirtInventoryResponse: React.FC<{
   data: TShirtInventoryItem[];
   title?: string;
 }> = ({ data, title = "T-Shirt Inventory" }) => {
-  const columns: ColumnDef<TShirtInventoryItem>[] = [
-    {
-      accessorKey: 'size_cd',
-      header: 'Size',
-      cell: ({ row }) => (
-        <Badge variant="outline" className="font-mono">
-          {row.getValue('size_cd')}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'quantity_on_hand',
-      header: 'Quantity',
-      cell: ({ row }) => {
-        const quantity = row.getValue('quantity_on_hand') as number;
-        return (
-          <StatusBadgeCell
-            value={quantity}
-            type="inventory"
-            percentage={Math.min(quantity / 50 * 100, 100)} // Assuming 50 is max stock
-            showLabel={true}
-          />
-        );
-      },
-    },
-  ];
-
   const totalStock = data.reduce((sum, item) => sum + item.quantity_on_hand, 0);
 
   return (
@@ -119,12 +101,37 @@ export const TShirtInventoryResponse: React.FC<{
         </CardContent>
       </Card>
       
-      <DataTable
-        columns={columns}
-        data={data}
-        density="compact"
-        className="border rounded-lg"
-      />
+      <DataTable density="compact" className="border rounded-lg">
+        <DataTableColGroup>
+          <DataTableCol />
+          <DataTableCol />
+        </DataTableColGroup>
+        <DataTableHeader>
+          <DataTableRow>
+            <DataTableHead>Size</DataTableHead>
+            <DataTableHead>Quantity</DataTableHead>
+          </DataTableRow>
+        </DataTableHeader>
+        <DataTableBody>
+          {data.map((item, index) => (
+            <DataTableRow key={index}>
+              <DataTableCell>
+                <DataTableBadge variant="outline" className="font-mono">
+                  {item.size_cd}
+                </DataTableBadge>
+              </DataTableCell>
+              <DataTableCell>
+                <StatusBadgeCell
+                  value={item.quantity_on_hand}
+                  type="inventory"
+                  percentage={Math.min(item.quantity_on_hand / 50 * 100, 100)} // Assuming 50 is max stock
+                  showLabel={true}
+                />
+              </DataTableCell>
+            </DataTableRow>
+          ))}
+        </DataTableBody>
+      </DataTable>
     </div>
   );
 };
@@ -134,57 +141,43 @@ export const VolunteerStatsResponse: React.FC<{
   data: VolunteerStatsItem[];
   stats?: { total: number; gmFamily: number; nonGmFamily: number };
   title?: string;
-}> = ({ data, stats, title = "Volunteer Statistics" }) => {
-  const columns: ColumnDef<VolunteerStatsItem>[] = [
-    {
-      accessorKey: 'first_name',
-      header: 'Name',
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="font-medium">
-            {row.original.first_name} {row.original.last_name}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {row.original.email}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'seva_category',
-      header: 'Seva Category',
-      cell: ({ row }) => {
-        const seva = row.getValue('seva_category') as string;
-        if (!seva) return <span className="text-muted-foreground">-</span>;
-        
-        const iconConfig = getTaskIconConfig(seva);
-        return (
-          <Badge variant="outline" className="flex items-center gap-1">
-            {iconConfig.icon && <iconConfig.icon className="h-3 w-3" />}
-            {seva}
-          </Badge>
-        );
-      },
-    },
-    {
-      accessorKey: 'gm_family',
-      header: 'GM Family',
-      cell: ({ row }) => {
-        const isGmFamily = row.getValue('gm_family') as boolean;
-        return (
-          <Badge variant={isGmFamily ? "default" : "outline"}>
-            {isGmFamily ? 'Yes' : 'No'}
-          </Badge>
-        );
-      },
-    },
-  ];
-
+  useBulletPoints?: boolean;
+}> = ({ data, stats, title = "Volunteer Statistics", useBulletPoints = false }) => {
+  // Debug logging
+  console.log('VolunteerStatsResponse data:', data);
+  console.log('VolunteerStatsResponse stats:', stats);
+  console.log('Data length:', data?.length);
+  console.log('First item:', data?.[0]);
+  
   const statsData = stats ? [
     { title: 'Total Volunteers', value: stats.total, icon: Users },
     { title: 'GM Family', value: stats.gmFamily, icon: Users },
     { title: 'Non-GM Family', value: stats.nonGmFamily, icon: Users },
   ] : [];
+
+  // Simple bullet point fallback
+  const BulletPointList = () => (
+    <div className="space-y-2">
+      <h4 className="font-medium">Volunteer List:</h4>
+      <ul className="space-y-1">
+        {data.map((volunteer, index) => (
+          <li key={volunteer.id || index} className="flex items-center justify-between text-sm">
+            <span className="font-medium">
+              {volunteer.first_name} {volunteer.last_name}
+            </span>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="text-xs">
+                {volunteer.seva_category || 'N/A'}
+              </Badge>
+              <Badge variant={volunteer.gm_family ? "default" : "outline"} className="text-xs">
+                {volunteer.gm_family ? 'GM' : 'Non-GM'}
+              </Badge>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -198,12 +191,58 @@ export const VolunteerStatsResponse: React.FC<{
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
-            data={data}
-            density="compact"
-            className="border rounded-lg"
-          />
+          {useBulletPoints || !data || data.length === 0 ? (
+            <BulletPointList />
+          ) : (
+            <DataTable density="compact" className="border rounded-lg">
+              <DataTableColGroup>
+                <DataTableCol />
+                <DataTableCol />
+                <DataTableCol />
+              </DataTableColGroup>
+              <DataTableHeader>
+                <DataTableRow>
+                  <DataTableHead>Name</DataTableHead>
+                  <DataTableHead>Seva Category</DataTableHead>
+                  <DataTableHead>GM Family</DataTableHead>
+                </DataTableRow>
+              </DataTableHeader>
+              <DataTableBody>
+                {data.map((volunteer, index) => (
+                  <DataTableRow key={volunteer.id || index}>
+                    <DataTableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {volunteer.first_name} {volunteer.last_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {volunteer.email}
+                        </span>
+                      </div>
+                    </DataTableCell>
+                    <DataTableCell>
+                      {volunteer.seva_category ? (
+                        <DataTableBadge variant="outline" className="flex items-center gap-1">
+                          {(() => {
+                            const iconConfig = getTaskIconConfig(volunteer.seva_category);
+                            return iconConfig.icon && <iconConfig.icon className="h-3 w-3" />;
+                          })()}
+                          {volunteer.seva_category}
+                        </DataTableBadge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </DataTableCell>
+                    <DataTableCell>
+                      <DataTableBadge variant={volunteer.gm_family ? "default" : "outline"}>
+                        {volunteer.gm_family ? 'Yes' : 'No'}
+                      </DataTableBadge>
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+              </DataTableBody>
+            </DataTable>
+          )}
         </CardContent>
       </Card>
     </div>

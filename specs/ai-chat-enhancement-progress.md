@@ -99,6 +99,103 @@ switch (responseData.type) {
 - Error handling provides helpful suggestions
 - Responsive design compatible with mobile devices
 
+## Current Issues & Progress
+
+### Recent Updates
+- ✅ **Fixed**: Implemented fuzzy name matching for volunteer searches (Rajesh Yarlagadda example)
+- ✅ **Fixed**: Corrected volunteer stats calculation to show accurate total counts
+- ✅ **Fixed**: Enhanced volunteer list display with proper DataTable integration
+- ❌ **REGRESSION**: "List volunteers in Registration" query now throws error (previously working)
+
+### Active Debugging
+The prompt "List volunteers in Registration" is currently failing with a generic error:
+```
+Error: Sorry, I encountered an error while processing your request. Please try rephrasing your question or contact support if the issue persists.
+```
+
+### Root Cause Analysis
+This error appears to be a regression introduced during recent changes:
+1. **Fuzzy matching implementation** - Added complex name matching logic 
+2. **Stats calculation fix** - Modified volunteer query structure
+3. **Response formatting** - Updated data structure handling
+
+### Critical Issues
+1. **Registration seva category lookup** - The query for "Registration" volunteers may be failing
+2. **Database query structure** - Recent changes may have broken existing queries
+3. **Error masking** - Generic error handling is hiding the specific failure
+
+### Fixes Applied
+- ✅ **FIXED**: "List volunteers in Registration" error resolved
+  - Problem: Undefined variable references (`data` instead of `responseData`)
+  - Solution: Fixed variable naming and response structure
+  - Result: Now returns proper error message for non-existent seva categories
+- ✅ **FIXED**: Seva category volunteer listing now works correctly
+  - Tested with "List volunteers in Hospitality" - returns 22 volunteers with DataTable
+  - Proper error handling for invalid seva categories
+- ✅ **FIXED**: Missing DataTable in seva category volunteer lists - STAGE 1
+  - Problem: VolunteerStatsResponse component requires `stats` prop but wasn't provided
+  - Solution: Added `stats` object to seva category volunteer responses
+  - Result: Stats cards now render properly
+- ✅ **FIXED**: Missing DataTable in seva category volunteer lists - STAGE 2
+  - Problem: DataTable not rendering despite stats cards showing
+  - Root cause: Incorrect volunteer data structure and missing proper database join
+  - Solution: Enhanced database query to include full volunteer details (`id`, `first_name`, `last_name`, `email`, `gm_family`)
+  - Solution: Fixed volunteer data mapping to use actual volunteer objects instead of reconstructed strings
+  - Solution: Updated GM family statistics calculation to use real data
+  - Result: DataTable now renders with complete volunteer information and accurate stats
+
+### Remaining Issue
+- 🔄 **IN PROGRESS**: Rajesh Yarlagadda fuzzy matching still failing
+  - Current status: Name search doesn't find "Rajesh" despite existing in database
+  - User confirms record exists with first_name "Rajesh"
+  - Fuzzy matching algorithm may have threshold or logic issues
+
+### Next Steps
+1. 🔄 **IN PROGRESS**: Debug fuzzy matching algorithm for Rajesh Yarlagadda
+2. ⏳ **PENDING**: Test search with partial names and variations
+3. ⏳ **PENDING**: Verify fuzzy matching works with other volunteer names
+4. ⏳ **PENDING**: Optimize fuzzy matching threshold and logic
+
+### Technical Details of DataTable Fix
+The key issue was in the volunteer data structure being passed to the DataTable component:
+
+**Before (Broken):**
+```typescript
+// Using email as ID and reconstructing names from strings
+const volunteerData = Array.from(uniqueVolunteers.entries()).map(([email, name]) => ({
+  id: email,
+  first_name: name.split(' ')[0] || '',
+  last_name: name.split(' ').slice(1).join(' ') || '',
+  email: email,
+  seva_category: parsedResult.sevaCategory,
+  gm_family: false // Missing real data
+}));
+```
+
+**After (Fixed):**
+```typescript
+// Using actual volunteer objects with proper database join
+const { data: commitData, error: commitErr } = await supabase
+  .from('volunteer_commitments')
+  .select(`
+    volunteer_id,
+    volunteers!inner(id, first_name, last_name, email, gm_family)
+  `)
+  .eq('seva_category_id', sevaCatData.id);
+
+const volunteerData = Array.from(uniqueVolunteers.values()).map((volunteer: any) => ({
+  id: volunteer.id,
+  first_name: volunteer.first_name || '',
+  last_name: volunteer.last_name || '',
+  email: volunteer.email,
+  seva_category: parsedResult.sevaCategory,
+  gm_family: volunteer.gm_family || false
+}));
+```
+
+This ensures the DataTable receives properly structured volunteer data with correct IDs and complete information.
+
 ## Status
 ✅ **COMPLETED**: Rich UI integration with existing components
-🔄 **IN PROGRESS**: Final testing and validation
+✅ **FIXED**: Seva category volunteer listing regression and DataTable rendering
+🔄 **IN PROGRESS**: Fuzzy name matching refinement
