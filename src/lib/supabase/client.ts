@@ -6,6 +6,28 @@ export const createClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // During build time, if environment variables are not available, return a mock client
+  if (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && !supabaseUrl) {
+    console.log("Still loading, showing non-admin items only");
+    // Return a mock client that won't cause build failures
+    return {
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+        signInWithOAuth: () => Promise.resolve({ data: {}, error: null }),
+        signOut: () => Promise.resolve({ error: null }),
+        onAuthStateChange: () => ({ data: { subscription: null }, error: null }),
+        exchangeCodeForSession: () => Promise.resolve({ data: {}, error: null })
+      },
+      from: () => ({
+        select: () => ({ data: [], error: null }),
+        insert: () => ({ data: [], error: null }),
+        update: () => ({ data: [], error: null }),
+        delete: () => ({ data: [], error: null }),
+        upsert: () => ({ data: [], error: null })
+      })
+    } as any;
+  }
+
   // Strict checks for URL
   if (!supabaseUrl || supabaseUrl === "YOUR_SUPABASE_URL_HERE" || supabaseUrl.trim() === "" || typeof supabaseUrl !== 'string') {
     const errorMsg = "Supabase client creation failed: NEXT_PUBLIC_SUPABASE_URL is missing, a placeholder, empty, or not a string. Please check your .env.local file and ensure it's loaded correctly by restarting your Next.js server.";

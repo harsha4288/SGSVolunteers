@@ -1,6 +1,9 @@
 // src/app/app/admin/alerts-faqs/page.tsx
 "use client";
 
+// Disable static generation for admin pages
+export const dynamic = 'force-dynamic';
+
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
