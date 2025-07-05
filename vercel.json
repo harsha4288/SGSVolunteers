@@ -1,0 +1,51 @@
+{
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://itnuxwdxpzdjlfwlvjyz.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bnV4d2R4cHpkamxmd2x2anl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4NDk0NTUsImV4cCI6MjA2MjQyNTQ1NX0.2YXD8rjFdAq4jGIHihya60QD_h3PsBB2m17SGBU0Hes",
+    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bnV4d2R4cHpkamxmd2x2anl6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Njg0OTQ1NSwiZXhwIjoyMDYyNDI1NDU1fQ.Wd6KDfoLD5qtEh5VnqdFRfLyb36zS21GE_zlPdAdBtU",
+    "SUPABASE_DB_HOST": "db.itnuxwdxpzdjlfwlvjyz.supabase.co",
+    "SUPABASE_DB_PORT": "5432",
+    "SUPABASE_DB_NAME": "postgres",
+    "SUPABASE_DB_USER": "postgres",
+    "SUPABASE_DB_PASSWORD": "W6gTwafhvfJ8.4?",
+    "GEMINI_API_KEY": "AIzaSyC1IuU4zO_XfDI-xvyrFmCCNu2PanwQ0lg",
+    "GOOGLE_API_KEY": "AIzaSyC1IuU4zO_XfDI-xvyrFmCCNu2PanwQ0lg",
+    "GOOGLE_GENERATIVE_AI_API_KEY": "AIzaSyC1IuU4zO_XfDI-xvyrFmCCNu2PanwQ0lg"
+  },
+  "functions": {
+    "src/app/api/**": {
+      "maxDuration": 30
+    },
+    "src/app/**/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
