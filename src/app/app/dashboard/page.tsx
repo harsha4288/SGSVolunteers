@@ -1,12 +1,12 @@
 // src/app/app/dashboard/page.tsx
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerActionClient } from "@/lib/supabase/server-actions";
 import { ClientDashboard } from "./components/client-dashboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
 export default async function DashboardPage() {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseServerActionClient();
     
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
