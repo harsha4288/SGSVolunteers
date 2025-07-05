@@ -81,11 +81,17 @@ export interface SevaCategoryStats {
 export const TShirtInventoryResponse: React.FC<{ 
   data: TShirtInventoryItem[];
   title?: string;
-}> = ({ data, title = "T-Shirt Inventory" }) => {
+  message?: string;
+}> = ({ data, title = "T-Shirt Inventory", message }) => {
   const totalStock = data.reduce((sum, item) => sum + item.quantity_on_hand, 0);
 
   return (
     <div className="space-y-4">
+      {message && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          {message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -141,8 +147,9 @@ export const VolunteerStatsResponse: React.FC<{
   data: VolunteerStatsItem[];
   stats?: { total: number; gmFamily: number; nonGmFamily: number };
   title?: string;
+  message?: string;
   useBulletPoints?: boolean;
-}> = ({ data, stats, title = "Volunteer Statistics", useBulletPoints = false }) => {
+}> = ({ data, stats, title = "Volunteer Statistics", message, useBulletPoints = false }) => {
   // Debug logging
   console.log('VolunteerStatsResponse data:', data);
   console.log('VolunteerStatsResponse stats:', stats);
@@ -181,6 +188,11 @@ export const VolunteerStatsResponse: React.FC<{
 
   return (
     <div className="space-y-4">
+      {message && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          {message}
+        </div>
+      )}
       {stats && <StatsCards stats={statsData} />}
       
       <Card>
@@ -253,41 +265,18 @@ export const VolunteerStatsResponse: React.FC<{
 export const SevaCategoryStatsResponse: React.FC<{
   data: SevaCategoryStats[];
   title?: string;
-}> = ({ data, title = "Volunteer Count by Seva Category" }) => {
-  const columns: ColumnDef<SevaCategoryStats>[] = [
-    {
-      accessorKey: 'category_name',
-      header: 'Seva Category',
-      cell: ({ row }) => {
-        const category = row.getValue('category_name') as string;
-        const iconConfig = getTaskIconConfig(category);
-        return (
-          <div className="flex items-center gap-2">
-            {iconConfig.icon && <iconConfig.icon className="h-4 w-4" />}
-            <span className="font-medium">{category}</span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'volunteer_count',
-      header: 'Volunteers',
-      cell: ({ row }) => {
-        const count = row.getValue('volunteer_count') as number;
-        return (
-          <Badge variant="secondary" className="font-mono">
-            {count}
-          </Badge>
-        );
-      },
-    },
-  ];
-
+  message?: string;
+}> = ({ data, title = "Volunteer Count by Seva Category", message }) => {
   const totalVolunteers = data.reduce((sum, item) => sum + item.volunteer_count, 0);
   const sortedData = [...data].sort((a, b) => b.volunteer_count - a.volunteer_count);
 
   return (
     <div className="space-y-4">
+      {message && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          {message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -303,12 +292,38 @@ export const SevaCategoryStatsResponse: React.FC<{
         </CardContent>
       </Card>
       
-      <DataTable
-        columns={columns}
-        data={sortedData}
-        density="compact"
-        className="border rounded-lg"
-      />
+      <DataTable density="compact" className="border rounded-lg">
+        <DataTableColGroup>
+          <DataTableCol />
+          <DataTableCol />
+        </DataTableColGroup>
+        <DataTableHeader>
+          <DataTableRow>
+            <DataTableHead>Seva Category</DataTableHead>
+            <DataTableHead>Volunteers</DataTableHead>
+          </DataTableRow>
+        </DataTableHeader>
+        <DataTableBody>
+          {sortedData.map((item, index) => (
+            <DataTableRow key={index}>
+              <DataTableCell>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const iconConfig = getTaskIconConfig(item.category_name);
+                    return iconConfig.icon && <iconConfig.icon className="h-4 w-4" />;
+                  })()}
+                  <span className="font-medium">{item.category_name}</span>
+                </div>
+              </DataTableCell>
+              <DataTableCell>
+                <DataTableBadge variant="secondary" className="font-mono">
+                  {item.volunteer_count}
+                </DataTableBadge>
+              </DataTableCell>
+            </DataTableRow>
+          ))}
+        </DataTableBody>
+      </DataTable>
     </div>
   );
 };
@@ -318,50 +333,8 @@ export const CheckInResponse: React.FC<{
   data: CheckInItem[];
   title?: string;
   dateContext?: string;
-}> = ({ data, title = "Check-in Information", dateContext }) => {
-  const columns: ColumnDef<CheckInItem>[] = [
-    {
-      accessorKey: 'volunteer_name',
-      header: 'Volunteer',
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {row.getValue('volunteer_name')}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'check_in_time',
-      header: 'Check-in Time',
-      cell: ({ row }) => {
-        const time = row.getValue('check_in_time') as string;
-        return (
-          <div className="flex flex-col">
-            <span className="font-mono text-sm">
-              {new Date(time).toLocaleTimeString()}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(time).toLocaleDateString()}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => {
-        const status = row.getValue('status') as string;
-        return (
-          <StatusBadgeCell
-            value={status}
-            type="attendance"
-            showLabel={true}
-          />
-        );
-      },
-    },
-  ];
-
+  message?: string;
+}> = ({ data, title = "Check-in Information", dateContext, message }) => {
   const statusCounts = data.reduce((acc, item) => {
     acc[item.status] = (acc[item.status] || 0) + 1;
     return acc;
@@ -369,6 +342,11 @@ export const CheckInResponse: React.FC<{
 
   return (
     <div className="space-y-4">
+      {message && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          {message}
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -390,12 +368,46 @@ export const CheckInResponse: React.FC<{
         </CardContent>
       </Card>
       
-      <DataTable
-        columns={columns}
-        data={data}
-        density="compact"
-        className="border rounded-lg"
-      />
+      <DataTable density="compact" className="border rounded-lg">
+        <DataTableColGroup>
+          <DataTableCol />
+          <DataTableCol />
+          <DataTableCol />
+        </DataTableColGroup>
+        <DataTableHeader>
+          <DataTableRow>
+            <DataTableHead>Volunteer</DataTableHead>
+            <DataTableHead>Check-in Time</DataTableHead>
+            <DataTableHead>Status</DataTableHead>
+          </DataTableRow>
+        </DataTableHeader>
+        <DataTableBody>
+          {data.map((item, index) => (
+            <DataTableRow key={item.id || index}>
+              <DataTableCell>
+                <span className="font-medium">{item.volunteer_name}</span>
+              </DataTableCell>
+              <DataTableCell>
+                <div className="flex flex-col">
+                  <span className="font-mono text-sm">
+                    {new Date(item.check_in_time).toLocaleTimeString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(item.check_in_time).toLocaleDateString()}
+                  </span>
+                </div>
+              </DataTableCell>
+              <DataTableCell>
+                <StatusBadgeCell
+                  value={item.status}
+                  type="attendance"
+                  showLabel={true}
+                />
+              </DataTableCell>
+            </DataTableRow>
+          ))}
+        </DataTableBody>
+      </DataTable>
     </div>
   );
 };

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
             nonGmFamily: 1
           },
           title: 'Static Test - Volunteers in Hospitality',
-          message: 'This is static test data for the DataTable component.'
+          message: 'Here\'s some test data! I found 3 volunteers in Hospitality for testing the DataTable component:'
         }
       });
     }

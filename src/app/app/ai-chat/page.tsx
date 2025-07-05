@@ -74,6 +74,7 @@ export default function AiChatPage() {
             <TShirtInventoryResponse 
               data={responseData.data.data}
               title={responseData.data.title}
+              message={responseData.data.message}
             />
           );
           break;
@@ -83,6 +84,7 @@ export default function AiChatPage() {
               data={responseData.data.data}
               stats={responseData.data.stats}
               title={responseData.data.title}
+              message={responseData.data.message}
             />
           );
           break;
@@ -91,6 +93,7 @@ export default function AiChatPage() {
             <SevaCategoryStatsResponse 
               data={responseData.data.data}
               title={responseData.data.title}
+              message={responseData.data.message}
             />
           );
           break;
@@ -100,6 +103,7 @@ export default function AiChatPage() {
               data={responseData.data.data}
               title={responseData.data.title}
               dateContext={responseData.data.dateContext}
+              message={responseData.data.message}
             />
           );
           break;

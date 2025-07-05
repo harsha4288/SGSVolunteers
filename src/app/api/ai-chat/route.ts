@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
             responseData = {
               data: inventoryData,
               title: `T-Shirt Inventory - Size ${size}`,
-              message: `We have ${inventoryData[0].quantity_on_hand} of ${inventoryData[0].size_cd} T-shirts remaining.`
+              message: `Here's what we have for size ${size} T-shirts. We currently have ${inventoryData[0].quantity_on_hand} shirts in stock.`
             };
           } else {
             responseType = 'error';
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
             responseData = {
               data: inventoryData,
               title: 'T-Shirt Inventory - All Sizes',
-              message: `Here's the current T-shirt inventory across ${inventoryData.length} sizes.`
+              message: `Here's our complete T-shirt inventory! We have ${inventoryData.length} different sizes in stock with a total of ${inventoryData.reduce((sum, item) => sum + item.quantity_on_hand, 0)} shirts available.`
             };
           } else {
             responseType = 'error';
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
                   nonGmFamily: nonGmFamilyCount
                 },
                 title: `Volunteers in ${parsedResult.sevaCategory}`,
-                message: `Found ${volunteerData.length} volunteers in ${parsedResult.sevaCategory}.`
+                message: `Great! I found ${volunteerData.length} volunteers working in ${parsedResult.sevaCategory}. Here's the complete list with their details:`
               };
             } else {
               responseType = 'error';
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
               responseData = {
                 data: sevaStatsData,
                 title: 'Volunteer Count by Seva Category',
-                message: `Found ${sevaStatsData.length} seva categories with volunteers.`
+                message: `Here's the breakdown of our ${sevaStatsData.reduce((sum, cat) => sum + cat.volunteer_count, 0)} volunteers across ${sevaStatsData.length} seva categories. The categories are sorted by volunteer count:`
               };
             } else {
               responseType = 'error';
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
                   data: volunteerData,
                   stats,
                   title: 'Volunteer List',
-                  message: `Found ${volunteerData.length} volunteers (showing first 10 of ${totalCount} total).`
+                  message: `Here are our volunteers! We have ${totalCount} total volunteers registered. ${volunteerData.length < totalCount ? `I'm showing the first ${volunteerData.length} volunteers below:` : 'Here\'s the complete list:'}`
                 };
               } else {
                 responseType = 'error';
@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
                 data: formattedCheckIns,
                 title: `Check-ins for ${dateContext}`,
                 dateContext,
-                message: `Found ${formattedCheckIns.length} check-ins for ${dateContext}.`
+                message: `Here are the check-ins for ${dateContext}! I found ${formattedCheckIns.length} volunteers who checked in. You can see their check-in times and status below:`
               };
             } else {
               responseType = 'error';
@@ -461,7 +461,7 @@ export async function POST(req: NextRequest) {
               responseData = {
                 data: formattedCheckIns,
                 title: `Check-ins for ${volunteer.first_name} ${volunteer.last_name}`,
-                message: `Found ${formattedCheckIns.length} recent check-ins for ${volunteer.first_name} ${volunteer.last_name}.`
+                message: `Great! I found the check-in history for ${volunteer.first_name} ${volunteer.last_name}. Here are their ${formattedCheckIns.length} most recent check-ins:`
               };
             } else {
               responseType = 'error';
@@ -502,7 +502,7 @@ export async function POST(req: NextRequest) {
               responseData = {
                 data: formattedCheckIns,
                 title: 'Recent Check-ins',
-                message: `Found ${formattedCheckIns.length} recent check-ins (limited to 10 results).`
+                message: `Here are the most recent check-ins! I found ${formattedCheckIns.length} volunteers who checked in recently (showing the latest 10 entries):`
               };
             } else {
               responseType = 'error';
