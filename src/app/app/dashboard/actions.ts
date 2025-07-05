@@ -11,6 +11,40 @@ import type {
 } from './types';
 
 /**
+ * Gets the current user's profile ID for dashboard access
+ */
+export async function getCurrentUserProfile() {
+  try {
+    const supabase = await createSupabaseServerActionClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { profileId: null, error: 'Not authenticated' };
+    }
+
+    // Get profile ID from profiles table using user_id
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return { profileId: null, error: 'Profile not found for the current user' };
+    }
+
+    return { profileId: profile.id, error: null };
+  } catch (error) {
+    return {
+      profileId: null,
+      error: error instanceof Error ? error.message : 'Failed to get user profile'
+    };
+  }
+}
+
+/**
  * Fetches user roles for a given profile ID
  */
 export async function fetchUserRoles(profileId: string) {
