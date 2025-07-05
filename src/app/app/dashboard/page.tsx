@@ -1,90 +1,63 @@
 // src/app/app/dashboard/page.tsx
-"use client";
-
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { RoleBasedDashboard } from "./components/role-based-dashboard";
-import { Skeleton } from "@/components/ui/skeleton";
+import { createSupabaseServerActionClient } from "@/lib/supabase/server-actions";
+import { ClientDashboard } from "./components/client-dashboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
-export default function DashboardPage() {
-  const [profileId, setProfileId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchProfileId() {
-      try {
-        const supabase = createClient();
-        
-        // Check for impersonation first (like in profile page)
-        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
-        
-        if (impersonatedProfileId) {
-          setProfileId(impersonatedProfileId);
-          return;
-        }
-
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          throw new Error("User not authenticated");
-        }
-
-        // Get profile ID from profiles table using auth_user_id
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("auth_user_id", user.id)
-          .single();
-
-        if (profileError || !profile) {
-          throw new Error("Profile not found");
-        }
-
-        setProfileId(profile.id);
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError(err instanceof Error ? err.message : "Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
+export default async function DashboardPage() {
+  try {
+    const supabase = await createSupabaseServerActionClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return (
+        <div className="container mx-auto py-3 px-2">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Authentication Error</AlertTitle>
+            <AlertDescription>Please log in to access the dashboard.</AlertDescription>
+          </Alert>
+        </div>
+      );
     }
 
-    fetchProfileId();
-  }, []);
+    // Get profile ID from profiles table using auth_user_id
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
 
-  if (loading) {
-    return (
-      <div className="container mx-auto py-3 px-2 space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
+    if (profileError || !profile) {
+      return (
+        <div className="container mx-auto py-3 px-2">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Profile Error</AlertTitle>
+            <AlertDescription>Profile not found for the current user.</AlertDescription>
+          </Alert>
         </div>
-        <Skeleton className="h-64 w-full" />
+      );
+    }
+
+    return (
+      <div className="container mx-auto py-3 px-2">
+        <ClientDashboard defaultProfileId={profile.id} />
       </div>
     );
-  }
-
-  if (error || !profileId) {
+  } catch (error) {
     return (
       <div className="container mx-auto py-3 px-2">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error || "Failed to load dashboard"}</AlertDescription>
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Failed to load dashboard"}
+          </AlertDescription>
         </Alert>
       </div>
     );
   }
-
-  return (
-    <div className="container mx-auto py-3 px-2">
-      <RoleBasedDashboard profileId={profileId} />
-    </div>
-  );
 }

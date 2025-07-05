@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/supabase';
 import { revalidatePath } from 'next/cache';
 import { Pool } from 'pg';
-import { hardcodedAdminCheck } from '../admin-override';
 import { createSupabaseServerActionClient } from '@/lib/supabase/server-actions';
 
 // Define types for our data
@@ -26,9 +25,51 @@ export type Role = {
 
 // Function to check if the current user has admin role
 export async function checkAdminAccess() {
-  // Use the hardcoded admin check instead of database queries
-  // This is a temporary solution until we fix the database connection issues
-  return hardcodedAdminCheck();
+  try {
+    const supabase = await createSupabaseServerActionClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      console.log('No authenticated user found or error:', userError);
+      return { isAdmin: false, error: 'Not authenticated' };
+    }
+
+    // Get profile ID from auth user
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.log('Profile not found for user:', user.email);
+      return { isAdmin: false, error: 'Profile not found' };
+    }
+
+    // Check if user is admin - Admin role has ID 1
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('profile_roles')
+      .select('role_id')
+      .eq('profile_id', profile.id);
+
+    if (rolesError) {
+      console.error("Error fetching user roles:", rolesError);
+      return { isAdmin: false, error: 'Error fetching user roles' };
+    }
+
+    const isUserAdmin = userRoles?.some(role => role.role_id === 1) || false;
+    console.log("Is user admin:", isUserAdmin, "User roles:", userRoles);
+
+    return { isAdmin: isUserAdmin, error: null };
+  } catch (error) {
+    console.error('Unexpected error in checkAdminAccess:', error);
+    return {
+      isAdmin: false,
+      error: error instanceof Error ? error.message : 'Unknown error checking admin access'
+    };
+  }
 }
 
 // Function to fetch users with their roles with pagination and search

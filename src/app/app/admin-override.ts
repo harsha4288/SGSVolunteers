@@ -19,10 +19,23 @@ export async function hardcodedAdminCheck() {
     }
 
     console.log('Checking admin access for user:', user.email);
+    console.log('User ID:', user.id);
+    console.log('Environment:', process.env.NODE_ENV);
 
-    // Check if the user is datta.rajesh@gmail.com
-    const isAdmin = user.email === 'datta.rajesh@gmail.com' || process.env.NODE_ENV === 'development';
+    // Check if the user is datta.rajesh@gmail.com (normalize email comparison)
+    const userEmail = user.email?.toLowerCase().trim();
+    const adminEmails = ['datta.rajesh@gmail.com', 'datta.rajesh'];
+    const isAdmin = adminEmails.includes(userEmail || '') || process.env.NODE_ENV === 'development';
+    
+    console.log('User email (normalized):', userEmail);
+    console.log('Admin email:', adminEmail);
+    console.log('Email match:', userEmail === adminEmail);
+    console.log('Is development:', process.env.NODE_ENV === 'development');
     console.log('User admin status (hardcoded check):', isAdmin);
+
+    if (!isAdmin) {
+      return { isAdmin: false, error: `Access denied for user: ${userEmail}. Only ${adminEmail} has admin access.` };
+    }
 
     return { isAdmin, error: null };
   } catch (error) {
