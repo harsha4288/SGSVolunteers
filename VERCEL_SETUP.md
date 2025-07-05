@@ -77,8 +77,20 @@ vercel env add GOOGLE_GENERATIVE_AI_API_KEY
 
 ## Troubleshooting
 
-If you still see "NEXT_PUBLIC_SUPABASE_URL is missing" errors:
+### Common Build Issues
+
+**1. "@supabase/ssr version not found" error:**
+- This occurs when package.json references a non-existent version
+- Solution: Update to a valid version (e.g., `"@supabase/ssr": "^0.6.1"`)
+- Check available versions: `npm view @supabase/ssr versions --json`
+
+**2. "NEXT_PUBLIC_SUPABASE_URL is missing" errors:**
 1. Double-check all environment variables are set in Vercel dashboard
 2. Ensure the variable names match exactly (case-sensitive)
 3. Redeploy your project after adding variables
 4. Check the build logs for any typos in variable names
+
+**3. npm install failures:**
+- Always test `npm install` locally before deploying
+- Check for outdated or invalid package versions
+- Review package.json for typos in dependency names/versions
