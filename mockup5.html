@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Grid Manager - Drag & Drop Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .sidebar-header p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .event-selector {
+            margin-bottom: 25px;
+        }
+
+        .event-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .event-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            background: white;
+        }
+
+        .components-section {
+            margin-bottom: 30px;
+        }
+
+        .components-section h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .component-library {
+            display: grid;
+            gap: 10px;
+        }
+
+        .component-item {
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: grab;
+            transition: all 0.2s ease;
+            text-align: center;
+            user-select: none;
+        }
+
+        .component-item:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+            transform: translateY(-2px);
+        }
+
+        .component-item:active {
+            cursor: grabbing;
+        }
+
+        .component-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .component-icon {
+            font-size: 1.5em;
+            margin-bottom: 8px;
+        }
+
+        .component-name {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .component-description {
+            font-size: 0.8em;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        .templates-section {
+            margin-bottom: 25px;
+        }
+
+        .template-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .template-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .template-description {
+            font-size: 0.8em;
+            color: #718096;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .toolbar-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .view-btn {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #4a5568;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #2d3748;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .grid-container {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .grid-drop-zone {
+            position: absolute;
+            inset: 0;
+            border: 2px dashed transparent;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        .grid-drop-zone.drag-over {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .qr-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: move;
+        }
+
+        .qr-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .qr-card.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .qr-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .qr-card-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .qr-card-subtitle {
+            font-size: 0.8em;
+            color: #718096;
+        }
+
+        .qr-card-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn.edit {
+            background: #4299e1;
+            color: white;
+        }
+
+        .action-btn.delete {
+            background: #f56565;
+            color: white;
+        }
+
+        .qr-display {
+            width: 120px;
+            height: 120px;
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 2.5em;
+            color: #a0aec0;
+            transition: all 0.2s ease;
+        }
+
+        .qr-display.generated {
+            background: #f0fff4;
+            border-color: #48bb78;
+            color: #48bb78;
+        }
+
+        .qr-display.pending {
+            background: #fffbf0;
+            border-color: #ed8936;
+            color: #ed8936;
+        }
+
+        .qr-info {
+            margin-bottom: 15px;
+        }
+
+        .qr-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .qr-info-label {
+            color: #718096;
+        }
+
+        .qr-info-value {
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .seva-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 15px;
+        }
+
+        .seva-tag {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: 500;
+        }
+
+        .qr-card-footer {
+            display: flex;
+            gap: 8px;
+        }
+
+        .footer-btn {
+            flex: 1;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+        }
+
+        .footer-btn.generate {
+            background: #667eea;
+            color: white;
+        }
+
+        .footer-btn.download {
+            background: #48bb78;
+            color: white;
+        }
+
+        .footer-btn.print {
+            background: #ed8936;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #4a5568;
+        }
+
+        .empty-state p {
+            margin-bottom: 20px;
+        }
+
+        .status-bar {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-indicator.green {
+            background: #48bb78;
+        }
+
+        .status-indicator.orange {
+            background: #ed8936;
+        }
+
+        .status-indicator.gray {
+            background: #a0aec0;
+        }
+
+        .floating-actions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fab {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+        }
+
+        .fab.primary {
+            background: #667eea;
+        }
+
+        .fab.success {
+            background: #48bb78;
+        }
+
+        .fab.warning {
+            background: #ed8936;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-height: 40vh;
+            }
+            
+            .qr-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Drag and drop styles */
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .drag-over {
+            border-color: #667eea !important;
+            background: rgba(102, 126, 234, 0.05) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🎯 QR Grid Manager</h1>
+                <p>Drag & Drop QR Code Management</p>
+            </div>
+            <div class="sidebar-content">
+                <div class="event-selector">
+                    <label for="eventSelect">Select Event</label>
+                    <select id="eventSelect">
+                        <option value="sunday-seva">Sunday Seva Program - Dec 15</option>
+                        <option value="holiday-event">Holiday Celebration - Dec 22</option>
+                        <option value="new-year">New Year Service - Jan 1</option>
+                    </select>
+                </div>
+
+                <div class="components-section">
+                    <h3>📦 QR Components</h3>
+                    <div class="component-library">
+                        <div class="component-item" draggable="true" data-type="kitchen">
+                            <div class="component-icon">🍳</div>
+                            <div class="component-name">Kitchen</div>
+                            <div class="component-description">Food prep & cooking</div>
+                        </div>
+                        <div class="component-item" draggable="true" data-type="dining">
+                            <div class="component-icon">🍽️</div>
+                            <div class="component-name">Dining</div>
+                            <div class="component-description">Food service area</div>
+                        </div>
+                        <div class="component-item" draggable="true" data-type="registration">
+                            <div class="component-icon">📋</div>
+                            <div class="component-name">Registration</div>
+                            <div class="component-description">Check-in desk</div>
+                        </div>
+                        <div class="component-item" draggable="true" data-type="parking">
+                            <div class="component-icon">🚗</div>
+                            <div class="component-name">Parking</div>
+                            <div class="component-description">Traffic control</div>
+                        </div>
+                        <div class="component-item" draggable="true" data-type="children">
+                            <div class="component-icon">👶</div>
+                            <div class="component-name">Children</div>
+                            <div class="component-description">Kids activities</div>
+                        </div>
+                        <div class="component-item" draggable="true" data-type="av">
+                            <div class="component-icon">🎵</div>
+                            <div class="component-name">Audio/Visual</div>
+                            <div class="component-description">Sound & recording</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="templates-section">
+                    <h3>📋 Templates</h3>
+                    <div class="template-item" data-template="basic">
+                        <div class="template-name">Basic Setup</div>
+                        <div class="template-description">Kitchen + Dining + Registration</div>
+                    </div>
+                    <div class="template-item" data-template="full">
+                        <div class="template-name">Full Event</div>
+                        <div class="template-description">All locations included</div>
+                    </div>
+                    <div class="template-item" data-template="minimal">
+                        <div class="template-name">Minimal</div>
+                        <div class="template-description">Kitchen + Registration only</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <div class="toolbar-title">QR Code Layout</div>
+                    <div class="view-controls">
+                        <button class="view-btn active">📱 Grid</button>
+                        <button class="view-btn">📋 List</button>
+                        <button class="view-btn">🖨️ Print</button>
+                    </div>
+                </div>
+                <div class="toolbar-right">
+                    <button class="btn btn-secondary">🔄 Reset</button>
+                    <button class="btn btn-primary">💾 Save Layout</button>
+                    <button class="btn btn-success">⚡ Generate All</button>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div class="qr-grid" id="qrGrid">
+                    <div class="grid-drop-zone" id="dropZone"></div>
+                    
+                    <!-- Existing QR Cards -->
+                    <div class="qr-card" data-location="kitchen" draggable="true">
+                        <div class="qr-card-header">
+                            <div>
+                                <div class="qr-card-title">Main Kitchen</div>
+                                <div class="qr-card-subtitle">Food Preparation Area</div>
+                            </div>
+                            <div class="qr-card-actions">
+                                <button class="action-btn edit">✏️</button>
+                                <button class="action-btn delete">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="qr-display generated">📱</div>
+                        <div class="qr-info">
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Status:</span>
+                                <span class="qr-info-value">Generated</span>
+                            </div>
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Valid:</span>
+                                <span class="qr-info-value">Dec 15, 2024</span>
+                            </div>
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Scans:</span>
+                                <span class="qr-info-value">23</span>
+                            </div>
+                        </div>
+                        <div class="seva-tags">
+                            <span class="seva-tag">Food Prep</span>
+                            <span class="seva-tag">Cooking</span>
+                            <span class="seva-tag">Cleanup</span>
+                        </div>
+                        <div class="qr-card-footer">
+                            <button class="footer-btn download">📥 Download</button>
+                            <button class="footer-btn print">🖨️ Print</button>
+                        </div>
+                    </div>
+
+                    <div class="qr-card" data-location="registration" draggable="true">
+                        <div class="qr-card-header">
+                            <div>
+                                <div class="qr-card-title">Registration Desk</div>
+                                <div class="qr-card-subtitle">Check-in Area</div>
+                            </div>
+                            <div class="qr-card-actions">
+                                <button class="action-btn edit">✏️</button>
+                                <button class="action-btn delete">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="qr-display pending">⏳</div>
+                        <div class="qr-info">
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Status:</span>
+                                <span class="qr-info-value">Pending</span>
+                            </div>
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Valid:</span>
+                                <span class="qr-info-value">Dec 15, 2024</span>
+                            </div>
+                            <div class="qr-info-item">
+                                <span class="qr-info-label">Scans:</span>
+                                <span class="qr-info-value">0</span>
+                            </div>
+                        </div>
+                        <div class="seva-tags">
+                            <span class="seva-tag">Check-in</span>
+                            <span class="seva-tag">Information</span>
+                            <span class="seva-tag">Coordination</span>
+                        </div>
+                        <div class="qr-card-footer">
+                            <button class="footer-btn generate">⚡ Generate</button>
+                            <button class="footer-btn print">🖨️ Print</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-state-icon">📱</div>
+                    <h3>No QR Codes Yet</h3>
+                    <p>Drag components from the sidebar to create QR codes</p>
+                    <button class="btn btn-primary">🚀 Add First QR Code</button>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-left">
+                    <div class="status-item">
+                        <div class="status-indicator green"></div>
+                        <span>2 Generated</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-indicator orange"></div>
+                        <span>1 Pending</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-indicator gray"></div>
+                        <span>0 Failed</span>
+                    </div>
+                </div>
+                <div class="status-right">
+                    <span>Last updated: 2 minutes ago</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="floating-actions">
+            <button class="fab primary" title="Add QR Code">+</button>
+            <button class="fab success" title="Generate All">⚡</button>
+            <button class="fab warning" title="Print All">🖨️</button>
+        </div>
+    </div>
+
+    <script>
+        let draggedElement = null;
+        let cardCounter = 0;
+
+        const locationData = {
+            kitchen: {
+                title: 'Main Kitchen',
+                subtitle: 'Food Preparation Area',
+                icon: '🍳',
+                categories: ['Food Prep', 'Cooking', 'Cleanup']
+            },
+            dining: {
+                title: 'Dining Hall',
+                subtitle: 'Food Service Area',
+                icon: '🍽️',
+                categories: ['Food Service', 'Table Setup', 'Greeting']
+            },
+            registration: {
+                title: 'Registration Desk',
+                subtitle: 'Check-in Area',
+                icon: '📋',
+                categories: ['Check-in', 'Information', 'Coordination']
+            },
+            parking: {
+                title: 'Parking Area',
+                subtitle: 'Traffic Control',
+                icon: '🚗',
+                categories: ['Traffic Control', 'Guidance', 'Safety']
+            },
+            children: {
+                title: 'Children Area',
+                subtitle: 'Kids Activities',
+                icon: '👶',
+                categories: ['Childcare', 'Activities', 'Supervision']
+            },
+            av: {
+                title: 'Audio/Visual',
+                subtitle: 'Sound & Recording',
+                icon: '🎵',
+                categories: ['Sound Setup', 'Recording', 'Tech Support']
+            }
+        };
+
+        // Drag and drop functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const qrGrid = document.getElementById('qrGrid');
+            const dropZone = document.getElementById('dropZone');
+            const componentItems = document.querySelectorAll('.component-item');
+            const qrCards = document.querySelectorAll('.qr-card');
+
+            // Component drag start
+            componentItems.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    draggedElement = this;
+                    this.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', this.dataset.type);
+                });
+
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    draggedElement = null;
+                });
+            });
+
+            // QR card drag functionality
+            qrCards.forEach(card => {
+                card.addEventListener('dragstart', function(e) {
+                    draggedElement = this;
+                    this.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', 'qr-card');
+                });
+
+                card.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    draggedElement = null;
+                });
+            });
+
+            // Drop zone events
+            qrGrid.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            qrGrid.addEventListener('dragleave', function(e) {
+                if (!qrGrid.contains(e.relatedTarget)) {
+                    dropZone.classList.remove('drag-over');
+                }
+            });
+
+            qrGrid.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                
+                const dataType = e.dataTransfer.getData('text/plain');
+                
+                if (dataType !== 'qr-card' && draggedElement) {
+                    createQRCard(dataType);
+                }
+            });
+
+            // Template functionality
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const template = this.dataset.template;
+                    loadTemplate(template);
+                });
+            });
+
+            // Button functionality
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const action = this.textContent.toLowerCase();
+                    if (action.includes('generate')) {
+                        generateAllQRCodes();
+                    } else if (action.includes('reset')) {
+                        resetGrid();
+                    } else if (action.includes('save')) {
+                        saveLayout();
+                    }
+                });
+            });
+
+            // FAB functionality
+            document.querySelectorAll('.fab').forEach(fab => {
+                fab.addEventListener('click', function() {
+                    const title = this.getAttribute('title');
+                    if (title.includes('Add')) {
+                        // Show component selection
+                        alert('Drag components from the sidebar to add QR codes');
+                    } else if (title.includes('Generate')) {
+                        generateAllQRCodes();
+                    } else if (title.includes('Print')) {
+                        printAllQRCodes();
+                    }
+                });
+            });
+
+            updateStatusBar();
+        });
+
+        function createQRCard(type) {
+            const data = locationData[type];
+            if (!data) return;
+
+            cardCounter++;
+            const card = document.createElement('div');
+            card.className = 'qr-card';
+            card.draggable = true;
+            card.dataset.location = type;
+            
+            card.innerHTML = `
+                <div class="qr-card-header">
+                    <div>
+                        <div class="qr-card-title">${data.title}</div>
+                        <div class="qr-card-subtitle">${data.subtitle}</div>
+                    </div>
+                    <div class="qr-card-actions">
+                        <button class="action-btn edit">✏️</button>
+                        <button class="action-btn delete">🗑️</button>
+                    </div>
+                </div>
+                <div class="qr-display">📱</div>
+                <div class="qr-info">
+                    <div class="qr-info-item">
+                        <span class="qr-info-label">Status:</span>
+                        <span class="qr-info-value">Ready</span>
+                    </div>
+                    <div class="qr-info-item">
+                        <span class="qr-info-label">Valid:</span>
+                        <span class="qr-info-value">Dec 15, 2024</span>
+                    </div>
+                    <div class="qr-info-item">
+                        <span class="qr-info-label">Scans:</span>
+                        <span class="qr-info-value">0</span>
+                    </div>
+                </div>
+                <div class="seva-tags">
+                    ${data.categories.map(cat => `<span class="seva-tag">${cat}</span>`).join('')}
+                </div>
+                <div class="qr-card-footer">
+                    <button class="footer-btn generate">⚡ Generate</button>
+                    <button class="footer-btn print">🖨️ Print</button>
+                </div>
+            `;
+
+            // Add drag functionality to new card
+            card.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', 'qr-card');
+            });
+
+            card.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                draggedElement = null;
+            });
+
+            // Add delete functionality
+            card.querySelector('.action-btn.delete').addEventListener('click', function() {
+                if (confirm('Are you sure you want to delete this QR code?')) {
+                    card.remove();
+                    updateStatusBar();
+                }
+            });
+
+            // Add generate functionality
+            card.querySelector('.footer-btn.generate').addEventListener('click', function() {
+                generateQRCode(card);
+            });
+
+            document.getElementById('qrGrid').appendChild(card);
+            updateStatusBar();
+        }
+
+        function generateQRCode(card) {
+            const qrDisplay = card.querySelector('.qr-display');
+            const status = card.querySelector('.qr-info-value');
+            const generateBtn = card.querySelector('.footer-btn.generate');
+            
+            generateBtn.textContent = '🔄 Generating...';
+            generateBtn.disabled = true;
+            
+            setTimeout(() => {
+                qrDisplay.classList.add('generated');
+                qrDisplay.textContent = '📱';
+                status.textContent = 'Generated';
+                generateBtn.textContent = '✅ Generated';
+                generateBtn.className = 'footer-btn download';
+                generateBtn.textContent = '📥 Download';
+                generateBtn.disabled = false;
+                
+                updateStatusBar();
+            }, 1500);
+        }
+
+        function generateAllQRCodes() {
+            const pendingCards = document.querySelectorAll('.qr-card .qr-display:not(.generated)');
+            pendingCards.forEach((display, index) => {
+                const card = display.closest('.qr-card');
+                setTimeout(() => {
+                    generateQRCode(card);
+                }, index * 500);
+            });
+        }
+
+        function loadTemplate(template) {
+            resetGrid();
+            
+            const templates = {
+                basic: ['kitchen', 'dining', 'registration'],
+                full: ['kitchen', 'dining', 'registration', 'parking', 'children', 'av'],
+                minimal: ['kitchen', 'registration']
+            };
+            
+            const locations = templates[template] || [];
+            locations.forEach((location, index) => {
+                setTimeout(() => {
+                    createQRCard(location);
+                }, index * 200);
+            });
+        }
+
+        function resetGrid() {
+            const cards = document.querySelectorAll('.qr-card');
+            cards.forEach(card => {
+                if (!card.querySelector('.qr-display.generated')) {
+                    card.remove();
+                }
+            });
+            updateStatusBar();
+        }
+
+        function saveLayout() {
+            const cards = document.querySelectorAll('.qr-card');
+            const layout = Array.from(cards).map(card => card.dataset.location);
+            localStorage.setItem('qr-layout', JSON.stringify(layout));
+            alert('Layout saved successfully!');
+        }
+
+        function printAllQRCodes() {
+            alert('Print functionality would open a print-optimized layout');
+        }
+
+        function updateStatusBar() {
+            const generated = document.querySelectorAll('.qr-display.generated').length;
+            const pending = document.querySelectorAll('.qr-display.pending').length;
+            const ready = document.querySelectorAll('.qr-display:not(.generated):not(.pending)').length;
+            
+            document.querySelector('.status-item:nth-child(1) span').textContent = `${generated} Generated`;
+            document.querySelector('.status-item:nth-child(2) span').textContent = `${pending + ready} Pending`;
+            document.querySelector('.status-item:nth-child(3) span').textContent = `0 Failed`;
+        }
+    </script>
+</body>
+</html>

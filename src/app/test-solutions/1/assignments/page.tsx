@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Monitor, Smartphone, Tablet, Star, Grid3X3 } from 'lucide-react';
-import { AssignmentsTable } from '@/components/ui/data-table-solutions/solution-1-assignments-table';
+// Temporarily commented out due to missing datatable solution iteration
+// import { AssignmentsTable } from '@/components/ui/data-table-solutions/solution-1-assignments-table';
 
 // Mock data for testing
 const mockTimeSlots = [
@@ -29,7 +30,7 @@ const mockAssignments = [
     check_in_status: 'checked_in' as const
   },
   {
-    id: 2, 
+    id: 2,
     volunteer: { first_name: 'Maria', last_name: 'Garcia-Rodriguez', email: 'maria.garcia.rodriguez@example.com' },
     seva_category: { category_name: 'Food Service' },
     time_slot_id: 2,
@@ -39,7 +40,7 @@ const mockAssignments = [
     id: 3,
     volunteer: { first_name: 'Alexander', last_name: 'Constantinopolous', email: 'alex.constantinopolous@example.com' },
     seva_category: { category_name: 'Setup & Logistics' },
-    time_slot_id: 3, 
+    time_slot_id: 3,
     check_in_status: 'absent' as const
   },
   {
@@ -57,6 +58,31 @@ const mockAssignments = [
     check_in_status: 'pending' as const
   }
 ];
+
+// Simple placeholder component
+function AssignmentsTablePlaceholder() {
+  return (
+    <div className="border rounded-lg p-8 text-center">
+      <div className="text-muted-foreground mb-4">
+        <Grid3X3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <h3 className="text-lg font-semibold mb-2">Solution 1: CSS Grid Approach</h3>
+        <p className="text-sm">
+          This solution prototype has been archived. The component used iteration_1
+          datatable solution which is no longer available.
+        </p>
+      </div>
+      <div className="bg-muted rounded-lg p-4 text-left">
+        <p className="text-xs text-muted-foreground mb-2">Key Features (Archived):</p>
+        <ul className="text-xs space-y-1">
+          <li>• CSS Grid replaces table structure</li>
+          <li>• Grid template: minmax(150px, 0.22fr) repeat(auto-fit, 1fr)</li>
+          <li>• Perfect column control without JavaScript</li>
+          <li>• Container queries for responsive design</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 export default function Solution1AssignmentsPage() {
   return (
@@ -77,7 +103,7 @@ export default function Solution1AssignmentsPage() {
             Score: 97/100
           </Badge>
         </div>
-        
+
         <div className="flex items-center gap-3 mb-2">
           <Star className="h-6 w-6 text-primary" />
           <h1 className="text-3xl font-bold">Solution 1: CSS Grid Approach</h1>
@@ -101,7 +127,7 @@ export default function Solution1AssignmentsPage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -171,17 +197,14 @@ export default function Solution1AssignmentsPage() {
         </div>
       </div>
 
-      {/* The Actual Table */}
+      {/* The Actual Table - replaced with placeholder */}
       <div className="border rounded-lg bg-card p-6">
         <h2 className="text-xl font-semibold mb-4">Live Demo - Assignments Table (CSS Grid)</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Open DevTools to inspect the CSS Grid structure. Try resizing and horizontal scrolling:
+          This solution prototype has been archived. See other active solutions for live demos.
         </p>
-        
-        <AssignmentsTable 
-          assignments={mockAssignments}
-          timeSlots={mockTimeSlots}
-        />
+
+        <AssignmentsTablePlaceholder />
       </div>
 
       {/* Navigation */}

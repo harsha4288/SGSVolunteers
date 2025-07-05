@@ -13,7 +13,7 @@ import {
   DataTableCell,
   DataTableColGroup,
   DataTableCol,
-} from "../../../../datatable_solutions/iteration_1/implementation/components/ui/data-table";
+} from "../../../../datatable_solutions/solution_3_dynamic/DataTable";
 
 // Mock data interfaces
 interface MockVolunteer {
@@ -45,11 +45,11 @@ interface AssignmentsTableProps {
   timeSlots?: MockTimeSlot[];
 }
 
-export function AssignmentsTable({ 
-  assignments = [], 
-  timeSlots = [] 
+export function AssignmentsTable({
+  assignments = [],
+  timeSlots = []
 }: AssignmentsTableProps) {
-  
+
   // Default mock data if none provided
   const defaultAssignments: MockAssignment[] = [
     {
@@ -60,7 +60,7 @@ export function AssignmentsTable({
       check_in_status: 'checked_in'
     },
     {
-      id: 2, 
+      id: 2,
       volunteer: { first_name: 'Maria', last_name: 'Garcia-Rodriguez', email: 'maria.garcia.rodriguez@example.com' },
       seva_category: { category_name: 'Food Service' },
       time_slot_id: 2,
@@ -70,7 +70,7 @@ export function AssignmentsTable({
       id: 3,
       volunteer: { first_name: 'Alexander', last_name: 'Constantinopolous', email: 'alex.constantinopolous@example.com' },
       seva_category: { category_name: 'Setup & Logistics' },
-      time_slot_id: 3, 
+      time_slot_id: 3,
       check_in_status: 'absent'
     },
     {

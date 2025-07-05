@@ -19,10 +19,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enable experimental HTTPS for development
-  experimental: {
-    https: process.env.NODE_ENV === 'development',
-  },
 };
 
 export default nextConfig;

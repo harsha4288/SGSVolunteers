@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Generator - Split Screen Live Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .split-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .left-panel {
+            width: 45%;
+            background: #1a1a2e;
+            padding: 30px;
+            overflow-y: auto;
+            border-right: 1px solid #16213e;
+        }
+
+        .right-panel {
+            width: 55%;
+            background: #16213e;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        .panel-header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .panel-header p {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            background: #16213e;
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #0f3460;
+        }
+
+        .form-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0f0f23;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #0f0f23;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-item:hover {
+            border-color: #667eea;
+            background: #1a1a2e;
+        }
+
+        .checkbox-item.selected {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #2ecc71;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .location-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .location-card {
+            background: #0f0f23;
+            border: 1px solid #0f3460;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .location-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .location-card.selected {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .location-card h3 {
+            color: #e0e0e0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .location-card .seva-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .seva-chip {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #27ae60;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .qr-preview-card {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #0f3460;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .qr-preview-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .qr-preview-card.generated {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.05);
+        }
+
+        .qr-code-display {
+            width: 180px;
+            height: 180px;
+            background: #fff;
+            border-radius: 12px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4em;
+            color: #2c3e50;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .qr-code-display.placeholder {
+            background: #0f0f23;
+            border: 2px dashed #0f3460;
+            color: #667eea;
+        }
+
+        .qr-info {
+            margin-bottom: 20px;
+        }
+
+        .qr-info h3 {
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            font-size: 1.2em;
+        }
+
+        .qr-info p {
+            color: #a0a0a0;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .qr-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .qr-status.ready {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+        }
+
+        .qr-status.generated {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+
+        .qr-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .qr-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+        }
+
+        .qr-btn.download {
+            background: #3498db;
+            color: white;
+        }
+
+        .qr-btn.print {
+            background: #f39c12;
+            color: white;
+        }
+
+        .qr-btn.share {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .real-time-updates {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .real-time-updates.show {
+            opacity: 1;
+        }
+
+        .sidebar-toggle {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .split-container {
+                flex-direction: column;
+            }
+            
+            .left-panel, .right-panel {
+                width: 100%;
+            }
+            
+            .left-panel {
+                max-height: 50vh;
+            }
+            
+            .right-panel {
+                max-height: 50vh;
+            }
+        }
+
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 15px 25px;
+            display: flex;
+            gap: 15px;
+            border: 1px solid #0f3460;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 8px 12px;
+            border-radius: 15px;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #fff;
+        }
+
+        .toolbar-btn.active {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="split-container">
+        <div class="left-panel">
+            <div class="panel-header">
+                <h1>⚙️ QR Generator</h1>
+                <p>Configure your QR codes with live preview</p>
+            </div>
+
+            <div class="form-section">
+                <h2>📅 Event Details</h2>
+                <div class="form-group">
+                    <label>Event Date</label>
+                    <input type="date" class="form-control" value="2024-12-15">
+                </div>
+                <div class="form-group">
+                    <label>Event Name</label>
+                    <input type="text" class="form-control" value="Sunday Seva Program" placeholder="Enter event name">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" rows="3" placeholder="Optional event description">Weekly volunteer service program</textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>🏛️ Select Locations</h2>
+                <div class="location-selector">
+                    <div class="location-card selected" data-location="kitchen">
+                        <h3>Main Kitchen</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Food Prep</span>
+                            <span class="seva-chip">Cooking</span>
+                            <span class="seva-chip">Cleanup</span>
+                        </div>
+                    </div>
+                    <div class="location-card" data-location="dining">
+                        <h3>Dining Area</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Food Service</span>
+                            <span class="seva-chip">Table Setup</span>
+                            <span class="seva-chip">Greeting</span>
+                        </div>
+                    </div>
+                    <div class="location-card selected" data-location="registration">
+                        <h3>Registration Desk</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Check-in</span>
+                            <span class="seva-chip">Information</span>
+                            <span class="seva-chip">Coordination</span>
+                        </div>
+                    </div>
+                    <div class="location-card" data-location="parking">
+                        <h3>Parking Area</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Traffic Control</span>
+                            <span class="seva-chip">Guidance</span>
+                            <span class="seva-chip">Safety</span>
+                        </div>
+                    </div>
+                    <div class="location-card selected" data-location="children">
+                        <h3>Children's Area</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Childcare</span>
+                            <span class="seva-chip">Activities</span>
+                            <span class="seva-chip">Supervision</span>
+                        </div>
+                    </div>
+                    <div class="location-card" data-location="av">
+                        <h3>Audio/Visual</h3>
+                        <div class="seva-list">
+                            <span class="seva-chip">Sound Setup</span>
+                            <span class="seva-chip">Recording</span>
+                            <span class="seva-chip">Tech Support</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>⚙️ QR Code Options</h2>
+                <div class="checkbox-group">
+                    <div class="checkbox-item selected">
+                        <input type="checkbox" id="individual" checked>
+                        <label for="individual">Individual QR per location</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="shared">
+                        <label for="shared">Shared QR for multiple locations</label>
+                    </div>
+                    <div class="checkbox-item selected">
+                        <input type="checkbox" id="date-specific" checked>
+                        <label for="date-specific">Date-specific validity</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="time-slots">
+                        <label for="time-slots">Time slot restrictions</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary">
+                    <span>⚡</span> Generate QR Codes
+                </button>
+                <button class="btn btn-secondary">
+                    <span>📥</span> Download All
+                </button>
+                <button class="btn btn-outline">
+                    <span>🖨️</span> Print Layout
+                </button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-header">
+                <h1>👁️ Live Preview</h1>
+                <p>Real-time QR code generation and preview</p>
+            </div>
+
+            <div class="preview-grid">
+                <div class="qr-preview-card generated">
+                    <div class="qr-code-display">📱</div>
+                    <div class="qr-info">
+                        <h3>Main Kitchen</h3>
+                        <p>Food Prep • Cooking • Cleanup</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status generated">✅ Generated</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download">📥 Download</button>
+                        <button class="qr-btn print">🖨️ Print</button>
+                        <button class="qr-btn share">📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="qr-preview-card">
+                    <div class="qr-code-display placeholder">🔄</div>
+                    <div class="qr-info">
+                        <h3>Registration Desk</h3>
+                        <p>Check-in • Information • Coordination</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status ready">⏳ Ready to Generate</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download">📥 Download</button>
+                        <button class="qr-btn print">🖨️ Print</button>
+                        <button class="qr-btn share">📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="qr-preview-card">
+                    <div class="qr-code-display placeholder">🔄</div>
+                    <div class="qr-info">
+                        <h3>Children's Area</h3>
+                        <p>Childcare • Activities • Supervision</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status ready">⏳ Ready to Generate</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download">📥 Download</button>
+                        <button class="qr-btn print">🖨️ Print</button>
+                        <button class="qr-btn share">📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="qr-preview-card" style="opacity: 0.5;">
+                    <div class="qr-code-display placeholder">💤</div>
+                    <div class="qr-info">
+                        <h3>Dining Area</h3>
+                        <p>Food Service • Table Setup • Greeting</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status">⚪ Not Selected</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download" disabled>📥 Download</button>
+                        <button class="qr-btn print" disabled>🖨️ Print</button>
+                        <button class="qr-btn share" disabled>📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="qr-preview-card" style="opacity: 0.5;">
+                    <div class="qr-code-display placeholder">💤</div>
+                    <div class="qr-info">
+                        <h3>Parking Area</h3>
+                        <p>Traffic Control • Guidance • Safety</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status">⚪ Not Selected</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download" disabled>📥 Download</button>
+                        <button class="qr-btn print" disabled>🖨️ Print</button>
+                        <button class="qr-btn share" disabled>📤 Share</button>
+                    </div>
+                </div>
+
+                <div class="qr-preview-card" style="opacity: 0.5;">
+                    <div class="qr-code-display placeholder">💤</div>
+                    <div class="qr-info">
+                        <h3>Audio/Visual</h3>
+                        <p>Sound Setup • Recording • Tech Support</p>
+                        <p>Valid: Dec 15, 2024</p>
+                    </div>
+                    <div class="qr-status">⚪ Not Selected</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn download" disabled>📥 Download</button>
+                        <button class="qr-btn print" disabled>🖨️ Print</button>
+                        <button class="qr-btn share" disabled>📤 Share</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-toolbar">
+        <button class="toolbar-btn active" title="Grid View">📱</button>
+        <button class="toolbar-btn" title="List View">📋</button>
+        <button class="toolbar-btn" title="Print Preview">🖨️</button>
+        <button class="toolbar-btn" title="Settings">⚙️</button>
+    </div>
+
+    <div class="real-time-updates">
+        QR Code generated successfully!
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const locationCards = document.querySelectorAll('.location-card');
+            const previewCards = document.querySelectorAll('.qr-preview-card');
+            const generateBtn = document.querySelector('.btn-primary');
+            const notification = document.querySelector('.real-time-updates');
+
+            // Location selection
+            locationCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                    updatePreview();
+                });
+            });
+
+            // Generate button
+            generateBtn.addEventListener('click', function() {
+                const selectedCards = document.querySelectorAll('.location-card.selected');
+                this.textContent = '🔄 Generating...';
+                this.disabled = true;
+
+                selectedCards.forEach((card, index) => {
+                    const locationName = card.getAttribute('data-location');
+                    const previewCard = document.querySelector(`.qr-preview-card:nth-child(${index + 1})`);
+                    
+                    setTimeout(() => {
+                        const qrDisplay = previewCard.querySelector('.qr-code-display');
+                        const status = previewCard.querySelector('.qr-status');
+                        
+                        qrDisplay.textContent = '📱';
+                        qrDisplay.classList.remove('placeholder');
+                        status.textContent = '✅ Generated';
+                        status.className = 'qr-status generated';
+                        previewCard.classList.add('generated');
+                        
+                        showNotification('QR Code generated successfully!');
+                    }, 1000 + index * 500);
+                });
+
+                setTimeout(() => {
+                    this.innerHTML = '<span>⚡</span> Generate QR Codes';
+                    this.disabled = false;
+                }, 3000);
+            });
+
+            function updatePreview() {
+                const selectedCards = document.querySelectorAll('.location-card.selected');
+                previewCards.forEach((card, index) => {
+                    if (index < selectedCards.length) {
+                        card.style.opacity = '1';
+                        const status = card.querySelector('.qr-status');
+                        if (!card.classList.contains('generated')) {
+                            status.textContent = '⏳ Ready to Generate';
+                            status.className = 'qr-status ready';
+                        }
+                    } else {
+                        card.style.opacity = '0.5';
+                        const status = card.querySelector('.qr-status');
+                        status.textContent = '⚪ Not Selected';
+                        status.className = 'qr-status';
+                    }
+                });
+            }
+
+            function showNotification(message) {
+                notification.textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            // Initialize preview
+            updatePreview();
+        });
+    </script>
+</body>
+</html>
