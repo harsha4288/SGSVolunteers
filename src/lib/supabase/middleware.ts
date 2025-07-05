@@ -7,9 +7,11 @@ export const createSupabaseMiddlewareClient = (req: NextRequest, res: NextRespon
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl) {
+    console.error("Supabase middleware client creation failed: Missing NEXT_PUBLIC_SUPABASE_URL environment variable");
     throw new Error("Supabase middleware client creation failed: Missing NEXT_PUBLIC_SUPABASE_URL environment variable. Please ensure it is set in your .env file or environment configuration.");
   }
   if (!supabaseAnonKey) {
+    console.error("Supabase middleware client creation failed: Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable");
     throw new Error("Supabase middleware client creation failed: Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable. Please ensure it is set in your .env file or environment configuration.");
   }
 
