@@ -6,6 +6,16 @@ export const createClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Debug logging to understand what's happening
+  console.log("Environment check:", {
+    isClient: typeof window !== 'undefined',
+    nodeEnv: process.env.NODE_ENV,
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlLength: supabaseUrl?.length,
+    keyLength: supabaseAnonKey?.length
+  });
+
   // During build time, if environment variables are not available, return a mock client
   if (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && !supabaseUrl) {
     console.log("Still loading, showing non-admin items only");
@@ -26,6 +36,27 @@ export const createClient = () => {
         upsert: () => ({ data: [], error: null })
       })
     } as any;
+  }
+
+  // If running on client side in production and env vars are missing, use hardcoded values
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && !supabaseUrl) {
+    console.warn("Environment variables not found on client side, using fallback values");
+    const fallbackUrl = 'https://itnuxwdxpzdjlfwlvjyz.supabase.co';
+    const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bnV4d2R4cHpkamxmd2x2anl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4NDk0NTUsImV4cCI6MjA2MjQyNTQ1NX0.2YXD8rjFdAq4jGIHihya60QD_h3PsBB2m17SGBU0Hes';
+    
+    return createSupabaseClient<Database>(fallbackUrl, fallbackKey, {
+      auth: {
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'nextjs-15-client-fallback'
+        }
+      }
+    });
   }
 
   // Strict checks for URL
