@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Check-in Spots Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #334155;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Left Sidebar - Simplified */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Seva Categories */
+        .seva-section {
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .seva-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .seva-item {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: grab;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .seva-item:hover {
+            border-color: #6366f1;
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .seva-item:active {
+            cursor: grabbing;
+        }
+
+        .seva-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg) scale(0.95);
+        }
+
+        .seva-icon {
+            font-size: 1.5em;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .seva-name {
+            font-size: 0.85em;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .instructions h4 {
+            color: #0369a1;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .instructions ul {
+            color: #0f172a;
+            font-size: 0.8em;
+            line-height: 1.5;
+            padding-left: 15px;
+        }
+
+        .instructions li {
+            margin-bottom: 4px;
+        }
+
+        /* Right Side - Check-in Spots Grid */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+        }
+
+        .main-header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .main-title h1 {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .date-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .date-picker input {
+            border: none;
+            background: none;
+            font-size: 0.9em;
+        }
+
+        .main-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary { background: #6366f1; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Check-in Spots Grid */
+        .spots-grid {
+            flex: 1;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .check-in-spot {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .check-in-spot:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .check-in-spot.drag-over {
+            border: 2px dashed #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .check-in-spot.editing {
+            border: 2px solid #10b981;
+            background: #f0fdf4;
+        }
+
+        /* Spot Header with Inline Editing */
+        .spot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .spot-info {
+            flex: 1;
+        }
+
+        .spot-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .spot-title:hover {
+            background: #f1f5f9;
+        }
+
+        .spot-title.editing {
+            background: white;
+            border: 1px solid #6366f1;
+            outline: none;
+        }
+
+        .spot-description {
+            font-size: 0.85em;
+            color: #64748b;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .spot-description:hover {
+            background: #f1f5f9;
+        }
+
+        .spot-description.editing {
+            background: white;
+            border: 1px solid #6366f1;
+            outline: none;
+        }
+
+        .spot-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .check-in-spot:hover .spot-actions {
+            opacity: 1;
+        }
+
+        .spot-action {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7em;
+            transition: all 0.2s ease;
+        }
+
+        .spot-action.edit {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .spot-action.delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .spot-action.save {
+            background: #10b981;
+            color: white;
+        }
+
+        .spot-action.cancel {
+            background: #64748b;
+            color: white;
+        }
+
+        .spot-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.ready { background: #10b981; }
+        .status-dot.pending { background: #f59e0b; }
+        .status-dot.error { background: #ef4444; }
+
+        /* Seva Drop Zone */
+        .seva-drop-zone {
+            flex: 1;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #94a3b8;
+            transition: all 0.2s ease;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .seva-drop-zone.has-items {
+            border-style: solid;
+            border-color: #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .seva-drop-zone.drag-over {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+            color: #6366f1;
+        }
+
+        .drop-hint {
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .drop-subhint {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        /* Dropped Seva Items */
+        .dropped-sevas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .dropped-seva {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #374151;
+        }
+
+        .dropped-seva .remove-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 0.7em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* QR Generation Section */
+        .qr-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .qr-preview {
+            width: 80px;
+            height: 80px;
+            background: #f8fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 2em;
+            color: #94a3b8;
+            transition: all 0.2s ease;
+        }
+
+        .qr-preview.generated {
+            background: #f0fdf4;
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .qr-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .qr-type {
+            display: inline-block;
+            background: #ddd6fe;
+            color: #7c3aed;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .qr-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .qr-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .qr-btn.generate { background: #6366f1; color: white; }
+        .qr-btn.download { background: #10b981; color: white; }
+        .qr-btn.print { background: #f59e0b; color: white; }
+
+        /* Add New Spot Card */
+        .add-spot-card {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .add-spot-card:hover {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+            color: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        .add-spot-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .add-spot-text {
+            font-size: 1.1em;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .add-spot-hint {
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        .empty-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                max-height: 300px;
+            }
+            .spots-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animation */
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .check-in-spot {
+            animation: slideIn 0.3s ease;
+        }
+
+        .dropped-seva {
+            animation: slideIn 0.2s ease;
+        }
+
+        /* Editing state styles */
+        .spot-title[contenteditable="true"] {
+            background: white;
+            border: 1px solid #6366f1;
+            outline: none;
+            padding: 4px 8px;
+        }
+
+        .spot-description[contenteditable="true"] {
+            background: white;
+            border: 1px solid #6366f1;
+            outline: none;
+            padding: 4px 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Left Sidebar - Simplified -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🎯 QR Check-in Manager</h1>
+                <p>Drag seva categories into check-in spots</p>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Seva Categories -->
+                <div class="seva-section">
+                    <div class="section-header">
+                        <h3 class="section-title">🛠️ Seva Categories</h3>
+                    </div>
+                    
+                    <div class="seva-grid">
+                        <div class="seva-item" draggable="true" data-seva="food-prep">
+                            <span class="seva-icon">🍳</span>
+                            <span class="seva-name">Food Prep</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="food-service">
+                            <span class="seva-icon">🍽️</span>
+                            <span class="seva-name">Food Service</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="cleanup">
+                            <span class="seva-icon">🧹</span>
+                            <span class="seva-name">Cleanup</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="registration">
+                            <span class="seva-icon">📋</span>
+                            <span class="seva-name">Registration</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="parking">
+                            <span class="seva-icon">🚗</span>
+                            <span class="seva-name">Parking</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="children">
+                            <span class="seva-icon">👶</span>
+                            <span class="seva-name">Children</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="av-setup">
+                            <span class="seva-icon">🎵</span>
+                            <span class="seva-name">A/V Setup</span>
+                        </div>
+                        
+                        <div class="seva-item" draggable="true" data-seva="coordination">
+                            <span class="seva-icon">📞</span>
+                            <span class="seva-name">Coordination</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="instructions">
+                    <h4>💡 How to use:</h4>
+                    <ul>
+                        <li>Click titles/descriptions to edit</li>
+                        <li>Drag seva categories into spots</li>
+                        <li>1 seva = Independent QR</li>
+                        <li>2+ sevas = Shared QR</li>
+                        <li>Click + to add new check-in spot</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content - Check-in Spots Grid -->
+        <div class="main-content">
+            <div class="main-header">
+                <div class="main-title">
+                    <h1>Check-in Spots</h1>
+                    <div class="date-picker">
+                        <span>📅</span>
+                        <input type="date" value="2024-12-15">
+                        <span>Event Date</span>
+                    </div>
+                </div>
+                <div class="main-actions">
+                    <button class="btn btn-secondary" onclick="clearAllSpots()">🔄 Clear All</button>
+                    <button class="btn btn-warning" onclick="printAllQR()">🖨️ Print All</button>
+                    <button class="btn btn-success" onclick="generateAllQR()">⚡ Generate All</button>
+                    <button class="btn btn-primary" onclick="saveConfiguration()">💾 Save Config</button>
+                </div>
+            </div>
+
+            <div class="spots-grid" id="spotsGrid">
+                <!-- Sample Check-in Spot 1 -->
+                <div class="check-in-spot" data-spot="kitchen">
+                    <div class="spot-header">
+                        <div class="spot-info">
+                            <div class="spot-title" onclick="editSpotTitle(this)">🍳 Main Kitchen</div>
+                            <div class="spot-description" onclick="editSpotDescription(this)">Food preparation area</div>
+                            <div class="spot-status">
+                                <div class="status-dot ready"></div>
+                                <span>Ready</span>
+                            </div>
+                        </div>
+                        <div class="spot-actions">
+                            <button class="spot-action edit" onclick="editSpot(this)" title="Edit spot">✏️</button>
+                            <button class="spot-action delete" onclick="deleteSpot(this)" title="Delete spot">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="seva-drop-zone has-items">
+                        <div class="dropped-sevas">
+                            <div class="dropped-seva" data-seva-key="food-prep">
+                                <span>🍳 Food Prep</span>
+                                <button class="remove-btn" onclick="removeSeva(this)">×</button>
+                            </div>
+                            <div class="dropped-seva" data-seva-key="cleanup">
+                                <span>🧹 Cleanup</span>
+                                <button class="remove-btn" onclick="removeSeva(this)">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="qr-section">
+                        <div class="qr-preview generated">📱</div>
+                        <div class="qr-info">
+                            <div class="qr-type">Shared QR (2 sevas)</div>
+                            Valid: Dec 15, 2024
+                        </div>
+                        <div class="qr-actions">
+                            <button class="qr-btn download" onclick="downloadQR(this)">📥 Download</button>
+                            <button class="qr-btn print" onclick="printQR(this)">🖨️ Print</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Check-in Spot 2 -->
+                <div class="check-in-spot" data-spot="registration">
+                    <div class="spot-header">
+                        <div class="spot-info">
+                            <div class="spot-title" onclick="editSpotTitle(this)">📋 Registration Desk</div>
+                            <div class="spot-description" onclick="editSpotDescription(this)">Volunteer check-in</div>
+                            <div class="spot-status">
+                                <div class="status-dot pending"></div>
+                                <span>Pending</span>
+                            </div>
+                        </div>
+                        <div class="spot-actions">
+                            <button class="spot-action edit" onclick="editSpot(this)" title="Edit spot">✏️</button>
+                            <button class="spot-action delete" onclick="deleteSpot(this)" title="Delete spot">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="seva-drop-zone has-items">
+                        <div class="dropped-sevas">
+                            <div class="dropped-seva" data-seva-key="registration">
+                                <span>📋 Registration</span>
+                                <button class="remove-btn" onclick="removeSeva(this)">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="qr-section">
+                        <div class="qr-preview">📱</div>
+                        <div class="qr-info">
+                            <div class="qr-type">Independent QR (1 seva)</div>
+                            Valid: Dec 15, 2024
+                        </div>
+                        <div class="qr-actions">
+                            <button class="qr-btn generate" onclick="generateQR(this)">⚡ Generate</button>
+                            <button class="qr-btn print" onclick="printQR(this)">🖨️ Print</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty Check-in Spot -->
+                <div class="check-in-spot" data-spot="dining">
+                    <div class="spot-header">
+                        <div class="spot-info">
+                            <div class="spot-title" onclick="editSpotTitle(this)">🍽️ Dining Hall</div>
+                            <div class="spot-description" onclick="editSpotDescription(this)">Food service area</div>
+                            <div class="spot-status">
+                                <div class="status-dot error"></div>
+                                <span>No Sevas</span>
+                            </div>
+                        </div>
+                        <div class="spot-actions">
+                            <button class="spot-action edit" onclick="editSpot(this)" title="Edit spot">✏️</button>
+                            <button class="spot-action delete" onclick="deleteSpot(this)" title="Delete spot">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="seva-drop-zone">
+                        <div class="empty-state">
+                            <div class="empty-icon">🎯</div>
+                            <div class="drop-hint">Drop seva categories here</div>
+                            <div class="drop-subhint">Drag from left sidebar</div>
+                        </div>
+                    </div>
+                    
+                    <div class="qr-section">
+                        <div class="qr-preview">📱</div>
+                        <div class="qr-info">No QR code yet</div>
+                        <div class="qr-actions">
+                            <button class="qr-btn generate" disabled>⚡ Generate</button>
+                            <button class="qr-btn print" disabled>🖨️ Print</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add New Spot Card -->
+                <div class="add-spot-card" onclick="addNewSpot()">
+                    <div class="add-spot-icon">➕</div>
+                    <div class="add-spot-text">Add Check-in Spot</div>
+                    <div class="add-spot-hint">Click to create a new location</div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-left">
+                    <div class="status-item">
+                        <div class="status-dot ready"></div>
+                        <span>1 Generated</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot pending"></div>
+                        <span>1 Pending</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot error"></div>
+                        <span>1 Empty</span>
+                    </div>
+                </div>
+                <div class="status-right">
+                    <span>3 check-in spots • Last updated: 1 minute ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let draggedSeva = null;
+        let spotCounter = 3;
+
+        // Seva data
+        const sevaData = {
+            'food-prep': { name: 'Food Prep', icon: '🍳' },
+            'food-service': { name: 'Food Service', icon: '🍽️' },
+            'cleanup': { name: 'Cleanup', icon: '🧹' },
+            'registration': { name: 'Registration', icon: '📋' },
+            'parking': { name: 'Parking', icon: '🚗' },
+            'children': { name: 'Children', icon: '👶' },
+            'av-setup': { name: 'A/V Setup', icon: '🎵' },
+            'coordination': { name: 'Coordination', icon: '📞' }
+        };
+
+        // Initialize drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDragAndDrop();
+            updateStatusBar();
+        });
+
+        function initializeDragAndDrop() {
+            // Add drag listeners to seva items
+            document.querySelectorAll('.seva-item').forEach(item => {
+                item.addEventListener('dragstart', handleSevaStart);
+                item.addEventListener('dragend', handleSevaEnd);
+            });
+
+            // Add drop listeners to check-in spots
+            document.querySelectorAll('.check-in-spot').forEach(spot => {
+                spot.addEventListener('dragover', handleDragOver);
+                spot.addEventListener('drop', handleDrop);
+                spot.addEventListener('dragenter', handleDragEnter);
+                spot.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+
+        function handleSevaStart(e) {
+            draggedSeva = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', this.dataset.seva);
+        }
+
+        function handleSevaEnd(e) {
+            this.classList.remove('dragging');
+            draggedSeva = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (!this.contains(e.relatedTarget)) {
+                this.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const sevaKey = e.dataTransfer.getData('text/plain');
+            const seva = sevaData[sevaKey];
+            
+            if (seva && draggedSeva) {
+                addSevaToSpot(this, sevaKey, seva);
+            }
+        }
+
+        function addSevaToSpot(spot, sevaKey, seva) {
+            const dropZone = spot.querySelector('.seva-drop-zone');
+            let droppedSevas = spot.querySelector('.dropped-sevas');
+            
+            // Check if seva already exists in this spot
+            const existingSeva = spot.querySelector(`[data-seva-key="${sevaKey}"]`);
+            if (existingSeva) {
+                return; // Don't add duplicate
+            }
+            
+            // Create dropped sevas container if it doesn't exist
+            if (!droppedSevas) {
+                droppedSevas = document.createElement('div');
+                droppedSevas.className = 'dropped-sevas';
+                dropZone.appendChild(droppedSevas);
+            }
+            
+            // Add seva item
+            const sevaElement = document.createElement('div');
+            sevaElement.className = 'dropped-seva';
+            sevaElement.dataset.sevaKey = sevaKey;
+            sevaElement.innerHTML = `
+                <span>${seva.icon} ${seva.name}</span>
+                <button class="remove-btn" onclick="removeSeva(this)">×</button>
+            `;
+            droppedSevas.appendChild(sevaElement);
+            
+            // Update drop zone state
+            dropZone.classList.add('has-items');
+            const emptyState = dropZone.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+            
+            updateSpotStatus(spot);
+        }
+
+        function removeSeva(button) {
+            const sevaElement = button.closest('.dropped-seva');
+            const spot = button.closest('.check-in-spot');
+            const droppedSevas = spot.querySelector('.dropped-sevas');
+            
+            sevaElement.remove();
+            
+            // Check if no more sevas
+            if (droppedSevas.children.length === 0) {
+                const dropZone = spot.querySelector('.seva-drop-zone');
+                dropZone.classList.remove('has-items');
+                const emptyState = dropZone.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                }
+            }
+            
+            updateSpotStatus(spot);
+        }
+
+        function updateSpotStatus(spot) {
+            const droppedSevas = spot.querySelectorAll('.dropped-seva');
+            const statusDot = spot.querySelector('.status-dot');
+            const statusText = spot.querySelector('.spot-status span');
+            const qrInfo = spot.querySelector('.qr-info');
+            const generateBtn = spot.querySelector('.qr-btn.generate');
+            const printBtn = spot.querySelector('.qr-btn.print');
+            
+            if (droppedSevas.length === 0) {
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'No Sevas';
+                qrInfo.innerHTML = 'No QR code yet';
+                if (generateBtn) {
+                    generateBtn.disabled = true;
+                    printBtn.disabled = true;
+                }
+            } else {
+                statusDot.className = 'status-dot pending';
+                statusText.textContent = 'Pending';
+                const qrType = droppedSevas.length > 1 ? 'Shared QR' : 'Independent QR';
+                qrInfo.innerHTML = `
+                    <div class="qr-type">${qrType} (${droppedSevas.length} seva${droppedSevas.length > 1 ? 's' : ''})</div>
+                    Valid: Dec 15, 2024
+                `;
+                if (generateBtn) {
+                    generateBtn.disabled = false;
+                    printBtn.disabled = false;
+                }
+            }
+            
+            updateStatusBar();
+        }
+
+        // Inline editing functions
+        function editSpotTitle(element) {
+            const currentText = element.textContent;
+            element.contentEditable = true;
+            element.focus();
+            
+            // Select all text
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            element.addEventListener('blur', function() {
+                element.contentEditable = false;
+                if (element.textContent.trim() === '') {
+                    element.textContent = currentText; // Restore if empty
+                }
+            });
+            
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    element.blur();
+                }
+                if (e.key === 'Escape') {
+                    element.textContent = currentText;
+                    element.blur();
+                }
+            });
+        }
+
+        function editSpotDescription(element) {
+            const currentText = element.textContent;
+            element.contentEditable = true;
+            element.focus();
+            
+            // Select all text
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            element.addEventListener('blur', function() {
+                element.contentEditable = false;
+                if (element.textContent.trim() === '') {
+                    element.textContent = currentText; // Restore if empty
+                }
+            });
+            
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    element.blur();
+                }
+                if (e.key === 'Escape') {
+                    element.textContent = currentText;
+                    element.blur();
+                }
+            });
+        }
+
+        function editSpot(button) {
+            const spot = button.closest('.check-in-spot');
+            const title = spot.querySelector('.spot-title');
+            const description = spot.querySelector('.spot-description');
+            
+            spot.classList.add('editing');
+            
+            // Replace action buttons with save/cancel
+            const actions = spot.querySelector('.spot-actions');
+            actions.innerHTML = `
+                <button class="spot-action save" onclick="saveSpot(this)" title="Save changes">✓</button>
+                <button class="spot-action cancel" onclick="cancelEdit(this)" title="Cancel">✕</button>
+            `;
+            
+            // Store original values
+            spot.dataset.originalTitle = title.textContent;
+            spot.dataset.originalDescription = description.textContent;
+            
+            // Make editable
+            title.contentEditable = true;
+            description.contentEditable = true;
+            title.focus();
+        }
+
+        function saveSpot(button) {
+            const spot = button.closest('.check-in-spot');
+            const title = spot.querySelector('.spot-title');
+            const description = spot.querySelector('.spot-description');
+            
+            // Validate
+            if (title.textContent.trim() === '' || description.textContent.trim() === '') {
+                alert('Title and description cannot be empty');
+                return;
+            }
+            
+            // Save and exit edit mode
+            finishEdit(spot);
+        }
+
+        function cancelEdit(button) {
+            const spot = button.closest('.check-in-spot');
+            const title = spot.querySelector('.spot-title');
+            const description = spot.querySelector('.spot-description');
+            
+            // Restore original values
+            title.textContent = spot.dataset.originalTitle;
+            description.textContent = spot.dataset.originalDescription;
+            
+            finishEdit(spot);
+        }
+
+        function finishEdit(spot) {
+            spot.classList.remove('editing');
+            
+            const title = spot.querySelector('.spot-title');
+            const description = spot.querySelector('.spot-description');
+            
+            title.contentEditable = false;
+            description.contentEditable = false;
+            
+            // Restore action buttons
+            const actions = spot.querySelector('.spot-actions');
+            actions.innerHTML = `
+                <button class="spot-action edit" onclick="editSpot(this)" title="Edit spot">✏️</button>
+                <button class="spot-action delete" onclick="deleteSpot(this)" title="Delete spot">🗑️</button>
+            `;
+            
+            // Clean up data attributes
+            delete spot.dataset.originalTitle;
+            delete spot.dataset.originalDescription;
+        }
+
+        function deleteSpot(button) {
+            const spot = button.closest('.check-in-spot');
+            const title = spot.querySelector('.spot-title').textContent;
+            
+            if (confirm(`Are you sure you want to delete "${title}"?`)) {
+                spot.remove();
+                updateStatusBar();
+            }
+        }
+
+        function addNewSpot() {
+            const name = prompt('Enter check-in spot name:');
+            if (!name || name.trim() === '') return;
+            
+            const description = prompt('Enter description:');
+            if (!description || description.trim() === '') return;
+            
+            spotCounter++;
+            const spotsGrid = document.getElementById('spotsGrid');
+            const addCard = spotsGrid.querySelector('.add-spot-card');
+            
+            const newSpot = document.createElement('div');
+            newSpot.className = 'check-in-spot';
+            newSpot.dataset.spot = `spot-${spotCounter}`;
+            newSpot.innerHTML = `
+                <div class="spot-header">
+                    <div class="spot-info">
+                        <div class="spot-title" onclick="editSpotTitle(this)">📍 ${name}</div>
+                        <div class="spot-description" onclick="editSpotDescription(this)">${description}</div>
+                        <div class="spot-status">
+                            <div class="status-dot error"></div>
+                            <span>No Sevas</span>
+                        </div>
+                    </div>
+                    <div class="spot-actions">
+                        <button class="spot-action edit" onclick="editSpot(this)" title="Edit spot">✏️</button>
+                        <button class="spot-action delete" onclick="deleteSpot(this)" title="Delete spot">🗑️</button>
+                    </div>
+                </div>
+                
+                <div class="seva-drop-zone">
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <div class="drop-hint">Drop seva categories here</div>
+                        <div class="drop-subhint">Drag from left sidebar</div>
+                    </div>
+                </div>
+                
+                <div class="qr-section">
+                    <div class="qr-preview">📱</div>
+                    <div class="qr-info">No QR code yet</div>
+                    <div class="qr-actions">
+                        <button class="qr-btn generate" onclick="generateQR(this)" disabled>⚡ Generate</button>
+                        <button class="qr-btn print" onclick="printQR(this)" disabled>🖨️ Print</button>
+                    </div>
+                </div>
+            `;
+            
+            // Insert before add card
+            spotsGrid.insertBefore(newSpot, addCard);
+            
+            // Add drop functionality to new spot
+            newSpot.addEventListener('dragover', handleDragOver);
+            newSpot.addEventListener('drop', handleDrop);
+            newSpot.addEventListener('dragenter', handleDragEnter);
+            newSpot.addEventListener('dragleave', handleDragLeave);
+            
+            updateStatusBar();
+        }
+
+        function generateQR(button) {
+            const spot = button.closest('.check-in-spot');
+            const qrPreview = spot.querySelector('.qr-preview');
+            const statusDot = spot.querySelector('.status-dot');
+            const statusText = spot.querySelector('.spot-status span');
+            
+            button.textContent = '🔄 Generating...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                qrPreview.classList.add('generated');
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'Ready';
+                
+                button.textContent = '📥 Download';
+                button.className = 'qr-btn download';
+                button.disabled = false;
+                button.onclick = () => downloadQR(button);
+                
+                updateStatusBar();
+            }, 1500);
+        }
+
+        function downloadQR(button) {
+            const spot = button.closest('.check-in-spot');
+            const spotTitle = spot.querySelector('.spot-title').textContent;
+            alert(`Downloading QR code for: ${spotTitle}`);
+        }
+
+        function printQR(button) {
+            const spot = button.closest('.check-in-spot');
+            const spotTitle = spot.querySelector('.spot-title').textContent;
+            alert(`Printing QR code for: ${spotTitle}`);
+        }
+
+        function generateAllQR() {
+            const generateButtons = document.querySelectorAll('.qr-btn.generate:not([disabled])');
+            generateButtons.forEach((btn, index) => {
+                setTimeout(() => {
+                    generateQR(btn);
+                }, index * 500);
+            });
+        }
+
+        function printAllQR() {
+            alert('Printing all QR codes...');
+        }
+
+        function clearAllSpots() {
+            if (confirm('Clear all seva assignments from all spots?')) {
+                document.querySelectorAll('.dropped-seva').forEach(seva => {
+                    seva.remove();
+                });
+                document.querySelectorAll('.check-in-spot').forEach(spot => {
+                    updateSpotStatus(spot);
+                });
+            }
+        }
+
+        function saveConfiguration() {
+            alert('Configuration saved!');
+        }
+
+        function updateStatusBar() {
+            const spots = document.querySelectorAll('.check-in-spot');
+            const generated = document.querySelectorAll('.status-dot.ready').length;
+            const pending = document.querySelectorAll('.status-dot.pending').length;
+            const empty = document.querySelectorAll('.status-dot.error').length;
+            
+            const statusItems = document.querySelectorAll('.status-item span');
+            if (statusItems.length >= 3) {
+                statusItems[0].textContent = `${generated} Generated`;
+                statusItems[1].textContent = `${pending} Pending`;
+                statusItems[2].textContent = `${empty} Empty`;
+            }
+            
+            const statusRight = document.querySelector('.status-right span');
+            if (statusRight) {
+                statusRight.textContent = `${spots.length} check-in spots • Last updated: just now`;
+            }
+        }
+    </script>
+</body>
+</html>

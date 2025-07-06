@@ -1,5 +1,11 @@
 # Self Check-In QR Generation Module: Full Functionality Overview
 
+## Progress Status: ✅ Mockup Complete - Ready for Implementation
+
+**Current Phase:** UI/UX Design Complete  
+**Next Phase:** React Component Implementation  
+**Completion:** Mockup6.html finalized and approved
+
 ## Purpose
 
 The Self Check-In QR Generation module enables administrators to generate location-based QR codes that volunteers can use for self-service check-in at events. It provides a comprehensive interface for creating, managing, and distributing QR codes with date and seva category validity constraints, reducing admin workload for large-scale events.
@@ -34,17 +40,33 @@ The Self Check-In QR Generation module enables administrators to generate locati
 - `useLocationCodes`: Hook for managing location codes and category assignments
 - `usePrintableQR`: Hook for generating print-ready QR code layouts
 
-## UI/UX Details
+## UI/UX Details - ✅ FINALIZED in mockup6.html
 
-- **Admin Dashboard Integration**: New tab in assignments module for QR code generation
-- **Category Selection**: Multi-select interface for choosing seva categories for each QR code
-- **Date Picker**: Calendar interface for selecting validity dates
-- **QR Preview**: Live preview of generated QR codes with validity information
-- **Batch Operations**: Interface for generating multiple QR codes with different parameters
-- **Print Layout**: Formatted view optimized for printing and physical placement
-- **Validity Indicators**: Clear visual indicators showing QR code validity periods and restrictions
-- **Download Options**: Export QR codes as PNG, PDF, or printable layouts
-- **Responsive Design**: Mobile-friendly interface for QR code generation and management
+### Core Interface Design (Based on Approved Mockup)
+- **Check-in Spots as Containers**: Primary concept where physical locations act as QR code containers
+- **Drag & Drop Workflow**: Seva categories are dragged INTO check-in spots (not separate QR cards)
+- **Inline CRUD Operations**: Direct editing of spot titles/descriptions without separate management panels
+- **Smart QR Logic**: 1 seva = Independent QR, 2+ sevas = Shared QR (automatic determination)
+- **Single Page Overview**: All functionality visible in one interface without tabs
+
+### Left Sidebar (Simplified)
+- **Seva Categories Grid**: Draggable 2-column grid of seva types
+- **Instructions Panel**: Built-in help explaining the workflow
+- **No Separate Management**: Removed complex spot management interface
+
+### Right Main Area
+- **Check-in Spot Cards**: Physical locations with inline editing capabilities
+- **Add New Spot Card**: Large ➕ card for creating new locations
+- **Direct Title/Description Editing**: Click to edit inline with Enter/Esc support
+- **Hover Actions**: Edit/Delete buttons appear on hover
+- **Drop Zones**: Visual feedback when dragging seva categories
+
+### QR Generation Features
+- **Date Picker**: Event date selection in header
+- **Status Indicators**: Visual dots (Ready/Pending/Empty) with real-time updates
+- **Batch Operations**: Generate All, Print All, Clear All, Save Config buttons
+- **Status Bar**: Live count of generated/pending/empty spots
+- **Print Preview**: Modal for print-ready layouts
 
 ## Business Rules
 
@@ -81,24 +103,52 @@ The Self Check-In QR Generation module enables administrators to generate locati
 - Current seva category and event management workflows
 - Future self-check-in interface (`/volunteer-checkin/{locationCode}`)
 
-**File Structure:**
+## Implementation Plan - Next Steps
+
+### Phase 1: Core React Components (Next)
+1. **QRCheckInSpotsManager** - Main container component
+2. **SevaGrid** - Left sidebar with draggable seva categories  
+3. **CheckInSpotCard** - Individual spot cards with inline editing
+4. **AddSpotCard** - New spot creation interface
+5. **QRGenerationSection** - QR preview and actions per spot
+
+### Phase 2: Hooks & Services
+1. **useCheckInSpots** - CRUD operations for spots
+2. **useSevaAssignment** - Drag & drop logic for assigning sevas to spots
+3. **useQRGeneration** - QR code creation and management
+4. **useInlineEditing** - Title/description editing functionality
+
+### Phase 3: Integration
+1. **Route Setup** - `/app/selfcheckin-qr-gen/page.tsx`
+2. **Navigation Integration** - Add to admin menu
+3. **Permission Guards** - Admin-only access
+4. **Database Schema** - Tables for spots, QR codes, assignments
+
+**File Structure (Updated):**
 ```
 src/app/app/selfcheckin-qr-gen/
 ├── components/
-│   ├── AdminQRGenerator.tsx
-│   ├── QRCodeDisplay.tsx
-│   ├── QRBatchGenerator.tsx
-│   ├── QRPrintLayout.tsx
-│   └── LocationCodeManager.tsx
+│   ├── QRCheckInSpotsManager.tsx (main interface)
+│   ├── SevaGrid.tsx (sidebar with draggable items)
+│   ├── CheckInSpotCard.tsx (individual spot with editing)
+│   ├── AddSpotCard.tsx (new spot creation)
+│   ├── QRGenerationSection.tsx (QR preview & actions)
+│   └── PrintModal.tsx (print preview)
 ├── hooks/
-│   ├── useQRGeneration.ts
-│   ├── useLocationCodes.ts
-│   └── usePrintableQR.ts
+│   ├── useCheckInSpots.ts (spot CRUD operations)
+│   ├── useSevaAssignment.ts (drag & drop logic)
+│   ├── useQRGeneration.ts (QR creation)
+│   └── useInlineEditing.ts (edit functionality)
 ├── services/
-│   ├── qr-generation.service.ts
-│   └── location-codes.service.ts
+│   ├── checkin-spots.service.ts
+│   └── qr-generation.service.ts
 ├── utils/
 │   └── qr-helpers.ts
 ├── types.ts
 └── page.tsx
 ```
+
+## Design Assets
+- **✅ mockup6.html** - Final approved interface design
+- **📋 User workflow** - Check-in spots as containers approach
+- **🎨 Visual design** - Simplified single-page interface
