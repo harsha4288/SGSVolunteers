@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 import { ensureUserProfile } from '@/lib/utils/user-profile-setup';
 
 export interface UserRole {
@@ -30,88 +30,57 @@ export function useUserRole(): UserRole {
       try {
         const supabase = createClient();
 
-        // Check for impersonation first
-        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
-        let profileToCheck: { id: string; email: string } | null = null;
+        // Get the current authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        if (impersonatedProfileId) {
-          // If impersonating, use the impersonated profile
-          const impersonatedEmail = localStorage.getItem('impersonatedEmail');
-          if (!impersonatedEmail) {
-            throw new Error('Impersonation data incomplete');
-          }
-          profileToCheck = {
-            id: impersonatedProfileId,
-            email: impersonatedEmail
-          };
-          console.log('Using impersonated profile:', profileToCheck);
-        } else {
-          // Get the current authenticated user
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-          if (userError || !user) {
-            console.error('Auth check failed:', userError);
-            setRoleInfo({
-              isAdmin: false,
-              isTeamLead: false,
-              isVolunteer: false,
-              loading: false,
-              error: 'Not authenticated',
-            });
-            return;
-          }
-
-          // Check for user.email as it's used in profile lookup
-          if (!user.email) {
-            console.error('User authenticated but email is missing.');
-            setRoleInfo({
-              isAdmin: false,
-              isTeamLead: false,
-              isVolunteer: false,
-              loading: false,
-              error: 'User email is missing and is required for profile lookup.',
-            });
-            return;
-          }
-
-          // Get the user's profile
-          let { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('user_id', user.id)
-            .single();
-
-          if (profileError || !profile) {
-            // Fallback: try to find by email
-            const { data: emailProfile, error: emailError } = await supabase
-              .from('profiles')
-              .select('id, email')
-              .eq('email', user.email)
-              .single();
-
-            if (emailError || !emailProfile) {
-              console.warn(`Profile not found for user ${user.id} (email: ${user.email}). Setting default roles.`);
-              setRoleInfo({
-                isAdmin: false,
-                isTeamLead: false,
-                isVolunteer: false,
-                loading: false,
-                error: 'User profile not found.',
-              });
-              return;
-            }
-            profile = emailProfile;
-          }
-
-          profileToCheck = profile;
-          console.log('Using authenticated user profile:', profileToCheck);
+        if (userError || !user) {
+          console.error('Auth check failed:', userError);
+          setRoleInfo({
+            isAdmin: false,
+            isTeamLead: false,
+            isVolunteer: false,
+            loading: false,
+            error: 'Not authenticated',
+          });
+          return;
         }
 
-        if (!profileToCheck) {
-          throw new Error('No profile available to check roles');
+        // Check for user.email as it's used in profile lookup
+        if (!user.email) {
+          console.error('User authenticated but email is missing.');
+          setRoleInfo({
+            isAdmin: false,
+            isTeamLead: false,
+            isVolunteer: false,
+            loading: false,
+            error: 'User email is missing and is required for profile lookup.',
+          });
+          return;
         }
 
-        // Get user roles for the determined profile
+        // Get the user's profile
+        let { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !profile) {
+          console.warn(`Profile not found for user ${user.id} (email: ${user.email}). Setting default roles.`);
+          setRoleInfo({
+            isAdmin: false,
+            isTeamLead: false,
+            isVolunteer: false,
+            loading: false,
+            error: 'User profile not found.',
+          });
+          return;
+        }
+
+        const profileToCheck = profile;
+        console.log('Using authenticated user profile:', profileToCheck);
+
+        // Get user roles for the authenticated user's profile
         const { data: roles, error: rolesError } = await supabase
           .from('profile_roles')
           .select(`

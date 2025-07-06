@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client-ssr";
 import { AssignmentsDashboard } from "./components/assignments-dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,13 +25,24 @@ export default function AssignmentsPage() {
         const supabaseClient = createClient();
         setSupabase(supabaseClient);
 
-        // Get profile ID from localStorage (set during impersonation)
-        const impersonatedProfileId = localStorage.getItem("impersonatedProfileId");
-        if (!impersonatedProfileId) {
-          throw new Error("No profile ID found. Please log in again.");
+        // Get current authenticated user
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !user) {
+          throw new Error("Not authenticated. Please log in again.");
         }
 
-        setProfileId(impersonatedProfileId);
+        // Get user's profile
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error("Profile not found. Please contact an administrator.");
+        }
+
+        setProfileId(profile.id);
 
         // Fetch user roles
         const { data: roles, error: rolesError } = await supabaseClient
@@ -43,7 +54,7 @@ export default function AssignmentsPage() {
               role_name
             )
           `)
-          .eq("profile_id", impersonatedProfileId);
+          .eq("profile_id", profile.id);
 
         if (rolesError) throw new Error(rolesError.message);
 

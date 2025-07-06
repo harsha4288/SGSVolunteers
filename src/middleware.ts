@@ -1,39 +1,103 @@
+import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
+import type { Database } from '@/lib/types/supabase';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   
-  // Check for impersonation cookie
-  const impersonationCookie = req.cookies.get('impersonatedProfileId');
-  const isImpersonating = !!impersonationCookie?.value;
+  console.log('Middleware executing for:', pathname);
+  
+  // Public paths that don't require authentication
+  const publicPaths = ['/login', '/auth/callback'];
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
 
-  // For now, let's bypass Supabase session check in middleware to avoid environment variable issues
-  // We'll handle authentication in the actual components
-  console.log("Middleware check:", {
-    pathname,
-    isImpersonating,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'present' : 'missing'
-  });
-
-  // Simple routing logic without session checking
+  // Redirect root to login
   if (pathname === '/') {
-    // For now, always redirect to login from root
+    console.log('Redirecting root to login');
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  return NextResponse.next();
+  // Skip auth check for public paths
+  if (isPublicPath) {
+    console.log('Skipping auth check for public path:', pathname);
+    return NextResponse.next();
+  }
+
+  try {
+    // Create a response to handle cookies
+    let response = NextResponse.next({
+      request: {
+        headers: req.headers,
+      },
+    });
+
+    // Create Supabase client for middleware
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return req.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            response.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            response.cookies.set({ name, value: '', ...options });
+          },
+        },
+      }
+    );
+
+    // Check if user is authenticated - use getUser() for security
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    console.log('Middleware session check:', {
+      hasUser: !!user,
+      userEmail: user?.email,
+      error: error?.message,
+      pathname,
+      cookies: req.cookies.getAll().map(c => c.name).join(', ')
+    });
+
+    if (error) {
+      console.error('Middleware auth error:', error);
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    // If no user, redirect to login
+    if (!user) {
+      console.log('No user found, redirecting to login');
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    // For protected app routes, just check if user has a session
+    // Profile linking will be handled client-side to avoid redirect loops
+    if (pathname.startsWith('/app/')) {
+      console.log('Middleware: Allowing access to protected route for authenticated user');
+    }
+
+    console.log('Middleware: User authenticated', {
+      pathname,
+      userId: user.id,
+      email: user.email
+    });
+
+    return response;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - auth/callback (Supabase auth callback)
-     * Feel free to add more paths here that should not be Sprotected.
+     * Only match app routes to avoid unnecessary middleware execution
+     * This prevents loops on login/auth pages
      */
-    '/((?!_next/static|_next/image|favicon.ico|auth/callback).*)',
+    '/app/:path*',
+    '/',
   ],
 };

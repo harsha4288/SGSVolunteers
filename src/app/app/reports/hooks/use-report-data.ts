@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 import { useToast } from '@/hooks/use-toast';
 import { createReportsService } from '../services/reports-service';
 import type {

@@ -1,5 +1,5 @@
 // src/lib/utils/user-profile-setup.ts
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 
 /**
  * Links an authenticated user to their profile in the database

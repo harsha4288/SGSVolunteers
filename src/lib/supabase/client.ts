@@ -38,25 +38,11 @@ export const createClient = () => {
     } as any;
   }
 
-  // If running on client side in production and env vars are missing, use hardcoded values
+  // Security: Remove hardcoded credentials - all clients must use proper env vars
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production' && !supabaseUrl) {
-    console.warn("Environment variables not found on client side, using fallback values");
-    const fallbackUrl = 'https://itnuxwdxpzdjlfwlvjyz.supabase.co';
-    const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bnV4d2R4cHpkamxmd2x2anl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4NDk0NTUsImV4cCI6MjA2MjQyNTQ1NX0.2YXD8rjFdAq4jGIHihya60QD_h3PsBB2m17SGBU0Hes';
-    
-    return createSupabaseClient<Database>(fallbackUrl, fallbackKey, {
-      auth: {
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: {
-          'X-Client-Info': 'nextjs-15-client-fallback'
-        }
-      }
-    });
+    const errorMsg = "Supabase client creation failed in production: NEXT_PUBLIC_SUPABASE_URL is missing. Please check your environment variables.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   // Strict checks for URL
@@ -96,7 +82,8 @@ export const createClient = () => {
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false
+      detectSessionInUrl: true, // Enable for OTP authentication
+      flowType: 'pkce' // Use PKCE flow for better security
     },
     global: {
       headers: {

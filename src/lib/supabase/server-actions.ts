@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/lib/types/supabase';
 
@@ -12,28 +12,17 @@ export const createSupabaseServerActionClient = async () => {
     throw new Error("Supabase server action client creation failed: Missing environment variables.");
   }
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-      storage: {
-        getItem: (key: string) => {
-          const cookie = cookieStore.get(key);
-          return cookie?.value || null;
-        },
-        setItem: (key: string, value: string) => {
-          cookieStore.set(key, value, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7 // 7 days
-          });
-        },
-        removeItem: (key: string) => {
-          cookieStore.delete(key);
-        }
-      }
-    }
+  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: any) {
+        cookieStore.set({ name, value: '', ...options });
+      },
+    },
   });
 };
