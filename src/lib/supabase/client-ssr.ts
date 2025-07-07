@@ -8,6 +8,14 @@ export const createClient = () => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // During build time or if environment variables are missing, use fallback
+    if (typeof window === 'undefined') {
+      console.warn('Missing Supabase environment variables during SSR/build');
+      return createBrowserClient<Database>(
+        'https://placeholder.supabase.co',
+        'placeholder-key'
+      );
+    }
     throw new Error('Missing Supabase environment variables');
   }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from 'react';
+
+// Force dynamic rendering for login page to avoid SSR issues with auth
+export const dynamic = 'force-dynamic';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
