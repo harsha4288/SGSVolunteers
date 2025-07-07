@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client-ssr";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -171,161 +171,100 @@ export default function TShirtsPage() {
       setError(null);
 
       try {
-        // Check for impersonation first
-        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
-        let currentProfileId: string;
-
-        if (impersonatedProfileId) {
-          // If impersonating, use that profile ID
-          currentProfileId = impersonatedProfileId;
-        } else {
-          try {
-            // Not impersonating, get the current user's profile
-            const { data: { user } } = await supabase.auth.getUser();
-
-            if (!user) {
-              throw new Error("No user found. Please log in again.");
-            }
-
-            // Get the profile ID for this user
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('auth_user_id', user.id)
-              .single();
-
-            if (profileError) {
-              console.error("Profile error:", profileError);
-              throw new Error("Could not find your profile. Please contact an administrator.");
-            }
-
-            currentProfileId = profile.id;
-          } catch (authError) {
-            console.error("Auth error:", authError);
-            throw new Error("Authentication error. Please log in again.");
-          }
+        // Get current authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          throw new Error("Not authenticated. Please log in again.");
         }
 
-        setProfileId(currentProfileId);
+        // Get user's profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
 
-        // Check if user is admin
-        const { data: userRoles, error: rolesError } = await supabase
-          .from('profile_roles')
-          .select('role_id')
-          .eq('profile_id', currentProfileId);
+        if (profileError || !profile) {
+          throw new Error("Profile not found. Please contact an administrator.");
+        }
 
+        setProfileId(profile.id);
+
+        // Fetch user roles
+        const { data: roles, error: rolesError } = await supabase
+          .from("profile_roles")
+          .select(`
+            role_id,
+            roles:role_id (
+              id,
+              role_name
+            )
+          `)
+          .eq("profile_id", profile.id);
+
+        if (rolesError) throw new Error(rolesError.message);
+
+        // Determine if user is admin
         let isUserAdmin = false;
-        if (rolesError) {
-          console.error("Error fetching user roles:", rolesError);
-        } else {
-          // Admin role has ID 1
-          isUserAdmin = userRoles?.some(role => role.role_id === 1) || false;
-          console.log("Is user admin:", isUserAdmin, "User roles:", userRoles);
+        if (roles && roles.length > 0) {
+          isUserAdmin = roles.some(r => r.roles?.role_name === "Admin");
         }
         setIsAdmin(isUserAdmin);
 
         // For admin users, we don't need to fetch volunteer data immediately
         if (isUserAdmin) {
-          // Just set empty data for admin users
           setVolunteerData(null);
           setFamilyMembers([]);
         } else {
-          try {
-            // Get the impersonated email from localStorage
-            const impersonatedEmail = localStorage.getItem("impersonatedEmail");
+          // For non-admin users, get their volunteer data
+          const { data: volunteers, error: volunteersError } = await supabase
+            .from('volunteers')
+            .select('id, first_name, last_name, email, phone, profile_id, requested_tshirt_quantity, tshirt_size_preference')
+            .eq('profile_id', profile.id);
 
-            if (!impersonatedEmail) {
-              console.error("No impersonated email found in localStorage");
-              throw new Error("No user email found. Please log in again.");
-            }
+          if (volunteersError) {
+            console.error("Error fetching volunteers:", volunteersError);
+            throw new Error(`Error fetching volunteers: ${volunteersError.message}`);
+          }
 
-            console.log("Fetching volunteers with email:", impersonatedEmail);
-
-            // Fetch all volunteers with this email
-            const { data: volunteers, error: volunteersError } = await supabase
-              .from('volunteers')
-              .select('id, first_name, last_name, email, phone, profile_id, requested_tshirt_quantity, tshirt_size_preference')
-              .eq('email', impersonatedEmail);
-
-            if (volunteersError) {
-              console.error("Error fetching volunteers by email:", volunteersError);
-              throw new Error(`Error fetching volunteers: ${volunteersError.message}`);
-            }
-
-            if (!volunteers || volunteers.length === 0) {
-              console.warn("No volunteers found with email:", impersonatedEmail);
-              setVolunteerData(null);
-              setFamilyMembers([]);
-              toast({
-                title: "No Volunteer Record",
-                description: "No volunteer record found for this email. Please contact an administrator.",
-                variant: "destructive",
-              });
-            } else {
-              console.log(`Found ${volunteers.length} volunteers with email: ${impersonatedEmail}`);
-
-              // Find the volunteer that matches the current profile ID
-              const currentVolunteer = volunteers.find(v => v.profile_id === currentProfileId);
-
-              if (currentVolunteer) {
-                console.log("Found volunteer matching profile ID:", currentVolunteer);
-                setVolunteerData(currentVolunteer);
-
-                // Set family members (excluding the current volunteer)
-                const family = volunteers.filter(v => v.id !== currentVolunteer.id);
-                setFamilyMembers(family);
-                console.log("Family members:", family.length);
-
-                // Show success notification
-                toast({
-                  title: "Volunteer Data Loaded",
-                  description: `Welcome ${currentVolunteer.first_name}! ${family.length > 0 ? `Found ${family.length} family member(s).` : ''}`,
-                });
-              } else {
-                // If no volunteer matches the profile ID, use the first one as the primary
-                console.log("No volunteer matches profile ID, using first volunteer:", volunteers[0]);
-                setVolunteerData(volunteers[0]);
-
-                // Set family members (excluding the first volunteer)
-                const family = volunteers.slice(1);
-                setFamilyMembers(family);
-                console.log("Family members:", family.length);
-
-                // Show notification about fallback
-                toast({
-                  title: "Volunteer Data Loaded",
-                  description: `Using ${volunteers[0].first_name} as primary volunteer. ${family.length > 0 ? `Found ${family.length} family member(s).` : ''}`,
-                });
-              }
-            }
-          } catch (error) {
-            console.error("Error in volunteer data fetching:", error);
-            // Set empty data if there's an error
+          if (!volunteers || volunteers.length === 0) {
             setVolunteerData(null);
             setFamilyMembers([]);
-            setError(error instanceof Error ? error.message : "An unknown error occurred");
+            toast({
+              title: "No Volunteer Record",
+              description: "No volunteer record found for your profile. Please contact an administrator.",
+              variant: "destructive",
+            });
+          } else {
+            // Use the first volunteer as primary
+            setVolunteerData(volunteers[0]);
+            
+            // Set family members (excluding the first volunteer)
+            const family = volunteers.slice(1);
+            setFamilyMembers(family);
+
+            // Show success notification
+            toast({
+              title: "Volunteer Data Loaded",
+              description: `Welcome ${volunteers[0].first_name}! ${family.length > 0 ? `Found ${family.length} family member(s).` : ''}`,
+            });
           }
         }
-
-
 
         // Fetch current event
         const { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select('id, default_tshirt_allocation') // Fetch default_tshirt_allocation
-          .eq('id', currentEventId) // Use state currentEventId
+          .select('id, default_tshirt_allocation')
+          .eq('id', currentEventId)
           .single();
 
         if (eventError) {
           console.warn("Error fetching event settings:", eventError);
-          // Potentially set a default event setting if needed, or handle error
-          setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 }); // Fallback default
+          setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 });
         } else if (eventData) {
           setEventSettings(eventData as { id: number; default_tshirt_allocation: number });
-          // setCurrentEventId(eventData.id); // Not needed if already set or using default
         } else {
-          // No event data found, use fallback
-           setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 });
+          setEventSettings({ id: currentEventId, default_tshirt_allocation: 1 });
         }
       } catch (err) {
         console.error("Error fetching user data or event settings:", err);
@@ -336,7 +275,7 @@ export default function TShirtsPage() {
     }
 
     fetchUserData();
-  }, [supabase, isAdmin]);
+  }, [supabase]);
 
   if (loading || !supabase) {
     return (

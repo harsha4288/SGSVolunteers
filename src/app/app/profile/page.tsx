@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client-ssr";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,59 +29,37 @@ export default function ProfilePage() {
       setError(null);
 
       try {
-        // Check for impersonation first
-        const impersonatedProfileId = localStorage.getItem('impersonatedProfileId');
-
-        if (impersonatedProfileId) {
-          // If impersonating, use that profile ID
-          setProfileId(impersonatedProfileId);
-
-          // Fetch volunteer data associated with this impersonated profile
-          const { data: volunteers, error: volunteersError } = await supabase
-            .from('volunteers')
-            .select('*')
-            .eq('profile_id', impersonatedProfileId)
-            .single();
-
-          if (volunteersError && volunteersError.code !== 'PGRST116') {
-            throw volunteersError;
-          }
-
-          setVolunteerData(volunteers || null);
-        } else {
-          // Not impersonating, get the current user's profile
-          const { data: { user } } = await supabase.auth.getUser();
-
-          if (!user) {
-            throw new Error("No user found. Please log in again.");
-          }
-
-          // Get the profile ID for this user
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('auth_user_id', user.id)
-            .single();
-
-          if (profileError) {
-            throw new Error("Could not find your profile. Please contact an administrator.");
-          }
-
-          setProfileId(profile.id);
-
-          // Fetch volunteer data associated with this profile
-          const { data: volunteers, error: volunteersError } = await supabase
-            .from('volunteers')
-            .select('*')
-            .eq('profile_id', profile.id)
-            .single();
-
-          if (volunteersError && volunteersError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-            throw volunteersError;
-          }
-
-          setVolunteerData(volunteers || null);
+        // Get current authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          throw new Error("Not authenticated. Please log in again.");
         }
+
+        // Get user's profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error("Profile not found. Please contact an administrator.");
+        }
+
+        setProfileId(profile.id);
+
+        // Fetch volunteer data associated with this profile
+        const { data: volunteers, error: volunteersError } = await supabase
+          .from('volunteers')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .single();
+
+        if (volunteersError && volunteersError.code !== 'PGRST116') {
+          throw volunteersError;
+        }
+
+        setVolunteerData(volunteers || null);
       } catch (err) {
         console.error("Error fetching user profile:", err);
         setError(err instanceof Error ? err.message : "An unknown error occurred");

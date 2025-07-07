@@ -13,7 +13,7 @@ import { RequirementsByLocationView } from './components/views/requirements-by-l
 import { AssignmentsVsAttendanceView } from './components/views/assignments-vs-attendance-view';
 
 import type { ReportFilters as ReportFiltersType } from './types';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = React.useState<string>('requirements_vs_assignments');

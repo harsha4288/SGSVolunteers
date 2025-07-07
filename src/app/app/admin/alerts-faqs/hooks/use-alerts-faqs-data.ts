@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 import { useToast } from '@/hooks/use-toast';
 import { createAlertsFaqsService } from '../services/alerts-faqs-service';
 import type { Alert, FAQ, Timeslot } from '../types';

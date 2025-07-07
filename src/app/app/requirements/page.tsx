@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/lib/supabase/client'; // Import createClient
+import { createClient } from '@/lib/supabase/client-ssr'; // Import createClient
 import type { Database } from '@/lib/types/supabase'; // Import Database type
 
 import { useRequirementsData } from './hooks/use-requirements-data';
@@ -31,24 +31,38 @@ export default function RequirementsPage() {
 
   React.useEffect(() => {
     const getProfileAndEvent = async () => {
-      // Get profileId
-      const impersonatedId = localStorage.getItem('impersonatedProfileId');
-      if (impersonatedId) {
-        setProfileId(impersonatedId);
-      } else {
-        const { data: { user } = {} } = await supabase.auth.getUser();
-        if (user) {
-          setProfileId(user.id);
+      try {
+        // Get current authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Authentication error:', userError);
+          return;
         }
-      }
 
-      // Get selectedEvent
-      const storedEventId = localStorage.getItem("selectedEventId");
-      if (storedEventId) {
-        setSelectedEvent(storedEventId);
-      } else {
-        // Default to event ID "1" if no stored event
-        setSelectedEvent("1");
+        // Get user's profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('Profile error:', profileError);
+          return;
+        }
+
+        setProfileId(profile.id);
+
+        // Get selectedEvent
+        const storedEventId = localStorage.getItem("selectedEventId");
+        if (storedEventId) {
+          setSelectedEvent(storedEventId);
+        } else {
+          // Default to event ID "1" if no stored event
+          setSelectedEvent("1");
+        }
+      } catch (error) {
+        console.error('Error initializing profile:', error);
       }
     };
     getProfileAndEvent();

@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client-ssr';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/lib/types/supabase'; // For Supabase client type
 
