@@ -7,6 +7,7 @@ import {
   addRoleToUser,
   removeRoleFromUser,
   checkAdminAccess,
+  createNewUser,
   type UserWithRoles,
   type Role
 } from './actions';
@@ -46,7 +47,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,6 +66,17 @@ export default function UserManagementPage() {
   const [pageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    email: '',
+    displayName: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    gender: '',
+    location: ''
+  });
+  const [createUserLoading, setCreateUserLoading] = useState(false);
   const { toast } = useToast();
 
   // Check if the current user has admin access
@@ -200,6 +213,66 @@ export default function UserManagementPage() {
       console.error(err);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Handle creating a new user
+  const handleCreateUser = async () => {
+    if (!newUserData.email || !newUserData.firstName || !newUserData.lastName) {
+      toast({
+        title: "Missing required fields",
+        description: "Please fill in email, first name, and last name",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCreateUserLoading(true);
+    try {
+      const { success, error } = await createNewUser(newUserData);
+
+      if (success) {
+        toast({
+          title: "User created successfully",
+          description: "The new user has been added to the system",
+        });
+
+        // Reset form
+        setNewUserData({
+          email: '',
+          displayName: '',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          gender: '',
+          location: ''
+        });
+        setShowAddUserForm(false);
+
+        // Refresh user list
+        const { data: usersData, totalCount, error: usersError } =
+          await fetchUsersWithRoles(currentPage, pageSize, debouncedSearchQuery);
+
+        if (!usersError) {
+          setUsers(usersData || []);
+          setTotalUsers(totalCount);
+        }
+      } else {
+        toast({
+          title: "Error creating user",
+          description: error || "Failed to create user",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while creating the user",
+        variant: "destructive"
+      });
+      console.error(err);
+    } finally {
+      setCreateUserLoading(false);
     }
   };
 
@@ -341,6 +414,13 @@ export default function UserManagementPage() {
                 </Button>
               )}
             </div>
+            <Button
+              onClick={() => setShowAddUserForm(true)}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add New User
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -350,6 +430,121 @@ export default function UserManagementPage() {
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
+          )}
+
+          {showAddUserForm && (
+            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+              <h3 className="text-lg font-semibold mb-4">Add New User</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-1">
+                    Email *
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserData.email}
+                    onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="displayName" className="block text-sm font-medium mb-1">
+                    Display Name
+                  </label>
+                  <Input
+                    id="displayName"
+                    placeholder="John Doe"
+                    value={newUserData.displayName}
+                    onChange={(e) => setNewUserData({...newUserData, displayName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium mb-1">
+                    First Name *
+                  </label>
+                  <Input
+                    id="firstName"
+                    placeholder="John"
+                    value={newUserData.firstName}
+                    onChange={(e) => setNewUserData({...newUserData, firstName: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium mb-1">
+                    Last Name *
+                  </label>
+                  <Input
+                    id="lastName"
+                    placeholder="Doe"
+                    value={newUserData.lastName}
+                    onChange={(e) => setNewUserData({...newUserData, lastName: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium mb-1">
+                    Phone
+                  </label>
+                  <Input
+                    id="phone"
+                    placeholder="+1 (555) 123-4567"
+                    value={newUserData.phone}
+                    onChange={(e) => setNewUserData({...newUserData, phone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium mb-1">
+                    Gender
+                  </label>
+                  <Select onValueChange={(value) => setNewUserData({...newUserData, gender: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <label htmlFor="location" className="block text-sm font-medium mb-1">
+                    Location
+                  </label>
+                  <Input
+                    id="location"
+                    placeholder="City, State"
+                    value={newUserData.location}
+                    onChange={(e) => setNewUserData({...newUserData, location: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddUserForm(false)}
+                  disabled={createUserLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateUser}
+                  disabled={createUserLoading}
+                >
+                  {createUserLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create User'
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
 
           {loading ? (

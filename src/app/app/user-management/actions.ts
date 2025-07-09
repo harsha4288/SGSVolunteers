@@ -262,6 +262,122 @@ export async function addRoleToUser(profileId: string, roleId: number) {
   }
 }
 
+// Function to create a new user profile and volunteer record
+export async function createNewUser(userData: {
+  email: string;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  gender: string;
+  location: string;
+}) {
+  try {
+    console.log('Creating new user:', userData);
+
+    const { isAdmin, error } = await checkAdminAccess();
+
+    if (!isAdmin) {
+      return { success: false, error: error || 'Unauthorized: Admin access required' };
+    }
+
+    const supabase = await createSupabaseServerActionClient();
+
+    // Check if user with this email already exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', userData.email)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error checking existing user:', checkError);
+      return { success: false, error: `Error checking existing user: ${checkError.message}` };
+    }
+
+    if (existingProfile) {
+      return { success: false, error: 'A user with this email already exists' };
+    }
+
+    // Create profile record
+    const { data: newProfile, error: profileError } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          email: userData.email,
+          display_name: userData.displayName || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError);
+      return { success: false, error: `Error creating profile: ${profileError.message}` };
+    }
+
+    // Create volunteer record
+    const { error: volunteerError } = await supabase
+      .from('volunteers')
+      .insert([
+        {
+          profile_id: newProfile.id,
+          email: userData.email,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone || null,
+          gender: userData.gender || null,
+          location: userData.location || null,
+          requested_tshirt_quantity: 1, // Default T-shirt quantity
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]);
+
+    if (volunteerError) {
+      console.error('Error creating volunteer record:', volunteerError);
+      // If volunteer creation fails, we should clean up the profile
+      await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', newProfile.id);
+      return { success: false, error: `Error creating volunteer record: ${volunteerError.message}` };
+    }
+
+    // Add default Volunteer role (ID: 3)
+    const { error: roleError } = await supabase
+      .from('profile_roles')
+      .insert([
+        {
+          profile_id: newProfile.id,
+          role_id: 3, // Volunteer role
+          assigned_at: new Date().toISOString()
+        }
+      ]);
+
+    if (roleError) {
+      console.error('Error assigning default role:', roleError);
+      // Don't fail the entire operation if role assignment fails
+      // The user can be assigned roles later
+    }
+
+    console.log('User created successfully:', newProfile.id);
+
+    // Revalidate the path to refresh the data
+    revalidatePath('/app/user-management');
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Unexpected error in createNewUser:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error creating user'
+    };
+  }
+}
+
 // Function to remove a role from a user
 export async function removeRoleFromUser(profileId: string, roleId: number) {
   const { isAdmin, error } = await checkAdminAccess();
