@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const SITE_CONFIG = {
-  name: "VolunteerVerse",
+  name: "Guru Pūrṇimā & Gītā Utsav Sēvā",
   description: "Volunteer Data Management Platform",
   url: "http://localhost:3000", // Replace with your actual URL
   ogImage: "http://localhost:3000/og.jpg", // Replace with your actual OG image URL

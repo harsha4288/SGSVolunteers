@@ -17,13 +17,14 @@ password = "W6gTwafhvfJ8.4?" # Replace with your actual password
 conn_str = f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
 # --- FILE SETTINGS ---
-EXCEL_PATH = "GoogleFormResponsesData.xlsx"
+EXCEL_PATH = "2025.xlsx"
 SHEET_NAME = "Report Data" # As confirmed
+
 
 # --- EVENT CONFIGURATION ---
 EVENT_YEAR = 2025
 EVENT_DEFAULT_MONTH = 7 # July
-DEFAULT_EVENT_NAME = 'Gita Mahayajna 2025'
+DEFAULT_EVENT_NAME = 'Guru Pournami Gita Utsav 2025'
 DEFAULT_EVENT_START_DATE = date(EVENT_YEAR, EVENT_DEFAULT_MONTH, 8)
 DEFAULT_EVENT_END_DATE = date(EVENT_YEAR, EVENT_DEFAULT_MONTH, 12)
 

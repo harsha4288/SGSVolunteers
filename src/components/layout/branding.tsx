@@ -40,7 +40,7 @@ export function Branding({
           "font-semibold text-primary tracking-tight",
           isCompact ? "text-sm" : "text-lg"
         )}>
-          VolunteerVerse
+          Guru Pūrṇimā & Gītā Utsav Sēvā
         </h1>
         {showDescription && (
           <p className={cn(
@@ -99,7 +99,7 @@ export function SidebarBranding({
       {/* Text - hidden when sidebar is collapsed */}
       <div className="flex flex-col group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:opacity-0 transition-opacity duration-200">
         <h1 className="text-lg font-semibold text-primary tracking-tight">
-          VolunteerVerse
+          Guru Pūrṇimā & Gītā Utsav Sēvā
         </h1>
       </div>
     </Link>

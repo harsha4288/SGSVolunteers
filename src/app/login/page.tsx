@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Handshake, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { Branding } from '@/components/layout/branding';
 import { useOTPAuth } from '@/hooks/use-otp-auth';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { EmailInputForm } from './components/EmailInputForm';
@@ -77,11 +78,15 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Handshake className="h-8 w-8" />
+          <div className="mx-auto mb-4">
+            <Branding 
+              className="justify-center" 
+              showDescription={true}
+              variant="full"
+            />
           </div>
-          <CardTitle className="text-3xl font-bold tracking-tight">
-            Welcome to {process.env.NEXT_PUBLIC_APP_NAME || "VolunteerVerse"}
+          <CardTitle className="text-2xl font-bold tracking-tight mt-4">
+            Welcome Back
           </CardTitle>
           <CardDescription className="text-md">
             Enter your email to receive a verification code

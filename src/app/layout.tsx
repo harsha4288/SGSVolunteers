@@ -39,7 +39,7 @@ export default function RootLayout({
         )}
       >
         <ThemeProvider
-          storageKey="volunteerverse-theme"
+          storageKey="guru-purnima-gita-utsav-seva-theme"
           defaultTheme="system"
         >
           <DateOverrideProvider>

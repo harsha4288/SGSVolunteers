@@ -31,7 +31,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 export const ThemeProvider: FC<ThemeProviderProps> = ({
   children,
   defaultTheme = "system",
-  storageKey = "volunteerverse-theme", // Updated storageKey
+  storageKey = "guru-purnima-gita-utsav-seva-theme", // Updated storageKey
   ...props
 }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
